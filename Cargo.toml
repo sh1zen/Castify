@@ -6,3 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+xcap = "0.0.10"
+# gstreamer = "0.22.7"
+tokio = { version = "1.39.2", features = ["full"] }
+rdev = { version ="0.5.3", features = ["unstable_grab"]}
+chrono = "0.4.38"
