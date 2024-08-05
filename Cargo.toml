@@ -8,11 +8,14 @@ edition = "2021"
 [dependencies]
 xcap = "0.0.10"
 tokio = { version = "1", features = ["full"] }
-#ffmpeg-next = "4.4"
 eframe = "0.16"
 egui = "0.16"
 gstreamer = "0.19.1" # Verifica la versione più recente su crates.io
 gstreamer-video = "0.19.1"
+gstreamer-app = "0.19.1"
 #gstreamer-audio = "0.19.1"
 gstreamer-pbutils = "0.19.1"
+image = "0.25.2"
+glib = "0.10.0"
+anyhow = "1.0.86"
 
