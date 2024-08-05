@@ -11,3 +11,5 @@ xcap = "0.0.10"
 tokio = { version = "1.39.2", features = ["full"] }
 rdev = { version ="0.5.3", features = ["unstable_grab"]}
 chrono = "0.4.38"
+mdns-sd = "0.11.1"
+local-ip-address = "0.6.1"

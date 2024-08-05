@@ -1,6 +1,5 @@
-use xcap::{Monitor, Window};
 use chrono::{DateTime, Local};
-
+use xcap::Monitor;
 
 pub struct Capture {
     x: i32,
@@ -26,7 +25,7 @@ impl Capture {
     pub fn screen(&self, monitor_n: usize) {
         let monitors = Monitor::all().unwrap();
 
-        if (monitor_n > 0) {
+        if monitor_n > 0 {
             let monitor = &monitors[monitor_n];
             self.frame(monitor)
         } else {
