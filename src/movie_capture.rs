@@ -29,8 +29,20 @@ pub fn create_video_from_screenshots() {
 
     // Configura il filesrc per leggere i file dalla directory degli screenshot
     filesrc.set_property("location", &format!("{}/monitor-%05d.png", screenshot_dir.display()));
-    filesrc.set_property("index", 0);
-    filesrc.set_property("caps", &gst::Caps::new_simple("image/png", &[]));
+    //filesrc.set_property("index", 0);
+
+    //filesrc.set_property("stop-index", -1);  // Leggi tutti i file disponibili (DEBUG)
+
+
+   // filesrc.set_property("caps", &gst::Caps::new_simple("image/png", &[]));
+
+    // Crea e imposta i caps con il framerate
+    let caps = gst::Caps::builder("image/png")
+        .field("framerate", &gst::Fraction::new(24, 1))  // 2 frame al secondo
+        .build();
+
+    // Applica i caps al filesrc_capsfilter
+    filesrc.set_property("caps", &caps);
 
     // Imposta il percorso del file di output
     filesink.set_property("location", &output_file);
