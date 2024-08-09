@@ -3,7 +3,7 @@ use gstreamer::prelude::*;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-pub fn create_video_from_screenshots(width: u32, height: u32) {
+pub fn create_video_from_screenshots(width: u32, height: u32, num_images: u32, interval_ms: u32) {
     // Inizializza GStreamer
     gst::init().unwrap();
 
@@ -41,15 +41,15 @@ pub fn create_video_from_screenshots(width: u32, height: u32) {
 
     // Configura il filesrc per leggere i file dalla directory degli screenshot
     filesrc.set_property("location", &format!("{}/monitor-%05d.png", screenshot_dir.display()));
-    filesrc.set_property("start-index", &0i32); // Cambiato a i32
-    filesrc.set_property("stop-index", &-1i32); // Cambiato a i32
+    filesrc.set_property("start-index", &0i32);
+    filesrc.set_property("stop-index", &(num_images as i32 - 1));
 
     // Configura i caps
     let caps = gst::Caps::builder("video/x-raw")
         .field("format", &"I420")
         .field("width", &(width as i32))
         .field("height", &(height as i32))
-        .field("framerate", &gst::Fraction::new(2, 1)) // 2 frame al secondo
+        .field("framerate", &gst::Fraction::new((1000 / interval_ms) as i32, 1)) // Frame rate in base all'intervallo
         .build();
     capsfilter.set_property("caps", &caps);
 
