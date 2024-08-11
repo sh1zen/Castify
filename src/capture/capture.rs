@@ -10,7 +10,12 @@ pub struct Capture {
 
 impl Capture {
     pub fn new() -> Capture {
-        Capture { x: 0, y: 0, height: 0, width: 0 }
+        Capture {
+            x: 0,
+            y: 0,
+            height: 0,
+            width: 0,
+        }
     }
 
     pub fn resize(&mut self, x: i32, y: i32, width: i32, height: i32) {
@@ -42,11 +47,14 @@ impl Capture {
         let image = monitor.capture_image().unwrap();
 
         image
-            .save(format!("target/monitor-{}-{}.png", normalized(monitor.name()), now.timestamp().to_string()))
+            .save(format!(
+                "target/monitor-{}-{}.png",
+                normalized(monitor.name()),
+                now.timestamp().to_string()
+            ))
             .unwrap();
     }
 }
-
 
 fn normalized(filename: &str) -> String {
     filename

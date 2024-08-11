@@ -1,21 +1,21 @@
-use std::process::exit;
-use rdev::{Event, EventType, Key};
 use crate::capture;
+use rdev::{Event, EventType, Key};
+use std::process::exit;
 
 pub struct Events {
     pause_resume: Key,
     end_session: Key,
-    blank_screen: Key
+    blank_screen: Key,
 }
 
-pub enum SREvent { // screen recording events
+pub enum SREvent {
+    // screen recording events
     PauseResume,
     EndSession,
-    BlankScreen
+    BlankScreen,
 }
 
 impl Events {
-
     pub fn init() -> Self {
         Self {
             pause_resume: Key::F10,
@@ -38,8 +38,8 @@ impl Events {
                 self.blank_screen = new_key;
                 true
             }
-            _ => { false }
-        }
+            _ => false,
+        };
     }
 
     pub fn handle(&self, event: Event) -> Option<Event> {
@@ -48,34 +48,30 @@ impl Events {
         // Match on the event type
         match event.event_type {
             // If the event is a KeyPress and the key is F10
-
-            EventType::KeyPress(key) => {
-                self.handle_key_press(key, event)
-            }
-            _ => Some(event)  // Return Some(event) to propagate the event
+            EventType::KeyPress(key) => self.handle_key_press(key, event),
+            _ => Some(event), // Return Some(event) to propagate the event
         }
     }
 
     fn handle_key_press(&self, key: Key, event: Event) -> Option<Event> {
-
         if key == self.pause_resume {
             // Call function to capture screens and save them
             let vcap = capture::Capture::new();
             vcap.screen(0);
-            return None  // Return None to consume the event
+            return None; // Return None to consume the event
         }
 
         if key == self.end_session {
             // todo end session
             exit(0);
-            return None
+            return None;
         }
 
         if key == self.blank_screen {
             // todo blank_screen
-            return None
+            return None;
         }
 
-        return Some(event)
+        return Some(event);
     }
 }
