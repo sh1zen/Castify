@@ -1,12 +1,14 @@
 use iced::keyboard::Key;
 
-use crate::gui::components::start;
+use crate::gui::components::{popup, start};
 
 #[derive(Debug, Clone)]
 /// Messages types that permit to react to application interactions/subscriptions
 pub enum Message {
     /// the app mode caster / receiver
     Mode(start::Message),
+    /// A collector of all popups messages
+    PopupMessage(popup::Interaction),
     ///
     KeyPressed(Key),
     /// Ignore
@@ -39,4 +41,6 @@ pub enum Message {
     CtrlTPressed,
     /// Open the supplied web page
     OpenWebPage(String),
+    /// Connection Error
+    ConnectionError,
 }

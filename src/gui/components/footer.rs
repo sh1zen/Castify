@@ -10,6 +10,7 @@ use iced::alignment::{Horizontal, Vertical};
 use iced::widget::text::LineHeight;
 use iced::widget::{button, Button, Container, Row};
 use iced::{Alignment, Length};
+use local_ip_address::local_ip;
 use crate::gui::theme::styles::buttons::ButtonType;
 
 pub fn footer() -> Container<'static, Message, StyleType> {
@@ -22,10 +23,15 @@ pub fn footer() -> Container<'static, Message, StyleType> {
         .align_items(Alignment::Center)
         .height(Length::Fill)
         .width(Length::Fill)
+        .spacing(5)
         .push(
             Text::new(format!("{APP_NAME} {APP_VERSION}"))
                 .size(FONT_SIZE_FOOTER)
-        );
+        )
+        .push( match local_ip() {
+            Ok(ip) => Text::new(ip.to_string()).size(FONT_SIZE_FOOTER + 1.0),
+            Err(_) => Text::new(""),
+        });
 
     let footer_row = Row::new()
         .padding([0, 10])

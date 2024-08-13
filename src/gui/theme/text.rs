@@ -1,23 +1,20 @@
+use crate::gui::theme::styles::csx::StyleType;
+use crate::gui::types::messages::Message;
 use iced::widget::text::Appearance;
 use iced::widget::{Column, Text};
 use iced::{Color, Font};
-use crate::gui::types::messages::Message;
-use crate::gui::theme::styles::csx::StyleType;
 
 #[derive(Clone, Copy, Default, PartialEq)]
 pub enum TextType {
     #[default]
     Standard,
-    Incoming,
-    Outgoing,
+    Secondary,
     Title,
     Subtitle,
     Danger,
-    Sponsor,
-    Starred,
+    White,
 }
 
-/// Returns a formatted caption followed by subtitle, new line, tab, and desc
 impl TextType {
     pub fn highlighted_subtitle_with_desc(
         subtitle: &str,
@@ -71,11 +68,9 @@ pub fn highlight(style: StyleType, element: TextType) -> Color {
                 a: 1.0,
             }
         }
-        TextType::Incoming => colors.secondary,
-        TextType::Outgoing => colors.alert,
+        TextType::Secondary => colors.secondary,
         TextType::Danger => Color::from_rgb(0.8, 0.15, 0.15),
-        TextType::Sponsor => Color::from_rgb(1.0, 0.3, 0.5),
         TextType::Standard => colors.text_body,
-        TextType::Starred => colors.starred,
+        TextType::White => colors.starred,
     }
 }

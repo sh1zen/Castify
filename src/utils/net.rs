@@ -1,13 +1,14 @@
+use crate::gui::resource::MAX_PACKAGES_FAIL;
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use socket2::TcpKeepalive;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::str;
 use std::sync::Arc;
 use std::time::Duration;
-use std::str;
 use tokio::sync::Mutex;
-use crate::gui::resource::MAX_PACKAGES_FAIL;
+use crate::gui::types::messages::Message;
 
 const SERVICE_NAME: &'static str = "_screen_caster._tcp.local.";
 const SERVICE_PORT: u16 = 31413;
@@ -51,24 +52,23 @@ fn find_caster() -> Option<SocketAddr> {
     return addr;
 }
 
-pub async fn receiver() {
+pub async fn receiver(mut socket_addr: Option<SocketAddr>) -> Message {
+
     let mut stream;
     let mut buffer = [0; 1024];
 
-    loop {
-        let socket_addr = find_caster().unwrap();
+    if socket_addr.is_none() {
+        socket_addr = find_caster();
+    }
 
-        println!("Caster found at: {:?}", socket_addr);
+    println!("Caster found at: {:?}", socket_addr);
 
-        match TcpStream::connect(socket_addr) {
-            Ok(s) => {
-                stream = s;
-                break;
-            }
-            Err(_) => {
-                println!("Connection error, waiting 5 seconds...");
-                tokio::time::sleep(Duration::from_secs(5)).await;
-            }
+    match TcpStream::connect(socket_addr.unwrap()) {
+        Ok(s) => {
+            stream = s;
+        }
+        Err(_) => {
+            return Message::ConnectionError;
         }
     }
 
@@ -81,10 +81,10 @@ pub async fn receiver() {
             Err(e) => println!("Failed to convert to string: {:?}", e),
         }
     }
+    Message::Ignore
 }
 
 pub async fn caster(rx: Option<tokio::sync::mpsc::Receiver<String>>) {
-
     let addr = SocketAddr::new("0.0.0.0".parse().unwrap(), SERVICE_PORT);
     let listener = TcpListener::bind(addr).unwrap();
 
@@ -112,7 +112,6 @@ pub async fn caster(rx: Option<tokio::sync::mpsc::Receiver<String>>) {
     let streams_clone = streams.clone();
     tokio::spawn(async move {
         while let Some(buf) = urx.recv().await {
-
             println!("Transmitting {:?}", &buf);
 
             let mut streams = streams_clone.lock().await;
@@ -148,7 +147,7 @@ pub async fn caster(rx: Option<tokio::sync::mpsc::Receiver<String>>) {
             set_keep_alive(&stream);
             stream.write_all(b"Hello Receiver\r\n").expect("Error while sending data.");
 
-            streams.lock().await.push(StreamEntry {stream :stream, error_count: 0});
+            streams.lock().await.push(StreamEntry { stream: stream, error_count: 0 });
         }
     });
 }

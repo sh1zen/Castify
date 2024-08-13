@@ -6,7 +6,6 @@ use crate::gui::theme::styles::csx::StyleType;
 pub enum ContainerType {
     #[default]
     Standard,
-    BorderedRound,
     Tooltip,
     Badge,
     Modal,
@@ -28,10 +27,6 @@ impl iced::widget::container::StyleSheet for StyleType {
                     Background::Color(colors.secondary)
                 }
                 ContainerType::Tooltip => Background::Color(colors.primary),
-                ContainerType::BorderedRound => Background::Color(Color {
-                    a: 0.2,
-                    ..colors.primary
-                }),
                 ContainerType::Badge => Background::Color(Color {
                     a: 0.8,
                     ..colors.secondary
@@ -45,10 +40,7 @@ impl iced::widget::container::StyleSheet for StyleType {
             }),
             border: Border {
                 radius: match style {
-                    ContainerType::BorderedRound => 15.0.into(),
-                    ContainerType::Modal => {
-                        [0.0, 0.0, 15.0, 15.0].into()
-                    }
+                    ContainerType::Modal | ContainerType::Standard => 15.0.into(),
                     ContainerType::Tooltip => 7.0.into(),
                     ContainerType::Badge | ContainerType::Highlighted => 100.0.into(),
                     _ => 0.0.into(),
@@ -58,7 +50,6 @@ impl iced::widget::container::StyleSheet for StyleType {
                     | ContainerType::Modal
                     | ContainerType::Highlighted => 0.0,
                     ContainerType::Tooltip => 1.0,
-                    ContainerType::BorderedRound => 4.0,
                     _ => 2.0,
                 },
                 color: match style {

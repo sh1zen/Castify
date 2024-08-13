@@ -1,13 +1,14 @@
+use std::collections::HashMap;
 use std::thread::Thread;
 
-use iced::{Subscription, window};
-use iced::Event::{Keyboard, Window};
-use iced::keyboard::{Event, Key, Modifiers};
+use crate::gui::components::popup::PopupType;
+use crate::gui::types::messages::Message;
 use iced::keyboard::key::Named;
+use iced::keyboard::{Event, Key, Modifiers};
 use iced::mouse::Event::ButtonPressed;
 use iced::window::Id;
-
-use crate::gui::types::messages::Message;
+use iced::Event::{Keyboard, Window};
+use iced::{window, Subscription};
 
 pub enum Page {
     Home,
@@ -16,9 +17,12 @@ pub enum Page {
 }
 
 pub struct App {
+    /// whether this app needs act as caster or receiver
     caster: bool,
     pub(crate) page: Page,
     threads: Vec<Thread>,
+    pub(crate) show_popup: Option<PopupType>,
+    pub(crate) popup_msg: HashMap<PopupType, String>,
 }
 
 impl App {
@@ -27,6 +31,8 @@ impl App {
             caster: false,
             page: Page::Home,
             threads: vec![],
+            show_popup: None,
+            popup_msg: HashMap::new(),
         }
     }
 
@@ -46,7 +52,10 @@ impl App {
                 },
                 Modifiers::SHIFT => match key {
                     //Key::Named(Named::Tab) => Some(Message::SwitchPage(false)),
-                    _ => { println!("ciao"); None },
+                    _ => {
+                        println!("ciao");
+                        None
+                    }
                 },
                 NO_MODIFIER => match key {
                     Key::Named(Named::Enter) => Some(Message::ReturnKeyPressed),

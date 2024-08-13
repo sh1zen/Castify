@@ -39,7 +39,8 @@ pub const FONT_SIZE_FOOTER: f32 = 11.0;
 
 // border styles
 pub const BORDER_WIDTH: f32 = 0.0;
-pub const BORDER_BUTTON_RADIUS: f32 = 8.0;
+pub const COMPONENT_BORDER_RADIUS: f32 = 8.0;
+pub const BORDER_ALPHA:f32 = 0.0;
 
 // button
 pub const BUTTON_ALPHA: f32 = 0.7;
