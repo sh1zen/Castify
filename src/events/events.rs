@@ -25,7 +25,7 @@ impl Events {
     }
 
     pub fn update(&mut self, event: SREvent, new_key: Key) -> bool {
-        return match event {
+        match event {
             SREvent::PauseResume => {
                 self.pause_resume = new_key;
                 true
@@ -39,7 +39,7 @@ impl Events {
                 true
             }
             _ => false,
-        };
+        }
     }
 
     pub fn handle(&self, event: Event) -> Option<Event> {

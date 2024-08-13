@@ -1,13 +1,13 @@
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
-use std::io::{stdin, Read, Write};
-use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::time::{Duration};
-use std::{io, str, thread};
-use std::sync::Arc;
 use socket2::TcpKeepalive;
-use tokio::sync::broadcast::{channel, Sender, Receiver};
+use std::io::{Read, Write};
+use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::sync::Arc;
+use std::time::Duration;
+use std::str;
 use tokio::sync::Mutex;
+use crate::gui::resource::MAX_PACKAGES_FAIL;
 
 const SERVICE_NAME: &'static str = "_screen_caster._tcp.local.";
 const SERVICE_PORT: u16 = 31413;
@@ -15,7 +15,12 @@ const SERVICE_PORT: u16 = 31413;
 pub enum SendingData {
     Transmit,
     Pause,
-    Stop
+    Stop,
+}
+
+struct StreamEntry {
+    stream: TcpStream,
+    error_count: u8,
 }
 
 fn find_caster() -> Option<SocketAddr> {
@@ -78,17 +83,12 @@ pub async fn receiver() {
     }
 }
 
-pub async fn caster(mut rx: Option<Receiver<String>>) {
+pub async fn caster(rx: Option<tokio::sync::mpsc::Receiver<String>>) {
 
     let addr = SocketAddr::new("0.0.0.0".parse().unwrap(), SERVICE_PORT);
+    let listener = TcpListener::bind(addr).unwrap();
 
-    let mut connection_listener = TcpListener::bind(addr).unwrap();
-    let mut handles = vec![];
-
-    // Create a daemon
     let mdns = ServiceDaemon::new().expect("Failed to create daemon");
-
-    // Create a service info.
     let ip = local_ip().unwrap();
     let host_name = String::from(ip.to_string()) + ".local.";
     let properties = [("screen_caster", SERVICE_PORT)];
@@ -102,56 +102,63 @@ pub async fn caster(mut rx: Option<Receiver<String>>) {
         &properties[..],
     ).unwrap();
 
-    // Register with the daemon, which publishes the service.
     mdns.register(my_service).expect("Failed to register our service");
 
     println!("Caster running and registered on mDNS");
 
-    let urx = rx.unwrap();
+    let streams: Arc<Mutex<Vec<StreamEntry>>> = Arc::new(Mutex::new(Vec::new()));
+    let mut urx = rx.unwrap();
 
-    for stream in connection_listener.incoming() {
+    let streams_clone = streams.clone();
+    tokio::spawn(async move {
+        while let Some(buf) = urx.recv().await {
 
-        println!("---- Connection established! N° {:?} ---- ", handles.len());
+            println!("Transmitting {:?}", &buf);
 
-        let mut urx = urx.resubscribe();
+            let mut streams = streams_clone.lock().await;
+            let mut i = 0;
 
-        // new thread for each connection
-        let handle = thread::spawn(|| async move {
+            while i < streams.len() {
+                let entry = &mut streams[i];
+                match entry.stream.write_all((&buf).as_ref()) {
+                    Ok(_) => {
+                        entry.error_count = 0;
+                        i += 1;
+                    }
+                    Err(_) => {
+                        entry.error_count += 1;
+                        println!("Receiver {} has shutdown connection.", i);
 
-            let mut stream = stream.unwrap();
+                        if entry.error_count >= MAX_PACKAGES_FAIL {
+                            streams.remove(i);
+                        } else {
+                            i += 1;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    tokio::spawn(async move {
+        loop {
+            let (mut stream, _addr) = listener.accept().unwrap();
+            println!("---- Connection established! N° {:?} ----", streams.lock().await.len() + 1);
 
             set_keep_alive(&stream);
+            stream.write_all(b"Hello Receiver\r\n").expect("Error while sending data.");
 
-            stream.write("Hello Receiver\r\n".as_ref()).unwrap();
-
-            while let buf = urx.recv().await {
-
-                println!("{:?}", buf);
-                // println!("{:?}", buf.unwrap());
-                stream.write(buf.unwrap().as_ref()).unwrap();
-                //thread::sleep(Duration::from_secs(1))
-            }
-
-            // continue running until forced to stop
-        });
-        handles.push(handle);
-    }
-
-    // Wait for all spawned threads to finish
-    for handle in handles {
-        handle.join().unwrap();
-    }
-
-    // Unregister the service when done (in this case never, but added for completeness)
-    mdns.shutdown().unwrap();
+            streams.lock().await.push(StreamEntry {stream :stream, error_count: 0});
+        }
+    });
 }
 
-fn set_keep_alive<'a>(stream: &'a TcpStream) {
+fn set_keep_alive(stream: &TcpStream) {
     let sock_ref = socket2::SockRef::from(stream);
 
-    let mut keepAlive = TcpKeepalive::new();
-    keepAlive = keepAlive.with_time(Duration::from_secs(20));
-    keepAlive = keepAlive.with_interval(Duration::from_secs(20));
+    let mut keep_alive = TcpKeepalive::new();
+    keep_alive = keep_alive.with_time(Duration::from_secs(20));
+    keep_alive = keep_alive.with_interval(Duration::from_secs(20));
 
-    sock_ref.set_tcp_keepalive(&keepAlive).unwrap();
+    sock_ref.set_tcp_keepalive(&keep_alive).unwrap();
 }

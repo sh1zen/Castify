@@ -4,11 +4,11 @@
 )] // hide console window on Windows in release
 
 use std::borrow::Cow;
-use std::process;
+use std::{panic, process};
 
-use iced::{Application, Font, Pixels, Sandbox, Settings, Size};
+use castgo::gui::resource::{APP_NAME_ID, FONT_SIZE_BODY, ICONS_BYTES, RALEWAY_FONT_BYTES, TEXT_FONT_FAMILY_NAME};
 use castgo::gui::types::appbase::App;
-use castgo::gui::resource::{APP_NAME_ID, TEXT_FONT_FAMILY_NAME, FONT_SIZE_BODY, ICONS_BYTES, RALEWAY_FONT_BYTES};
+use iced::{Application, Font, Pixels, Sandbox, Settings, Size};
 
 #[derive(Debug)]
 enum Mode {
@@ -16,9 +16,16 @@ enum Mode {
     Receiver,
 }
 
-
 #[tokio::main]
 async fn main() {
+
+    // kill the main thread as soon as a secondary thread panics
+    let orig_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |panic_info| {
+        // invoke the default handler and exit the process
+        orig_hook(panic_info);
+        process::exit(1);
+    }));
 
     // gracefully close the app when receiving SIGINT, SIGTERM, or SIGHUP
     ctrlc::set_handler(move || {
@@ -26,7 +33,7 @@ async fn main() {
     }).expect("Error setting Ctrl-C handler");
 
     App::run(Settings {
-        id:  Some(String::from(APP_NAME_ID)),
+        id: Some(String::from(APP_NAME_ID)),
         antialiasing: true,
         window: iced::window::Settings {
             size: Size::new(640f32, 373f32),
@@ -54,13 +61,12 @@ async fn main() {
         default_text_size: Pixels(FONT_SIZE_BODY),
     }).unwrap();
 
-/*
+    /*
     let events = events::Events::init();
 
     // Start grabbing events; handle errors if any occur
     if let Err(error) = grab(move |e| events.handle(e)) {
         println!("Error: {error:?}");
     }
-
- */
+    */
 }

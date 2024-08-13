@@ -1,10 +1,8 @@
 use std::process::exit;
-use std::thread;
 use std::time::Duration;
 
-use iced::{Application, Command, Element, executor, Executor, Sandbox, Subscription};
 use iced::widget::Column;
-use tokio::sync::broadcast;
+use iced::{executor, Application, Command, Element, Executor, Sandbox, Subscription};
 
 use crate::gui::components::client::client_page;
 use crate::gui::components::footer::footer;
@@ -37,24 +35,22 @@ impl Application for App {
                 match mode {
                     start::Message::ButtonCaster => {
                         println!("Caster pressed");
-                        let (tx, mut rx) = broadcast::channel(10);
-                        let handle = tokio::runtime::Handle::current();
+                        let (tx, rx) = tokio::sync::mpsc::channel(10);
 
                         // qui genero le immagini e le invio tramite il canale tx
-                        thread::spawn(move || {
+                        tokio::spawn(async move {
                             let mut uuid = 0;
                             loop {
-                                tx.send(format!("Hello from sender!, {}", uuid)).unwrap();
+                                tx.send(format!("Hello from sender!, {}", uuid)).await.unwrap();
                                 uuid += 1;
-                                thread::sleep(Duration::from_secs(2));
+                                tokio::time::sleep(Duration::from_secs(2)).await;
                             }
                         });
 
-                        let join_handle = handle.spawn(async move {
+                        tokio::spawn(async move {
                             crate::utils::net::caster(Some(rx)).await;
                         });
 
-                        //self.threads.lock().unwrap().push((join_handle, tx));
                         self.page = Page::Recording
                     }
                     start::Message::ButtonReceiver => {
@@ -78,7 +74,6 @@ impl Application for App {
     }
 
     fn view(&self) -> Element<Message, StyleType> {
-
         let body = match self.page {
             Page::Home => {
                 initial_page(self)

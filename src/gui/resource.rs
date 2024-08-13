@@ -1,6 +1,10 @@
 use iced::Font;
 use iced::font::{Family, Stretch, Style, Weight};
 
+// connections
+pub const MAX_PACKAGES_FAIL: u8 = 5;
+
+
 // app name
 pub const APP_VERSION: &str = "1.0.0";
 pub const APP_NAME: &str = "Screen Caster";
