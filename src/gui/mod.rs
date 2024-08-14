@@ -4,3 +4,5 @@ pub mod resource;
 pub mod theme;
 
 pub mod types;
+
+pub mod video;

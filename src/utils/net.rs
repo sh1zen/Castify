@@ -1,14 +1,18 @@
-use crate::gui::resource::{CAST_SERVICE_PORT, MAX_PACKAGES_FAIL};
+use crate::gui::resource::CAST_SERVICE_PORT;
 use crate::gui::types::messages::Message;
+use bincode::{deserialize, serialize};
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use socket2::TcpKeepalive;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::{str, thread};
+use std::str;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
+use xcap::image::RgbaImage;
 
 const SERVICE_NAME: &'static str = "_screen_caster._tcp.local.";
 
@@ -22,6 +26,15 @@ struct StreamEntry {
     stream: TcpStream,
     error_count: u8,
 }
+
+#[derive(Clone, Default, Serialize, Deserialize)]
+struct ImageData {
+    width: u32,
+    height: u32,
+    bytes: Vec<u8>,
+}
+
+const CHUNK_SIZE: usize = 10240;
 
 fn find_caster() -> Option<SocketAddr> {
     // Create a daemon
@@ -50,9 +63,8 @@ fn find_caster() -> Option<SocketAddr> {
     addr
 }
 
-pub async fn receiver(mut socket_addr: Option<SocketAddr>) -> Message {
+pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc::Sender<RgbaImage>) -> Message {
     let mut stream;
-    let mut buffer = [0; 1024];
 
     if socket_addr.is_none() {
         socket_addr = find_caster();
@@ -70,24 +82,55 @@ pub async fn receiver(mut socket_addr: Option<SocketAddr>) -> Message {
                 }
                 Err(_) => {
                     //return Message::ConnectionError;
-                    thread::sleep(Duration::from_secs(1));
+                    tokio::time::sleep(Duration::from_secs(1)).await;
                 }
             }
         }
 
         loop {
-            match stream.read(&mut buffer) {
-                Ok(bytes_read) => {
-                    let received_data = &buffer[..bytes_read];
+            let mut corrupted = false;
+            let mut length_bytes = [0; 8];
 
-                    match str::from_utf8(received_data) {
-                        Ok(message) => println!("{:?}", message.trim()),
-                        Err(e) => println!("Failed to convert to string: {:?}", e),
+            // Read the length of the image data
+            if stream.read_exact(&mut length_bytes).is_err() {
+                // If length can't be read, the stream has ended
+                return Message::ConnectionError;
+            }
+            let packet_len = usize::from_le_bytes(length_bytes);
+            let mut received: usize = 0;
+            let mut buffer = vec![0; packet_len];
+
+            // Read the image data in chunks
+            while received < packet_len {
+                let end = std::cmp::min(received + CHUNK_SIZE, packet_len);
+                if stream.read_exact(&mut buffer[received..end]).is_err() {
+                    corrupted = true;
+                    break;
+                }
+                received += end - received;
+            }
+
+            if corrupted {
+                continue;
+            }
+
+            match deserialize::<ImageData>(&*buffer) {
+                Ok(image_data) => {
+                    // Create an RgbaImage from the deserialized data
+                    match RgbaImage::from_raw(image_data.width, image_data.height, image_data.bytes) {
+                        Some(rgba_image) => {
+                            match tx.send(rgba_image).await {
+                                Err(e) => {println!("{}", e)}
+                                _ => {}
+                            }
+                        }
+                        None => {
+                            println!("Failed to reconstruct image from received data.");
+                        }
                     }
                 }
-                Err(_) => {
-                    println!("Caster maybe has disconnected.");
-                    return Message::ConnectionError;
+                Err(e) => {
+                    println!("Failed to deserialize image data: {}", e);
                 }
             }
         }
@@ -96,7 +139,7 @@ pub async fn receiver(mut socket_addr: Option<SocketAddr>) -> Message {
     Message::Ignore
 }
 
-pub async fn caster(rx: Option<tokio::sync::mpsc::Receiver<String>>) {
+pub async fn caster(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) {
     let addr = SocketAddr::new("0.0.0.0".parse().unwrap(), CAST_SERVICE_PORT);
     let listener = TcpListener::bind(addr).unwrap();
 
@@ -119,22 +162,54 @@ pub async fn caster(rx: Option<tokio::sync::mpsc::Receiver<String>>) {
     println!("Caster running and registered on mDNS");
 
     let streams: Arc<Mutex<Vec<StreamEntry>>> = Arc::new(Mutex::new(Vec::new()));
-    let mut urx = rx.unwrap();
 
     let streams_clone = streams.clone();
     tokio::spawn(async move {
-        while let Some(buf) = urx.recv().await {
-            println!("Transmitting {:?}", &buf);
+        while let Some(image) = rx.recv().await {
+            println!("Transmitting...");
 
+            let image_tx = ImageData {
+                width: image.width(),
+                height: image.height(),
+                bytes: image.into_raw(),
+            };
+
+            let serialized_tx: Vec<u8> = serialize(&image_tx).unwrap();
             let mut streams = streams_clone.lock().await;
-            let mut i = 0;
+            let mut index_stream = 0;
+            let mut offset: usize;
 
-            while i < streams.len() {
-                let entry = &mut streams[i];
-                match entry.stream.write_all((&buf).as_ref()) {
+            // Get the length of the serialized data
+            let packet_len = serialized_tx.len();
+
+            while index_stream < streams.len() {
+                let entry = &mut streams[index_stream];
+
+                // Send the length of the data first
+                if entry.stream.write_all(&packet_len.to_le_bytes().as_ref()).is_err() {
+                    continue;
+                }
+                entry.stream.flush().unwrap();
+
+                offset = 0;
+                while offset < packet_len {
+                    let end = std::cmp::min(offset + CHUNK_SIZE, packet_len);
+                    // todo handle this error
+                    if entry.stream.write_all(&(serialized_tx[offset..end]).as_ref()).is_err() {
+                        break;
+                    }
+                    offset += CHUNK_SIZE;
+                }
+                entry.stream.flush().unwrap();
+
+                index_stream += 1;
+
+                /*
+                match entry.stream.write_all(&serialized_tx.as_ref()) {
                     Ok(_) => {
                         entry.error_count = 0;
                         i += 1;
+                        entry.stream.flush().unwrap();
                     }
                     Err(_) => {
                         entry.error_count += 1;
@@ -147,6 +222,7 @@ pub async fn caster(rx: Option<tokio::sync::mpsc::Receiver<String>>) {
                         }
                     }
                 }
+                 */
             }
         }
     });
@@ -157,9 +233,9 @@ pub async fn caster(rx: Option<tokio::sync::mpsc::Receiver<String>>) {
             println!("---- Connection established! N° {:?} ----", streams.lock().await.len() + 1);
 
             set_keep_alive(&stream);
-            stream.write_all(b"Hello Receiver\r\n").expect("Error while sending data.");
+            // stream.write_all(b"Hello Receiver\r\n").expect("Error while sending data.");
 
-            streams.lock().await.push(StreamEntry { stream: stream, error_count: 0 });
+            streams.lock().await.push(StreamEntry { stream, error_count: 0 });
         }
     });
 }

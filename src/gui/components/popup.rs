@@ -4,7 +4,7 @@ use crate::gui::types::appbase::App;
 use crate::gui::types::messages::Message as appMessage;
 use iced::advanced::widget::Text;
 use iced::advanced::Widget;
-use iced::widget::{Column, Container, Space, TextInput};
+use iced::widget::{Column, Container, Row, Space, TextInput};
 use std::hash::Hash;
 
 use crate::gui::theme::container::ContainerType;
@@ -62,7 +62,11 @@ fn ip_popup<'a>(app: &'a App, body: Container<'a, appMessage, StyleType>) -> ice
         .padding(20)
         .push(Text::new("Enter Receiver IP Address:").size(20))
         .push(input)
-        .push(button);
+        .push(
+            Row::new().spacing(12)
+                .push(button)
+                .push(FilledButton::new("Auto").build().on_press(appMessage::ConnectToCaster("auto".parse().unwrap())))
+        );
 
     Modal::new(
         body,

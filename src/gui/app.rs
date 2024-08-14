@@ -1,21 +1,21 @@
 use std::net::SocketAddr;
 use std::process::exit;
 use std::str::FromStr;
-use std::time::Duration;
-
-use iced::widget::{Column, Container};
-use iced::{executor, Application, Command, Element, Executor, Sandbox, Subscription};
-
+use gstreamer::prelude::{ElementExt, GstObjectExt};
+use gstreamer_video::gst;
+use crate::capture::Capture;
 use crate::gui::components::client::client_page;
 use crate::gui::components::footer::footer;
 use crate::gui::components::popup::{show_popup, PopupType};
 use crate::gui::components::recording::recording_page;
 use crate::gui::components::start;
 use crate::gui::components::start::initial_page;
-use crate::gui::resource::CAST_SERVICE_PORT;
+use crate::gui::resource::{CAST_SERVICE_PORT, FRAME_RATE};
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::appbase::{App, Page};
 use crate::gui::types::messages::Message;
+use iced::widget::{Column, Container};
+use iced::{executor, Application, Command, Element, Executor, Sandbox, Subscription};
 
 impl Application for App {
     type Executor = executor::Default;
@@ -33,24 +33,63 @@ impl Application for App {
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
+
+        fn launch_receiver(app: &mut App, socket_addr: Option<SocketAddr>) {
+            let (tx, mut rx) = tokio::sync::mpsc::channel(FRAME_RATE as usize);
+            tokio::spawn(async move {
+                crate::utils::net::receiver(socket_addr, tx).await;
+            });
+            tokio::spawn(async move {
+                let pipeline = crate::utils::gist::create_pipeline(rx).unwrap();
+                pipeline.set_state(gst::State::Playing).expect("GStream:: Failed set gst::State::Playing");
+                let bus = pipeline.bus().unwrap();
+                for msg in bus.iter_timed(gst::ClockTime::NONE) {
+                    match msg.view() {
+                        gst::MessageView::Eos(..) => {
+                            println!("Reached End of Stream");
+                            break;
+                        }
+                        gst::MessageView::Error(err) => {
+                            println!(
+                                "Error from {:?}: {} ({:?})",
+                                err.src().map(|s| s.path_string()),
+                                err.error(),
+                                err.debug()
+                            );
+                            break;
+                        }
+                        gst::MessageView::Warning(warning) => {
+                            println!(
+                                "Warning from {:?}: {} ({:?})",
+                                warning.src().map(|s| s.path_string()),
+                                warning.error(),
+                                warning.debug()
+                            );
+                        }
+                        _ => () //e => println!("{:?}", e),
+                    }
+                }
+                pipeline.set_state(gst::State::Null).unwrap();
+            });
+
+            app.show_popup = None;
+            app.page = Page::Client
+        }
+
         match message {
             Message::Mode(mode) => {
                 match mode {
                     start::Message::ButtonCaster => {
-                        let (tx, rx) = tokio::sync::mpsc::channel(10);
-
-                        // qui genero le immagini e le invio tramite il canale tx
+                        let (tx, rx) = tokio::sync::mpsc::channel(30);
+                        // generate frames
                         tokio::spawn(async move {
-                            let mut uuid = 0;
-                            loop {
-                                tx.send(format!("Hello from sender!, {}", uuid)).await.unwrap();
-                                uuid += 1;
-                                tokio::time::sleep(Duration::from_secs(2)).await;
-                            }
+                            let mut capture = Capture::new();
+                            capture.set_framerate(FRAME_RATE as f32);
+                            capture.stream(capture.main.clone(), tx).await;
                         });
-
+                        // send frames over the local network
                         tokio::spawn(async move {
-                            crate::utils::net::caster(Some(rx)).await;
+                            crate::utils::net::caster(rx).await;
                         });
                         self.page = Page::Recording
                     }
@@ -60,20 +99,18 @@ impl Application for App {
                 }
             }
             Message::ConnectToCaster(mut caster_ip) => {
-                if !caster_ip.contains(":") {
-                    caster_ip = format!("{}:{}", caster_ip, CAST_SERVICE_PORT)
-                }
-                match SocketAddr::from_str(&*caster_ip) {
-                    Ok(caster_ip) => {
-                        tokio::spawn(async move {
-                            crate::utils::net::receiver(Some(caster_ip)).await;
-                        });
-                        self.show_popup = None;
-                        self.page = Page::Client
-                    }
-                    Err(E) => {
-                        println!("{}", E);
-                        *self.popup_msg.get_mut(&PopupType::IP).unwrap() = "".parse().unwrap()
+                if caster_ip == "auto" {
+                    launch_receiver(self, None)
+                } else if !caster_ip.contains(":") {
+                    caster_ip = format!("{}:{}", caster_ip, CAST_SERVICE_PORT);
+                    match SocketAddr::from_str(&*caster_ip) {
+                        Ok(caster_socket_addr) => {
+                            launch_receiver(self, Some(caster_socket_addr))
+                        }
+                        Err(E) => {
+                            println!("{}", E);
+                            *self.popup_msg.get_mut(&PopupType::IP).unwrap() = "".parse().unwrap()
+                        }
                     }
                 }
             }
@@ -104,7 +141,7 @@ impl Application for App {
                 recording_page(self)
             }
             Page::Client => {
-                client_page(self)
+                client_page(self, None)
             }
         };
 

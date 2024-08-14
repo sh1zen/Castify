@@ -1,10 +1,14 @@
 use iced::font::{Family, Stretch, Style, Weight};
 use iced::Font;
 
+// conv
+pub const FRAME_RATE: i32 = 3;
+pub const FRAME_WITH: i32 = 1920;
+pub const FRAME_HEIGHT: i32 = 1080;
+
 // connections
 pub const MAX_PACKAGES_FAIL: u8 = 5;
 pub const CAST_SERVICE_PORT: u16 = 31413;
-
 
 // app name
 pub const APP_VERSION: &str = "1.0.0";
