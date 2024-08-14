@@ -1,7 +1,7 @@
 use crate::gui::theme::buttons::FilledButton;
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::appbase::App;
-use crate::gui::types::messages::{Message as appMessage, Message};
+use crate::gui::types::messages::Message as appMessage;
 use iced::advanced::widget::Text;
 use iced::advanced::Widget;
 use iced::widget::{Column, Container, Space, TextInput};
@@ -22,7 +22,6 @@ pub enum PopupType {
 }
 
 pub fn show_popup<'a>(app: &'a App, body: Container<'a, appMessage, StyleType>) -> Container<'a, appMessage, StyleType> {
-
     if app.show_popup.is_none() {
         return Container::new(Space::new(0, 0));
     }
@@ -39,13 +38,13 @@ pub fn show_popup<'a>(app: &'a App, body: Container<'a, appMessage, StyleType>) 
 }
 
 fn ip_popup<'a>(app: &'a App, body: Container<'a, appMessage, StyleType>) -> iced_aw::Modal<'a, appMessage, StyleType> {
-    let mut text_input = &"".to_string();
+    let mut entered_ip = &"".to_string();
 
     if app.popup_msg.contains_key(&PopupType::IP) {
-        text_input = app.popup_msg.get(&PopupType::IP).unwrap()
+        entered_ip = app.popup_msg.get(&PopupType::IP).unwrap()
     }
 
-    let input = TextInput::new("192.168.1.1", text_input)
+    let input = TextInput::new("192.168.1.1", entered_ip)
         .on_input(move |new_value| {
             appMessage::PopupMessage(Interaction { text: new_value, p_type: PopupType::IP })
         })
@@ -54,8 +53,8 @@ fn ip_popup<'a>(app: &'a App, body: Container<'a, appMessage, StyleType>) -> ice
 
     let mut button = FilledButton::new("Connect").build();
 
-    if !text_input.is_empty() {
-        button = button.on_press(appMessage::Ignore/*appMessage::ConnectToCaster(entered_ip.clone())*/);
+    if !entered_ip.is_empty() {
+        button = button.on_press(appMessage::ConnectToCaster(entered_ip.clone()));
     }
 
     let content = Column::new()
@@ -69,6 +68,6 @@ fn ip_popup<'a>(app: &'a App, body: Container<'a, appMessage, StyleType>) -> ice
         body,
         Some(
             Container::new(content.width(500).height(300)).style(ContainerType::Modal)
-        )
+        ),
     )
 }

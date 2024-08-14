@@ -53,7 +53,7 @@ impl App {
                 Modifiers::SHIFT => match key {
                     //Key::Named(Named::Tab) => Some(Message::SwitchPage(false)),
                     _ => {
-                        println!("ciao");
+                        println!("SHIFT PRESSED");
                         None
                     }
                 },

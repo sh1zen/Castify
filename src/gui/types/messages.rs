@@ -9,6 +9,8 @@ pub enum Message {
     Mode(start::Message),
     /// A collector of all popups messages
     PopupMessage(popup::Interaction),
+    /// Connect to caster, passing caster ip as String
+    ConnectToCaster(String),
     ///
     KeyPressed(Key),
     /// Ignore

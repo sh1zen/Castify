@@ -1,17 +1,16 @@
-use crate::gui::resource::MAX_PACKAGES_FAIL;
+use crate::gui::resource::{CAST_SERVICE_PORT, MAX_PACKAGES_FAIL};
+use crate::gui::types::messages::Message;
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use socket2::TcpKeepalive;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::str;
+use std::{str, thread};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use crate::gui::types::messages::Message;
 
 const SERVICE_NAME: &'static str = "_screen_caster._tcp.local.";
-const SERVICE_PORT: u16 = 31413;
 
 pub enum SendingData {
     Transmit,
@@ -46,14 +45,12 @@ fn find_caster() -> Option<SocketAddr> {
             }
         }
     }
-
     mdns.shutdown().unwrap();
 
-    return addr;
+    addr
 }
 
 pub async fn receiver(mut socket_addr: Option<SocketAddr>) -> Message {
-
     let mut stream;
     let mut buffer = [0; 1024];
 
@@ -61,44 +58,59 @@ pub async fn receiver(mut socket_addr: Option<SocketAddr>) -> Message {
         socket_addr = find_caster();
     }
 
-    println!("Caster found at: {:?}", socket_addr);
+    if !socket_addr.is_none() {
+        let socket_addr = socket_addr.unwrap();
+        println!("Connecting to caster at {:?}", socket_addr);
 
-    match TcpStream::connect(socket_addr.unwrap()) {
-        Ok(s) => {
-            stream = s;
+        loop {
+            match TcpStream::connect(socket_addr) {
+                Ok(s) => {
+                    stream = s;
+                    break;
+                }
+                Err(_) => {
+                    //return Message::ConnectionError;
+                    thread::sleep(Duration::from_secs(1));
+                }
+            }
         }
-        Err(_) => {
-            return Message::ConnectionError;
+
+        loop {
+            match stream.read(&mut buffer) {
+                Ok(bytes_read) => {
+                    let received_data = &buffer[..bytes_read];
+
+                    match str::from_utf8(received_data) {
+                        Ok(message) => println!("{:?}", message.trim()),
+                        Err(e) => println!("Failed to convert to string: {:?}", e),
+                    }
+                }
+                Err(_) => {
+                    println!("Caster maybe has disconnected.");
+                    return Message::ConnectionError;
+                }
+            }
         }
     }
 
-    loop {
-        let bytes_read = stream.read(&mut buffer).unwrap();
-        let received_data = &buffer[..bytes_read];
-
-        match str::from_utf8(received_data) {
-            Ok(message) => println!("{:?}", message.trim()),
-            Err(e) => println!("Failed to convert to string: {:?}", e),
-        }
-    }
     Message::Ignore
 }
 
 pub async fn caster(rx: Option<tokio::sync::mpsc::Receiver<String>>) {
-    let addr = SocketAddr::new("0.0.0.0".parse().unwrap(), SERVICE_PORT);
+    let addr = SocketAddr::new("0.0.0.0".parse().unwrap(), CAST_SERVICE_PORT);
     let listener = TcpListener::bind(addr).unwrap();
 
     let mdns = ServiceDaemon::new().expect("Failed to create daemon");
     let ip = local_ip().unwrap();
     let host_name = String::from(ip.to_string()) + ".local.";
-    let properties = [("screen_caster", SERVICE_PORT)];
+    let properties = [("screen_caster", CAST_SERVICE_PORT)];
 
     let my_service = ServiceInfo::new(
         SERVICE_NAME,
         "ScreenCaster",
         &*host_name,
         ip,
-        SERVICE_PORT,
+        CAST_SERVICE_PORT,
         &properties[..],
     ).unwrap();
 

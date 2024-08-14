@@ -1,4 +1,6 @@
+use std::net::SocketAddr;
 use std::process::exit;
+use std::str::FromStr;
 use std::time::Duration;
 
 use iced::widget::{Column, Container};
@@ -8,8 +10,9 @@ use crate::gui::components::client::client_page;
 use crate::gui::components::footer::footer;
 use crate::gui::components::popup::{show_popup, PopupType};
 use crate::gui::components::recording::recording_page;
-use crate::gui::components::start::initial_page;
 use crate::gui::components::start;
+use crate::gui::components::start::initial_page;
+use crate::gui::resource::CAST_SERVICE_PORT;
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::appbase::{App, Page};
 use crate::gui::types::messages::Message;
@@ -31,14 +34,6 @@ impl Application for App {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::OpenWebPage(web_page) => Self::open_web(&web_page),
-            Message::PopupMessage(msg) => {
-                if self.popup_msg.contains_key(&msg.p_type) {
-                    *self.popup_msg.get_mut(&msg.p_type).unwrap() = msg.text
-                } else {
-                    self.popup_msg.insert(msg.p_type, msg.text);
-                }
-            }
             Message::Mode(mode) => {
                 match mode {
                     start::Message::ButtonCaster => {
@@ -57,18 +52,37 @@ impl Application for App {
                         tokio::spawn(async move {
                             crate::utils::net::caster(Some(rx)).await;
                         });
-
                         self.page = Page::Recording
                     }
                     start::Message::ButtonReceiver => {
                         self.show_popup = Some(PopupType::IP);
-
+                    }
+                }
+            }
+            Message::ConnectToCaster(mut caster_ip) => {
+                if !caster_ip.contains(":") {
+                    caster_ip = format!("{}:{}", caster_ip, CAST_SERVICE_PORT)
+                }
+                match SocketAddr::from_str(&*caster_ip) {
+                    Ok(caster_ip) => {
                         tokio::spawn(async move {
-                            crate::utils::net::receiver(None).await
+                            crate::utils::net::receiver(Some(caster_ip)).await;
                         });
-
+                        self.show_popup = None;
                         self.page = Page::Client
                     }
+                    Err(E) => {
+                        println!("{}", E);
+                        *self.popup_msg.get_mut(&PopupType::IP).unwrap() = "".parse().unwrap()
+                    }
+                }
+            }
+            Message::OpenWebPage(web_page) => Self::open_web(&web_page),
+            Message::PopupMessage(msg) => {
+                if self.popup_msg.contains_key(&msg.p_type) {
+                    *self.popup_msg.get_mut(&msg.p_type).unwrap() = msg.text
+                } else {
+                    self.popup_msg.insert(msg.p_type, msg.text);
                 }
             }
             Message::CloseRequested => {
@@ -143,7 +157,6 @@ impl Application for App {
             self.mouse_subscription(),
             self.window_subscription()
         ])
-
     }
     /*
      fn subscription(&self) -> Subscription<Self::Message> {
