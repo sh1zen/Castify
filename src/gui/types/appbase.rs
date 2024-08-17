@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::process::exit;
+use std::sync::{Arc, Mutex};
 use std::thread::Thread;
 use gstreamer::Pipeline;
 use crate::gui::components::popup::PopupType;
@@ -10,7 +11,7 @@ use iced::mouse::Event::ButtonPressed;
 use iced::window::Id;
 use iced::Event::{Keyboard, Window};
 use iced::{window, Subscription};
-use iced_video_player::Video;
+use crate::gui::video::Video;
 
 pub enum Page {
     Home,
@@ -25,7 +26,7 @@ pub struct App {
     threads: Vec<Thread>,
     pub(crate) show_popup: Option<PopupType>,
     pub(crate) popup_msg: HashMap<PopupType, String>,
-    pub video: Option<Video>
+    pub video: Video
 }
 
 impl App {
@@ -36,7 +37,7 @@ impl App {
             threads: vec![],
             show_popup: None,
             popup_msg: HashMap::new(),
-            video: None,
+            video: Video::new().unwrap(),
         }
     }
 

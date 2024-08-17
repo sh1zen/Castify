@@ -5,7 +5,7 @@
 
 use std::borrow::Cow;
 use std::{panic, process};
-
+use gstreamer_app::gst;
 use castgo::gui::resource::{APP_NAME_ID, FONT_SIZE_BODY, ICONS_BYTES, RALEWAY_FONT_BYTES, TEXT_FONT_FAMILY_NAME};
 use castgo::gui::types::appbase::App;
 use iced::{Application, Font, Pixels, Sandbox, Settings, Size};
@@ -18,6 +18,8 @@ enum Mode {
 
 #[tokio::main]
 async fn main() {
+
+    gst::init().unwrap();
 
     // kill the main thread as soon as a secondary thread panics
     let orig_hook = panic::take_hook();

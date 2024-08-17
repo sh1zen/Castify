@@ -2,6 +2,9 @@
 name = "castgo"
 version = "0.1.0"
 edition = "2021"
+description = """
+A Rust screen caster app
+"""
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,9 +14,11 @@ tokio = { version = "1.39.2", features = ["full"] }
 rdev = { version ="0.5.3", features = ["unstable_grab"]}
 chrono = "0.4.38"
 local-ip-address = "0.6.1"
-iced = { version = "0.12.1", features = ["image"] }
+iced = { version = "0.12.1", features = ["image", "advanced", "wgpu"] }
 iced_aw = "0.9.3"
-iced_video_player = "0.2.0"
+iced_native = "0.10"
+iced_wgpu = "0.12"
+# iced_video_player = "0.2.0"
 socket2 = "0.5.7"
 ctrlc = "3.4.4"
 plotters = "0.3.6"
@@ -26,3 +31,25 @@ gstreamer-video = "0.23.0"
 gstreamer-app = "0.23.0"
 gstreamer-pbutils = "0.23.0"
 glib = "0.20.1"
+thiserror = "1.0.63"
+
+
+[lib]
+name = "castgo"
+path = "src/lib.rs"
+
+
+[package.metadata.nix]
+app = true
+build = true
+runtimeLibs = [
+    "vulkan-loader",
+    "wayland",
+    "wayland-protocols",
+    "libxkbcommon",
+    "xorg.libX11",
+    "xorg.libXrandr",
+    "xorg.libXi", "gst_all_1.gstreamer", "gst_all_1.gstreamermm", "gst_all_1.gst-plugins-bad", "gst_all_1.gst-plugins-ugly", "gst_all_1.gst-plugins-good", "gst_all_1.gst-plugins-base",
+]
+buildInputs = ["libxkbcommon", "gst_all_1.gstreamer", "gst_all_1.gstreamermm", "gst_all_1.gst-plugins-bad", "gst_all_1.gst-plugins-ugly", "gst_all_1.gst-plugins-good", "gst_all_1.gst-plugins-base"]
+

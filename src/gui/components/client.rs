@@ -1,3 +1,4 @@
+use std::cell::{Ref, RefMut};
 use crate::gui::theme::buttons::FilledButton;
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::appbase::App;
@@ -5,9 +6,9 @@ use crate::gui::types::icons::Icon;
 use crate::gui::types::messages::Message as appMessage;
 use iced::widget::{Column, Container, Row, Space};
 use iced::{Alignment, Length};
-use iced_video_player::{Video};
+use crate::gui::video::{Internal, Video, VideoPlayer};
 
-pub fn client_page(app: &App, video_src: Option<Video>) -> Container<appMessage, StyleType> {
+pub fn client_page<'a>(app: &'a App, video_src: RefMut<'a, Internal>) -> Container<'a,  appMessage, StyleType> {
     let actions = Row::new()
         .align_items(Alignment::Center).spacing(10)
         .push(
@@ -25,7 +26,7 @@ pub fn client_page(app: &App, video_src: Option<Video>) -> Container<appMessage,
         .height(400)
         .align_items(Alignment::Center);
 
-    let video = Container::new(Space::new(0, 0));
+    let video = VideoPlayer::new(&app.video);
 
     let content = Column::new()
         .push(video)

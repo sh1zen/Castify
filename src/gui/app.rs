@@ -1,8 +1,3 @@
-use std::net::SocketAddr;
-use std::process::exit;
-use std::str::FromStr;
-use gstreamer::prelude::{ElementExt, GstObjectExt};
-use gstreamer_video::gst;
 use crate::capture::Capture;
 use crate::gui::components::client::client_page;
 use crate::gui::components::footer::footer;
@@ -14,8 +9,13 @@ use crate::gui::resource::{CAST_SERVICE_PORT, FRAME_RATE};
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::appbase::{App, Page};
 use crate::gui::types::messages::Message;
+use gstreamer::prelude::ElementExt;
+use gstreamer_video::gst;
 use iced::widget::{Column, Container};
 use iced::{executor, Application, Command, Element, Executor, Sandbox, Subscription};
+use std::net::SocketAddr;
+use std::process::exit;
+use std::str::FromStr;
 
 impl Application for App {
     type Executor = executor::Default;
@@ -39,8 +39,11 @@ impl Application for App {
             tokio::spawn(async move {
                 crate::utils::net::receiver(socket_addr, tx).await;
             });
+            let pipeline = crate::utils::gist::create_pipeline(rx).unwrap();
+            app.video.set_pipeline(pipeline);
+            /*
             tokio::spawn(async move {
-                let pipeline = crate::utils::gist::create_pipeline(rx).unwrap();
+
                 pipeline.set_state(gst::State::Playing).expect("GStream:: Failed set gst::State::Playing");
                 let bus = pipeline.bus().unwrap();
                 for msg in bus.iter_timed(gst::ClockTime::NONE) {
@@ -71,7 +74,7 @@ impl Application for App {
                 }
                 pipeline.set_state(gst::State::Null).unwrap();
             });
-
+            */
             app.show_popup = None;
             app.page = Page::Client
         }
@@ -141,7 +144,7 @@ impl Application for App {
                 recording_page(self)
             }
             Page::Client => {
-                client_page(self, None)
+                client_page(self, self.video.0.borrow_mut())
             }
         };
 

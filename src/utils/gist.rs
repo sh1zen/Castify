@@ -5,8 +5,6 @@ use gstreamer::{ClockTime, Element, Pipeline};
 use xcap::image::RgbaImage;
 
 pub fn create_pipeline(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) -> Result<Pipeline, glib::Error> {
-    gst::init()?;
-
     let pipeline = Pipeline::new();
 
     let src = gst::ElementFactory::make("appsrc")
@@ -19,6 +17,7 @@ pub fn create_pipeline(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) -> Result
             .field("format", &"RGBA")
             .field("width", &FRAME_WITH)
             .field("height", &FRAME_HEIGHT)
+            .field("pixel-aspect-ratio", &gst::Fraction::new(1, 1))
             .field("framerate", &gst::Fraction::new(FRAME_RATE, 1))
             .build(),
     );
@@ -43,10 +42,17 @@ pub fn create_pipeline(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) -> Result
         .property_from_str("leaky", "no")
         .build().unwrap();
 
-    let sink = gstreamer::ElementFactory::make("filesink") //appsink
-        .name("sink")
-        .property_from_str("location", "D:/video.mp4")
+    let sink = gstreamer::ElementFactory::make("appsink") //filesink
+        .name("appsink")
+        //.property_from_str("location", "D:/video.mp4")
         .build().unwrap();
+    sink.set_property(
+        "caps",
+        &gst::Caps::builder("video/x-raw")
+            .field("format", &"RGBA")
+            .field("pixel-aspect-ratio", &gst::Fraction::new(1, 1))
+            .build(),
+    );
 
     let h264parse = gstreamer::ElementFactory::make("h264parse")
         .build().unwrap();
@@ -54,7 +60,8 @@ pub fn create_pipeline(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) -> Result
     let mp4_muxer = gstreamer::ElementFactory::make("mp4mux")
         .build().unwrap();
 
-    let video_elements = [&src, &video_convert, &video_queue, &video_encoder, &h264parse, &mp4_muxer, &sink];
+    // let video_elements = [&src, &video_convert, &video_queue, &video_encoder, &h264parse, &mp4_muxer, &sink];
+    let video_elements = [&src, &video_convert, &video_queue, &sink];
 
     // Add elements to pipeline
     pipeline.add_many(&video_elements[..]).unwrap();
