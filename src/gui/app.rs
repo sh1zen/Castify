@@ -1,4 +1,5 @@
 use crate::gui::components::caster::caster_page;
+use crate::gui::components::caster::Message as CasterMessage;
 use crate::gui::components::client::client_page;
 use crate::gui::components::footer::footer;
 use crate::gui::components::hotkeys::{hotkeys, KeyTypes};
@@ -9,6 +10,7 @@ use crate::gui::resource::{open_link, CAST_SERVICE_PORT};
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::appbase::{App, Page};
 use crate::gui::types::messages::Message;
+use crate::workers;
 use iced::widget::{Column, Container};
 use iced::{executor, Application, Command, Element, Subscription};
 use std::net::SocketAddr;
@@ -50,6 +52,7 @@ impl Application for App {
             Message::Mode(mode) => {
                 match mode {
                     start::Message::ButtonCaster => {
+                        self.is_caster = true;
                         self.page = Page::Caster
                     }
                     start::Message::ButtonReceiver => {
@@ -60,12 +63,15 @@ impl Application for App {
             Message::Caster(mode) => {
                 match mode {
                     caster::Message::Rec => {
-                        self.vdffd();
+                        workers::caster::get_instance().lock().unwrap().cast_screen();
                     }
                     caster::Message::Pause => {
-                        self.caster_opt.lock().unwrap().streaming = false;
+                        workers::caster::get_instance().lock().unwrap().streaming = false;
                     }
                 }
+            }
+            Message::BlankScreen => {
+                workers::caster::get_instance().lock().unwrap().blank_screen = !workers::caster::get_instance().lock().unwrap().blank_screen;
             }
             Message::ConnectToCaster(mut caster_ip) => {
                 if caster_ip == "auto" {
@@ -95,15 +101,15 @@ impl Application for App {
                 );
                 self.show_popup = Some(PopupType::HotkeyUpdate)
             }
-            Message::KeyPressed((modifier, key)) => {
-                if modifier == self.hotkey_map.pause.0 && key == self.hotkey_map.pause.1 {
-                    self.update(Message::Pause);
-                } else if modifier == self.hotkey_map.record.0 && key == self.hotkey_map.record.1 {
-                   self.update(Message::Record);
-                } else if modifier == self.hotkey_map.blank_screen.0 && key == self.hotkey_map.blank_screen.1 {
-                    self.update(Message::BlankScreen);
-                } else if modifier == self.hotkey_map.end_session.0 && key == self.hotkey_map.end_session.1 {
-                    self.update(Message::CloseRequested);
+            Message::KeyPressed(item) => {
+                if item == self.hotkey_map.pause {
+                    let _ = self.update(Message::Caster(CasterMessage::Pause));
+                } else if item == self.hotkey_map.record {
+                    let _ = self.update(Message::Caster(CasterMessage::Rec));
+                } else if item == self.hotkey_map.blank_screen {
+                    let _ = self.update(Message::BlankScreen);
+                } else if item == self.hotkey_map.end_session {
+                    let _ = self.update(Message::CloseRequested);
                 }
             }
             Message::HotkeysUpdate((modifier, key)) => {

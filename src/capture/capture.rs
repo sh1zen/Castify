@@ -3,10 +3,11 @@ use chrono::{DateTime, Local};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio::time::interval;
+use tokio::time::{interval};
 use xcap::image::imageops::FilterType;
 use xcap::image::{GenericImage, Rgba, RgbaImage};
 use xcap::{image, Monitor};
+use crate::workers;
 
 struct MonitorArea {
     x: i32,
@@ -57,12 +58,10 @@ impl Capture {
             return;
         }
 
-        *self.area.get_mut(&id).unwrap() = MonitorArea {
-            x,
-            y,
-            height,
-            width,
-        };
+        self.area.get_mut(&id).unwrap().x = x;
+        self.area.get_mut(&id).unwrap().y = y;
+        self.area.get_mut(&id).unwrap().width = width;
+        self.area.get_mut(&id).unwrap().height = height;
 
         Monitor::from_point(x, y).unwrap();
     }
@@ -94,22 +93,30 @@ impl Capture {
         }
     }
 
-    pub fn get_frame(&self, id: u32) -> Option<RgbaImage>
+    pub fn get_frame(&self, id: u32, blank: bool) -> Option<RgbaImage>
     {
         if self.monitors.contains_key(&id) {
             let monitor = self.monitors.get(&id)?;
+            let mut frame;
 
-            let mut frame = self.frame(monitor);
+            if blank {
+                frame = RgbaImage::new(monitor.width(), monitor.height());
+                for pixel in frame.pixels_mut() {
+                    *pixel = Rgba([255, 255, 255, 1]);
+                }
+            } else {
+                frame = self.frame(monitor);
 
-            // todo use resize and pad
-            frame = resize_and_pad(
-                &frame,
-                FRAME_WITH as u32,
-                FRAME_HEIGHT as u32,
-                FilterType::Nearest,
-            );
+                println!("Captured Frame {}", Local::now().timestamp_millis());
 
-            println!("Captured Frame {}", Local::now().timestamp_millis());
+                frame = resize_and_pad(
+                    &frame,
+                    FRAME_WITH as u32,
+                    FRAME_HEIGHT as u32,
+                    FilterType::Nearest,
+                );
+            }
+
 
             Some(frame)
         } else {
@@ -117,7 +124,7 @@ impl Capture {
         }
     }
 
-    pub async fn stream(&self, id: u32, tx: mpsc::Sender<RgbaImage>, stream: bool) {
+    pub async fn stream(&self, id: u32, tx: mpsc::Sender<RgbaImage>) {
         let interval = interval(Duration::from_secs_f32(1.0 / self.framerate));
 
         tokio::pin!(interval);
@@ -126,11 +133,12 @@ impl Capture {
             loop {
                 interval.as_mut().tick().await;
 
-                if !stream {
-                    break;
+                if !workers::caster::get_instance().lock().unwrap().streaming {
+                    tokio::time::sleep(Duration::from_millis(500)).await;
+                    continue;
                 }
 
-                let frame = self.get_frame(id);
+                let frame = self.get_frame(id, workers::caster::get_instance().lock().unwrap().blank_screen);
 
                 if !frame.is_none() {
                     if tx.send(frame.unwrap().clone()).await.is_err() {

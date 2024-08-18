@@ -1,4 +1,3 @@
-use crate::gui::video::Error;
 use gst::prelude::*;
 use gstreamer as gst;
 use gstreamer::Pipeline;
@@ -64,19 +63,17 @@ pub struct Internal {
 }
 
 impl Internal {
-    pub(crate) fn seek(&self, position: impl Into<Position>) -> Result<(), Error> {
+    pub(crate) fn seek(&self, position: impl Into<Position>) {
         self.source.seek_simple(
             gst::SeekFlags::FLUSH,
             gst::GenericFormattedValue::from(position.into()),
-        )?;
-        Ok(())
+        ).expect("Cannot seek into desired position");
     }
 
-    pub(crate) fn restart_stream(&mut self) -> Result<(), Error> {
+    pub(crate) fn restart_stream(&mut self) {
         self.is_eos = false;
         self.set_paused(false);
-        self.seek(0)?;
-        Ok(())
+        self.seek(0);
     }
 
     pub(crate) fn set_paused(&mut self, paused: bool) {
@@ -112,12 +109,12 @@ impl Drop for Video {
 impl Video {
     // let pipeline = format!("uridecodebin uri=\"{}\" ! videoconvert ! videoscale ! appsink name=iced_video caps=video/x-raw,format=RGBA,pixel-aspect-ratio=1/1", uri.as_str());
 
-    pub fn new() -> Result<Self, Error> {
+    pub fn new() -> Self {
         let (notify, wait) = mpsc::channel();
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
         let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
 
-        Ok(Video(RefCell::new(Internal {
+        Video(RefCell::new(Internal {
             id,
             bus: Default::default(),
             source: Default::default(),
@@ -135,7 +132,7 @@ impl Video {
             is_eos: false,
             restart_stream: false,
             next_redraw: Instant::now(),
-        })))
+        }))
     }
 
     pub fn set_pipeline(&mut self, pipeline: Pipeline) {
@@ -152,22 +149,21 @@ impl Video {
         pipeline.set_state(gst::State::Playing).unwrap();
 
         // wait for up to 5 seconds until the decoder gets the source capabilities
-        pipeline.state(gst::ClockTime::from_seconds(5));
+        let _ = pipeline.state(gst::ClockTime::from_seconds(5));
 
         // extract resolution and framerate
-        let caps = pad.current_caps().ok_or(Error::Caps).unwrap();
-        let s = caps.structure(0).ok_or(Error::Caps).unwrap();
-        let width = s.get::<i32>("width").map_err(|_| Error::Caps).unwrap();
-        let height = s.get::<i32>("height").map_err(|_| Error::Caps).unwrap();
+        let caps = pad.current_caps().ok_or("Failed to get media capabilities").unwrap();
+        let s = caps.structure(0).ok_or("Failed to get media capabilities").unwrap();
+        let width = s.get::<i32>("width").expect("Failed to get media width");
+        let height = s.get::<i32>("height").expect("Failed to get media height");
         let framerate = s
-            .get::<gst::Fraction>("framerate")
-            .map_err(|_| Error::Caps).unwrap();
+            .get::<gst::Fraction>("framerate").expect("Failed to get framerate");
 
         let duration = if !live {
             std::time::Duration::from_nanos(
                 pipeline
                     .query_duration::<gst::ClockTime>()
-                    .ok_or(Error::Duration).unwrap()
+                    .ok_or("Failed to query media duration or position").unwrap()
                     .nseconds(),
             )
         } else {
@@ -282,7 +278,7 @@ impl Video {
 
     /// Jumps to a specific position in the media.
     /// The seeking is not perfectly accurate.
-    pub fn seek(&mut self, position: impl Into<Position>) -> Result<(), Error> {
+    pub fn seek(&mut self, position: impl Into<Position>) {
         self.0.borrow_mut().seek(position)
     }
 
@@ -304,7 +300,7 @@ impl Video {
     }
 
     /// Restarts a stream; seeks to the first frame and unpauses, sets the `eos` flag to false.
-    pub fn restart_stream(&mut self) -> Result<(), Error> {
+    pub fn restart_stream(&mut self) {
         self.0.borrow_mut().restart_stream()
     }
 }

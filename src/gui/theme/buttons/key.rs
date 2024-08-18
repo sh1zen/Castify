@@ -29,7 +29,7 @@ impl Key4Board {
             .trim_start_matches("Modifiers(")
             .trim_end_matches(')')
             .to_string();
-        Key4Board::new(label, 1)
+        Key4Board::new(label, 3)
     }
 
     pub fn from_key(key: Key) -> Key4Board {
@@ -43,7 +43,7 @@ impl Key4Board {
             .replace("CONTROL", "")
             .replace("ALT", "")
             .to_string();
-        Key4Board::new(label, 0)
+        Key4Board::new(label, 2)
     }
 
     pub fn style(mut self, style: ButtonType) -> Self {

@@ -19,10 +19,6 @@ pub enum Message {
     ConnectToCaster(String),
     /// Ignore
     Ignore,
-    /// Start recording
-    Record,
-    /// Pause recording
-    Pause,
     /// blank the recording
     BlankScreen,
     /// Emit when the main window be focused
@@ -35,8 +31,6 @@ pub enum Message {
     CloseRequested,
     /// Drag the window
     Drag,
-    /// Ctrl+T keys have been pressed
-    CtrlTPressed,
     /// Open the supplied web page
     OpenWebPage(String),
     /// Connection Error

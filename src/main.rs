@@ -9,16 +9,9 @@ use gstreamer_app::gst;
 use iced::{Application, Font, Pixels, Settings, Size};
 use std::borrow::Cow;
 use std::{panic, process};
-use castgo::capture::Capture;
 
 #[tokio::main]
 async fn main() {
-/*
-    let (tx, rx) = tokio::sync::mpsc::channel(2000);
-
-    let mut capture = Capture::new();
-    capture.stream(capture.main, tx).await;
-*/
     gst::init().unwrap();
 
     // kill the main thread as soon as a secondary thread panics

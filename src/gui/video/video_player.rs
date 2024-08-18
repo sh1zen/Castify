@@ -168,9 +168,7 @@ where
 
                 // Don't run eos_pause if restart_stream is true; fixes "pausing" after restarting a stream
                 if restart_stream {
-                    if let Err(err) = inner.restart_stream() {
-                        eprintln!("cannot restart stream (can't seek): {err:#?}")
-                    }
+                    inner.restart_stream();
                 } else if eos_pause {
                     inner.is_eos = true;
                     inner.set_paused(true);

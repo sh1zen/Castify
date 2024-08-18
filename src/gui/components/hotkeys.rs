@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use crate::gui::theme::buttons::FilledButton;
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::appbase::App;
@@ -16,7 +15,7 @@ pub enum KeyTypes {
     None,
 }
 
-pub fn hotkeys(app: &App) -> Container<appMessage, StyleType> {
+pub fn hotkeys(_: &App) -> Container<appMessage, StyleType> {
     let actions = Column::new()
         .push(
             Row::new()
@@ -57,9 +56,9 @@ pub fn hotkeys(app: &App) -> Container<appMessage, StyleType> {
         .push(actions)
         .push(
             FilledButton::new("Home")
-            .icon(Icon::Warning)
-            .build()
-            .on_press(appMessage::Home)
+                .icon(Icon::Warning)
+                .build()
+                .on_press(appMessage::Home)
         )
         .width(Length::Fill)
         .align_items(Alignment::Center)

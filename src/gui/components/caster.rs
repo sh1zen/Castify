@@ -3,42 +3,9 @@ use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::appbase::App;
 use crate::gui::types::icons::Icon;
 use crate::gui::types::messages::Message as appMessage;
+use crate::workers;
 use iced::widget::{Container, Row};
 use iced::{Alignment, Length};
-use std::borrow::BorrowMut;
-use tokio::sync::mpsc::{Receiver, Sender};
-use xcap::image::RgbaImage;
-
-pub struct CasterOptions {
-    pub channel: (Sender<RgbaImage>, Receiver<RgbaImage>),
-    pub streaming: bool,
-}
-
-impl CasterOptions {
-    pub fn new() -> Self {
-        let (mut tx, mut rx) = tokio::sync::mpsc::channel(1);
-        Self {
-            channel: (tx, rx),
-            streaming: false,
-        }
-    }
-
-    pub fn get_tx(&mut self) -> &mut Sender<RgbaImage> {
-        self.build_channel();
-        self.channel.0.borrow_mut()
-    }
-
-    pub fn get_rx(&mut self) -> &mut Receiver<RgbaImage> {
-        self.build_channel();
-        self.channel.1.borrow_mut()
-    }
-
-    fn build_channel(&mut self) {
-        /*if self.channel.is_none(){
-            self.channel = Some(tokio::sync::mpsc::channel(1));
-        }*/
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
@@ -46,8 +13,8 @@ pub enum Message {
     Pause,
 }
 
-pub fn caster_page(app: &App) -> Container<appMessage, StyleType> {
-    let action = if app.caster_opt.lock().unwrap().streaming {
+pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
+    let action = if workers::caster::get_instance().lock().unwrap().streaming {
         FilledButton::new("Pause").icon(Icon::Pause).build().on_press(
             appMessage::Caster(Message::Pause)
         )

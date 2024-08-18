@@ -7,7 +7,6 @@ use crate::gui::types::messages::Message as appMessage;
 use iced::advanced::widget::Text;
 use iced::keyboard::Key;
 use iced::widget::{Column, Container, Row, Space, TextInput};
-use iced::Application;
 use iced_aw::widgets::Modal;
 use iced_wgpu::core::keyboard::Modifiers;
 use std::hash::Hash;
@@ -74,7 +73,6 @@ fn hotkey_update(app: &App) -> Container<appMessage, StyleType> {
     };
 
     let ok_button = FilledButton::new("Ok").build().on_press(appMessage::ClosePopup);
-    let cancel_button = FilledButton::new("Cancel").build().on_press(appMessage::ClosePopup);
 
     let content = Column::new()
         .spacing(10)
@@ -93,9 +91,7 @@ fn hotkey_update(app: &App) -> Container<appMessage, StyleType> {
         )
         .push(Text::new("Press any desired key.").height(20).size(12))
         .push(
-            Row::new().spacing(12)
-                .push(ok_button)
-                .push(cancel_button)
+            ok_button
         );
 
     Container::new(content.width(500).height(300)).style(ContainerType::Modal)
