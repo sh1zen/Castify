@@ -2,7 +2,7 @@ use iced::widget::button;
 use iced::widget::button::Appearance;
 use iced::{Background, Border, Color, Shadow, Vector};
 
-use crate::gui::resource::{COMPONENT_BORDER_RADIUS, BORDER_WIDTH, BUTTON_ALPHA, H_BUTTON_ALPHA};
+use crate::gui::resource::{BORDER_WIDTH, BUTTON_ALPHA, COMPONENT_BORDER_RADIUS, H_BUTTON_ALPHA};
 use crate::gui::theme::color::mix;
 use crate::gui::theme::styles::csx::StyleType;
 
@@ -14,6 +14,7 @@ pub enum ButtonType {
     Starred,
     Alert,
     Transparent,
+    KeyBoard,
 }
 
 impl button::StyleSheet for StyleType {
@@ -51,6 +52,7 @@ impl button::StyleSheet for StyleType {
                 },
                 width: match style {
                     ButtonType::Transparent | ButtonType::Tab | ButtonType::Standard => 0.0,
+                    ButtonType::KeyBoard => 2.0,
                     _ => BORDER_WIDTH,
                 },
                 color: match style {
@@ -58,6 +60,12 @@ impl button::StyleSheet for StyleType {
                     ButtonType::Standard => Color {
                         a: 0.7,
                         ..buttons_color
+                    },
+                    ButtonType::KeyBoard => Color {
+                        r: 145.0 / 255.0,
+                        g: 145.0 / 255.0,
+                        b: 245.0 / 255.0,
+                        a: 1.0,
                     },
                     _ => colors.secondary,
                 },
@@ -67,7 +75,7 @@ impl button::StyleSheet for StyleType {
                 _ => Vector::default(),
             },
             text_color: match style {
-                ButtonType::Starred => Color::BLACK,
+                ButtonType::Starred | ButtonType::KeyBoard => Color::BLACK,
                 ButtonType::Transparent => mix(colors.text_headers, colors.secondary),
                 _ => colors.text_body,
             },
@@ -76,6 +84,11 @@ impl button::StyleSheet for StyleType {
                     color: Color::BLACK,
                     offset: Vector::new(0.0, 2.0),
                     blur_radius: 4.0,
+                },
+                ButtonType::KeyBoard => Shadow {
+                    color: Color::BLACK,
+                    offset: Vector::new(0.0, 0.0),
+                    blur_radius: 5.0,
                 },
                 _ => Shadow::default(),
             },
@@ -179,10 +192,17 @@ impl button::StyleSheet for StyleType {
                 },
             },
             text_color: Color {
-                a: 0.3,
+                a: 0.4,
                 ..active.text_color
             },
-            shadow: Shadow::default(),
+            shadow: match style {
+                ButtonType::KeyBoard => Shadow {
+                    color: Color::BLACK,
+                    offset: Vector::new(0.0, 0.0),
+                    blur_radius: 4.0,
+                },
+                _ => Shadow::default(),
+            },
         }
     }
 }

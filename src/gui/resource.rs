@@ -2,7 +2,7 @@ use iced::font::{Family, Stretch, Style, Weight};
 use iced::Font;
 
 // conv
-pub const FRAME_RATE: i32 = 3;
+pub const FRAME_RATE: i32 = 18;
 pub const FRAME_WITH: i32 = 1920;
 pub const FRAME_HEIGHT: i32 = 1080;
 
@@ -57,7 +57,7 @@ pub fn get(file: String) -> String {
     format!("resources/{}", file)
 }
 
-pub(crate) fn open_link(web_page: &str) {
+pub(crate) fn open_link(web_page: &String) {
     let url = web_page;
     #[cfg(target_os = "windows")]
     std::process::Command::new("explorer")

@@ -1,18 +1,16 @@
-use crate::capture::Capture;
+use crate::gui::components::caster::caster_page;
 use crate::gui::components::client::client_page;
 use crate::gui::components::footer::footer;
-use crate::gui::components::popup::{show_popup, PopupType};
-use crate::gui::components::recording::recording_page;
-use crate::gui::components::start;
+use crate::gui::components::hotkeys::{hotkeys, KeyTypes};
+use crate::gui::components::popup::{show_popup, PopupMsg, PopupType};
 use crate::gui::components::start::initial_page;
-use crate::gui::resource::{CAST_SERVICE_PORT, FRAME_RATE};
+use crate::gui::components::{caster, start};
+use crate::gui::resource::{open_link, CAST_SERVICE_PORT};
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::appbase::{App, Page};
 use crate::gui::types::messages::Message;
-use gstreamer::prelude::ElementExt;
-use gstreamer_video::gst;
 use iced::widget::{Column, Container};
-use iced::{executor, Application, Command, Element, Executor, Sandbox, Subscription};
+use iced::{executor, Application, Command, Element, Subscription};
 use std::net::SocketAddr;
 use std::process::exit;
 use std::str::FromStr;
@@ -33,71 +31,39 @@ impl Application for App {
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
-
         fn launch_receiver(app: &mut App, socket_addr: Option<SocketAddr>) {
-            let (tx, mut rx) = tokio::sync::mpsc::channel(FRAME_RATE as usize);
+            let (tx, rx) = tokio::sync::mpsc::channel(1);
             tokio::spawn(async move {
                 crate::utils::net::receiver(socket_addr, tx).await;
             });
             let pipeline = crate::utils::gist::create_pipeline(rx).unwrap();
             app.video.set_pipeline(pipeline);
-            /*
-            tokio::spawn(async move {
-
-                pipeline.set_state(gst::State::Playing).expect("GStream:: Failed set gst::State::Playing");
-                let bus = pipeline.bus().unwrap();
-                for msg in bus.iter_timed(gst::ClockTime::NONE) {
-                    match msg.view() {
-                        gst::MessageView::Eos(..) => {
-                            println!("Reached End of Stream");
-                            break;
-                        }
-                        gst::MessageView::Error(err) => {
-                            println!(
-                                "Error from {:?}: {} ({:?})",
-                                err.src().map(|s| s.path_string()),
-                                err.error(),
-                                err.debug()
-                            );
-                            break;
-                        }
-                        gst::MessageView::Warning(warning) => {
-                            println!(
-                                "Warning from {:?}: {} ({:?})",
-                                warning.src().map(|s| s.path_string()),
-                                warning.error(),
-                                warning.debug()
-                            );
-                        }
-                        _ => () //e => println!("{:?}", e),
-                    }
-                }
-                pipeline.set_state(gst::State::Null).unwrap();
-            });
-            */
             app.show_popup = None;
             app.page = Page::Client
         }
 
         match message {
+            Message::Home => {
+                self.hotkey_map.updating = KeyTypes::None;
+                self.page = Page::Home
+            }
             Message::Mode(mode) => {
                 match mode {
                     start::Message::ButtonCaster => {
-                        let (tx, rx) = tokio::sync::mpsc::channel(30);
-                        // generate frames
-                        tokio::spawn(async move {
-                            let mut capture = Capture::new();
-                            capture.set_framerate(FRAME_RATE as f32);
-                            capture.stream(capture.main.clone(), tx).await;
-                        });
-                        // send frames over the local network
-                        tokio::spawn(async move {
-                            crate::utils::net::caster(rx).await;
-                        });
-                        self.page = Page::Recording
+                        self.page = Page::Caster
                     }
                     start::Message::ButtonReceiver => {
                         self.show_popup = Some(PopupType::IP);
+                    }
+                }
+            }
+            Message::Caster(mode) => {
+                match mode {
+                    caster::Message::Rec => {
+                        self.vdffd();
+                    }
+                    caster::Message::Pause => {
+                        self.caster_opt.lock().unwrap().streaming = false;
                     }
                 }
             }
@@ -110,20 +76,62 @@ impl Application for App {
                         Ok(caster_socket_addr) => {
                             launch_receiver(self, Some(caster_socket_addr))
                         }
-                        Err(E) => {
-                            println!("{}", E);
-                            *self.popup_msg.get_mut(&PopupType::IP).unwrap() = "".parse().unwrap()
+                        Err(e) => {
+                            println!("{}", e);
+                            *self.popup_msg.get_mut(&PopupType::IP).unwrap() = PopupMsg::String("".parse().unwrap())
                         }
                     }
                 }
             }
-            Message::OpenWebPage(web_page) => Self::open_web(&web_page),
+            Message::OpenWebPage(web_page) => open_link(&web_page),
+            Message::HotkeysPage => {
+                self.page = Page::Hotkeys
+            }
+            Message::HotkeysTypePage(key) => {
+                self.hotkey_map.updating = key;
+                self.popup_msg.insert(
+                    PopupType::HotkeyUpdate,
+                    PopupMsg::HotKey(key),
+                );
+                self.show_popup = Some(PopupType::HotkeyUpdate)
+            }
+            Message::KeyPressed((modifier, key)) => {
+                if modifier == self.hotkey_map.pause.0 && key == self.hotkey_map.pause.1 {
+                    self.update(Message::Pause);
+                } else if modifier == self.hotkey_map.record.0 && key == self.hotkey_map.record.1 {
+                   self.update(Message::Record);
+                } else if modifier == self.hotkey_map.blank_screen.0 && key == self.hotkey_map.blank_screen.1 {
+                    self.update(Message::BlankScreen);
+                } else if modifier == self.hotkey_map.end_session.0 && key == self.hotkey_map.end_session.1 {
+                    self.update(Message::CloseRequested);
+                }
+            }
+            Message::HotkeysUpdate((modifier, key)) => {
+                match self.hotkey_map.updating {
+                    KeyTypes::Pause => {
+                        self.hotkey_map.pause = (modifier, key)
+                    }
+                    KeyTypes::Record => {
+                        self.hotkey_map.record = (modifier, key)
+                    }
+                    KeyTypes::BlankScreen => {
+                        self.hotkey_map.blank_screen = (modifier, key)
+                    }
+                    KeyTypes::Close => {
+                        self.hotkey_map.end_session = (modifier, key)
+                    }
+                    _ => {}
+                }
+            }
             Message::PopupMessage(msg) => {
                 if self.popup_msg.contains_key(&msg.p_type) {
-                    *self.popup_msg.get_mut(&msg.p_type).unwrap() = msg.text
+                    *self.popup_msg.get_mut(&msg.p_type).unwrap() = PopupMsg::String(msg.text)
                 } else {
-                    self.popup_msg.insert(msg.p_type, msg.text);
+                    self.popup_msg.insert(msg.p_type, PopupMsg::String(msg.text));
                 }
+            }
+            Message::ClosePopup => {
+                self.show_popup = None
             }
             Message::CloseRequested => {
                 exit(0)
@@ -140,11 +148,14 @@ impl Application for App {
             Page::Home => {
                 initial_page(self)
             }
-            Page::Recording => {
-                recording_page(self)
+            Page::Caster => {
+                caster_page(self)
             }
             Page::Client => {
-                client_page(self, self.video.0.borrow_mut())
+                client_page(self)
+            }
+            Page::Hotkeys => {
+                hotkeys(self)
             }
         };
 
@@ -198,17 +209,5 @@ impl Application for App {
             self.window_subscription()
         ])
     }
-    /*
-     fn subscription(&self) -> Subscription<Self::Message> {
-        iced::subscription::channel("updates", 10, |mut s| async move {
-            let (sender, mut receiver) = channel(10);
-            s.send(Message::UpdateChannel(sender)).await.unwrap();
-            loop {
-                let _ = receiver.recv().await;
-                s.send(Message::Ignore).await.unwrap();
-            }
-        })
-    }
-     */
 }
 

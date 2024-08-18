@@ -5,7 +5,7 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::interval;
 use xcap::image::imageops::FilterType;
-use xcap::image::{DynamicImage, GenericImageView, RgbaImage};
+use xcap::image::{GenericImage, Rgba, RgbaImage};
 use xcap::{image, Monitor};
 
 struct MonitorArea {
@@ -19,8 +19,9 @@ pub struct Capture {
     monitors: HashMap<u32, Monitor>,
     area: HashMap<u32, MonitorArea>,
     framerate: f32,
-    pub(crate) main: u32,
+    pub main: u32,
 }
+
 
 impl Capture {
     pub fn new() -> Capture {
@@ -83,7 +84,7 @@ impl Capture {
                 ))
                 .unwrap();
         } else {
-            for (id, monitor) in self.monitors.iter() {
+            for (_, monitor) in self.monitors.iter() {
                 self.frame(&monitor).save(format!(
                     "target/monitor-{}-{}.png",
                     normalized(monitor.name()),
@@ -101,14 +102,14 @@ impl Capture {
             let mut frame = self.frame(monitor);
 
             // todo use resize and pad
-            frame = image::imageops::resize(
+            frame = resize_and_pad(
                 &frame,
                 FRAME_WITH as u32,
                 FRAME_HEIGHT as u32,
                 FilterType::Nearest,
             );
 
-            println!("Captured Frame");
+            println!("Captured Frame {}", Local::now().timestamp_millis());
 
             Some(frame)
         } else {
@@ -116,24 +117,26 @@ impl Capture {
         }
     }
 
-    pub async fn stream(&self, id: u32, tx: mpsc::Sender<RgbaImage>) {
+    pub async fn stream(&self, id: u32, tx: mpsc::Sender<RgbaImage>, stream: bool) {
         let interval = interval(Duration::from_secs_f32(1.0 / self.framerate));
 
         tokio::pin!(interval);
 
-        if !self.monitors.contains_key(&id) {
-            // todo add error
-        }
+        if self.monitors.contains_key(&id) {
+            loop {
+                interval.as_mut().tick().await;
 
-        loop {
-            interval.as_mut().tick().await;
-
-            let frame = self.get_frame(id);
-
-            if !frame.is_none() {
-                if tx.send(frame.unwrap().clone()).await.is_err() {
-                    eprintln!("Receiver dropped");
+                if !stream {
                     break;
+                }
+
+                let frame = self.get_frame(id);
+
+                if !frame.is_none() {
+                    if tx.send(frame.unwrap().clone()).await.is_err() {
+                        eprintln!("Receiver channel dropped");
+                        break;
+                    }
                 }
             }
         }
@@ -146,6 +149,10 @@ impl Capture {
     fn frame(&self, monitor: &Monitor) -> RgbaImage {
         monitor.capture_image().unwrap()
     }
+
+    pub fn has_monitor(&self, id: u32) -> bool {
+        self.monitors.contains_key(&id)
+    }
 }
 
 fn normalized(filename: &str) -> String {
@@ -156,44 +163,49 @@ fn normalized(filename: &str) -> String {
         .replace("/", "")
 }
 
+/// Resize an image to the specified width and height while maintaining aspect ratio,
+/// and pad with black borders if necessary.
+fn resize_and_pad(image: &RgbaImage, new_width: u32, new_height: u32, filter: FilterType) -> RgbaImage {
+    // Calculate the aspect ratio of the original image
+    let (orig_width, orig_height) = image.dimensions();
+    let aspect_ratio = orig_width as f32 / orig_height as f32;
 
-fn resize_and_pad(img_base: &DynamicImage, target_width: u32, target_height: u32, filter: FilterType) {
-    /*
-        let aspect_ratio = img_base.width() as f32 / img_base.height() as f32;
+    // Calculate the new dimensions that fit within the desired size while maintaining aspect ratio
+    let (resize_width, resize_height) = if new_width as f32 / new_height as f32 > aspect_ratio {
+        // Fit by height
+        let height = new_height;
+        let width = (new_height as f32 * aspect_ratio).round() as u32;
+        (width, height)
+    } else {
+        // Fit by width
+        let width = new_width;
+        let height = (new_width as f32 / aspect_ratio).round() as u32;
+        (width, height)
+    };
 
-        let new_width;
-        let new_height;
+    // Resize the image to the calculated dimensions
+    let resized_image = image::imageops::resize(
+        image,
+        resize_width,
+        resize_height,
+        filter,
+    );
 
-        if aspect_ratio > (target_width as f32 / target_height as f32) {
-            new_width = target_width;
-            new_height = (target_width as f32 / aspect_ratio) as u32;
-        } else {
-            new_width = (target_height as f32 * aspect_ratio) as u32;
-            new_height = target_height;
-        }
+    // Create a new image with the specified dimensions and black background
+    let mut padded_image = RgbaImage::new(new_width, new_height);
+    let black = Rgba([0, 0, 0, 255]);
 
-        // add gaussian blur filter to reduce noise
-        let img = img_base.blur(2.0);
+    // Fill the new image with black
+    for pixel in padded_image.pixels_mut() {
+        *pixel = black;
+    }
 
-        // Ridimensiona l'immagine
-        let resized_img = img.resize(new_width, new_height, filter);
+    // Calculate the position to place the resized image to center it
+    let x_offset = (new_width - resize_width) / 2;
+    let y_offset = (new_height - resize_height) / 2;
 
-        // Crea una nuova immagine con sfondo nero
-        let mut padded_img = ImageBuffer::new(target_width, target_height);
-        padded_img.fill(&image::Rgba([0, 0, 0, 255]));
+    // Overlay the resized image onto the black background
+    padded_image.copy_from(&resized_image, x_offset, y_offset).unwrap();
 
-        // Calcola le coordinate per centrare l'immagine ridimensionata
-        let x_offset = (target_width - new_width) / 2;
-        let y_offset = (target_height - new_height) / 2;
-
-        // Copia l'immagine ridimensionata nella nuova immagine
-        for y in 0..new_height {
-            for x in 0..new_width {
-                let pixel = resized_img.get_pixel(x, y);
-                padded_img.put_pixel(x + x_offset, y + y_offset, &pixel);
-            }
-        }
-
-        DynamicImage::ImageRgb8(padded_img)
-     */
+    padded_image
 }

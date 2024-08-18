@@ -1,13 +1,12 @@
+use crate::gui::video::Error;
 use gst::prelude::*;
 use gstreamer as gst;
+use gstreamer::Pipeline;
 use gstreamer_app as gst_app;
-use iced::widget::image as img;
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Instant;
-use gstreamer::Pipeline;
-use crate::gui::video::Error;
 
 /// Position in the media.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -52,7 +51,7 @@ pub struct Internal {
     pub(crate) framerate: f64,
     pub(crate) duration: std::time::Duration,
 
-    pub(crate) frame: Arc<Mutex<Vec<u8>>>, // ideally would be Arc<Mutex<[T]>>
+    pub(crate) frame: Arc<Mutex<Vec<u8>>>,
     pub(crate) upload_frame: Arc<AtomicBool>,
     pub(crate) wait: mpsc::Receiver<()>,
     pub(crate) notify: mpsc::Sender<()>,
@@ -209,13 +208,10 @@ impl Video {
 
         zante.bus = pipeline.bus().unwrap();
         zante.source = pipeline;
-
         zante.wait = wait;
-
         zante.width = width;
         zante.height = height;
         zante.framerate = framerate.numer() as f64 / framerate.denom() as f64;
-
         zante.duration = duration;
         zante.frame = frame;
         zante.upload_frame = upload_frame;
@@ -310,39 +306,5 @@ impl Video {
     /// Restarts a stream; seeks to the first frame and unpauses, sets the `eos` flag to false.
     pub fn restart_stream(&mut self) -> Result<(), Error> {
         self.0.borrow_mut().restart_stream()
-    }
-
-    /// Generates a list of thumbnails based on a set of positions in the media.
-    ///
-    /// Slow; only needs to be called once for each instance.
-    /// It's best to call this at the very start of playback, otherwise the position may shift.
-    pub fn thumbnails(&mut self, positions: &[Position]) -> Result<Vec<img::Handle>, Error> {
-        let paused = self.paused();
-        let pos = self.position();
-        self.set_paused(false);
-        let out = positions
-            .iter()
-            .map(|&pos| {
-                self.seek(pos)?;
-                let inner = self.0.borrow();
-                // for some reason waiting for two frames is necessary
-                // maybe in a small window between seek and wait the old frame comes in?
-                inner.wait.recv().map_err(|_| Error::Sync)?;
-                inner.wait.recv().map_err(|_| Error::Sync)?;
-                Ok(img::Handle::from_pixels(
-                    inner.width as _,
-                    inner.height as _,
-                    self.0
-                        .borrow()
-                        .frame
-                        .lock()
-                        .map_err(|_| Error::Lock)?
-                        .clone(),
-                ))
-            })
-            .collect();
-        self.set_paused(paused);
-        self.seek(pos)?;
-        out
     }
 }

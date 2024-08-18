@@ -3,22 +3,22 @@
     windows_subsystem = "windows"
 )] // hide console window on Windows in release
 
-use std::borrow::Cow;
-use std::{panic, process};
-use gstreamer_app::gst;
 use castgo::gui::resource::{APP_NAME_ID, FONT_SIZE_BODY, ICONS_BYTES, RALEWAY_FONT_BYTES, TEXT_FONT_FAMILY_NAME};
 use castgo::gui::types::appbase::App;
-use iced::{Application, Font, Pixels, Sandbox, Settings, Size};
-
-#[derive(Debug)]
-enum Mode {
-    Caster,
-    Receiver,
-}
+use gstreamer_app::gst;
+use iced::{Application, Font, Pixels, Settings, Size};
+use std::borrow::Cow;
+use std::{panic, process};
+use castgo::capture::Capture;
 
 #[tokio::main]
 async fn main() {
+/*
+    let (tx, rx) = tokio::sync::mpsc::channel(2000);
 
+    let mut capture = Capture::new();
+    capture.stream(capture.main, tx).await;
+*/
     gst::init().unwrap();
 
     // kill the main thread as soon as a secondary thread panics
@@ -38,7 +38,7 @@ async fn main() {
         id: Some(String::from(APP_NAME_ID)),
         antialiasing: true,
         window: iced::window::Settings {
-            size: Size::new(640f32, 373f32),
+            size: Size::new(640f32, 380f32),
             min_size: Some(Size::new(400f32, 300f32)),
             visible: true,
             resizable: true,
@@ -62,13 +62,4 @@ async fn main() {
         default_font: Font::with_name(TEXT_FONT_FAMILY_NAME),
         default_text_size: Pixels(FONT_SIZE_BODY),
     }).unwrap();
-
-    /*
-    let events = events::Events::init();
-
-    // Start grabbing events; handle errors if any occur
-    if let Err(error) = grab(move |e| events.handle(e)) {
-        println!("Error: {error:?}");
-    }
-    */
 }

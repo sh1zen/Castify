@@ -1,11 +1,10 @@
-use iced::advanced::widget::Text;
-use iced::{Alignment, Font};
-use iced::widget::Row;
 use crate::gui::resource::RALEWAY_FONT;
 use crate::gui::theme::styles::csx::StyleType;
-use crate::gui::theme::text::TextType;
 use crate::gui::types::icons::Icon;
 use crate::gui::types::messages::Message;
+use iced::advanced::widget::Text;
+use iced::widget::Row;
+use iced::{Alignment, Font};
 
 pub fn row_open_link_tooltip(text: &'static str) -> Row<'static, Message, StyleType> {
     Row::new()

@@ -5,7 +5,7 @@ use crate::gui::theme::styles::csx::StyleType;
 impl iced_aw::widgets::modal::StyleSheet for StyleType {
     type Style = ();
 
-    fn active(&self, style: &Self::Style) -> Appearance {
+    fn active(&self, _: &Self::Style) -> Appearance {
         Appearance {
             background: Color {
                 r: 45.0 / 255.0,

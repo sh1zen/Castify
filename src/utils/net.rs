@@ -1,10 +1,9 @@
-use crate::gui::resource::CAST_SERVICE_PORT;
+use crate::gui::resource::{CAST_SERVICE_PORT, MAX_PACKAGES_FAIL};
 use crate::gui::types::messages::Message;
 use bincode::{deserialize, serialize};
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
-use serde::ser::SerializeStruct;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use socket2::TcpKeepalive;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
@@ -120,7 +119,7 @@ pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc
                     match RgbaImage::from_raw(image_data.width, image_data.height, image_data.bytes) {
                         Some(rgba_image) => {
                             match tx.send(rgba_image).await {
-                                Err(e) => {println!("{}", e)}
+                                Err(e) => { println!("{}", e) }
                                 _ => {}
                             }
                         }
@@ -185,8 +184,15 @@ pub async fn caster(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) {
             while index_stream < streams.len() {
                 let entry = &mut streams[index_stream];
 
+                if entry.error_count >= MAX_PACKAGES_FAIL {
+                    streams.remove(index_stream);
+                    println!("Receiver {} dropped connection..", index_stream);
+                    continue;
+                }
+
                 // Send the length of the data first
                 if entry.stream.write_all(&packet_len.to_le_bytes().as_ref()).is_err() {
+                    entry.error_count += 1;
                     continue;
                 }
                 entry.stream.flush().unwrap();
@@ -196,44 +202,25 @@ pub async fn caster(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) {
                     let end = std::cmp::min(offset + CHUNK_SIZE, packet_len);
                     // todo handle this error
                     if entry.stream.write_all(&(serialized_tx[offset..end]).as_ref()).is_err() {
+                        entry.error_count += 1;
                         break;
                     }
                     offset += CHUNK_SIZE;
                 }
                 entry.stream.flush().unwrap();
+                entry.error_count = 0;
 
                 index_stream += 1;
-
-                /*
-                match entry.stream.write_all(&serialized_tx.as_ref()) {
-                    Ok(_) => {
-                        entry.error_count = 0;
-                        i += 1;
-                        entry.stream.flush().unwrap();
-                    }
-                    Err(_) => {
-                        entry.error_count += 1;
-                        println!("Receiver {} has shutdown connection.", i);
-
-                        if entry.error_count >= MAX_PACKAGES_FAIL {
-                            streams.remove(i);
-                        } else {
-                            i += 1;
-                        }
-                    }
-                }
-                 */
             }
         }
     });
 
     tokio::spawn(async move {
         loop {
-            let (mut stream, _addr) = listener.accept().unwrap();
+            let (stream, _addr) = listener.accept().unwrap();
             println!("---- Connection established! N° {:?} ----", streams.lock().await.len() + 1);
 
             set_keep_alive(&stream);
-            // stream.write_all(b"Hello Receiver\r\n").expect("Error while sending data.");
 
             streams.lock().await.push(StreamEntry { stream, error_count: 0 });
         }

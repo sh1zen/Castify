@@ -40,10 +40,9 @@ impl iced::widget::container::StyleSheet for StyleType {
             }),
             border: Border {
                 radius: match style {
-                    ContainerType::Modal | ContainerType::Standard => 15.0.into(),
                     ContainerType::Tooltip => 7.0.into(),
                     ContainerType::Badge | ContainerType::Highlighted => 100.0.into(),
-                    _ => 0.0.into(),
+                    _ => 15.0.into(),
                 },
                 width: match style {
                     ContainerType::Standard

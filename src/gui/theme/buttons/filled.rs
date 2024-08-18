@@ -35,18 +35,19 @@ impl FilledButton {
 
     pub fn build<'a, Message: 'a>(self) -> Button<'a, Message, StyleType>
     {
-        let mut content;
-        if let Some(icon) = self.icon {
-            content = Container::new(
+        let content = if let Some(icon) = self.icon {
+            Container::new(
                 Row::new()
+                    .spacing(2)
                     .push(icon.to_text())
                     .push(horizontal_space())
                     .push(Text::new(self.label.clone()).size(16))
                     .align_items(iced::Alignment::Center)
-            );
+            )
         } else {
-            content = Container::new(Text::new(self.label.clone()));
-        }
+            Container::new(Text::new(self.label.clone()))
+        };
+
         button(
             content.center_y().center_x()
         )

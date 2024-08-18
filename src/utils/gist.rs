@@ -42,6 +42,11 @@ pub fn create_pipeline(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) -> Result
         .property_from_str("leaky", "no")
         .build().unwrap();
 
+    let video_scale = gst::ElementFactory::make("videoscale")
+        .name("video-scale")
+        .property_from_str("method", "0")
+        .build().unwrap();
+
     let sink = gstreamer::ElementFactory::make("appsink") //filesink
         .name("appsink")
         //.property_from_str("location", "D:/video.mp4")
@@ -73,7 +78,7 @@ pub fn create_pipeline(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) -> Result
         e.sync_state_with_parent().unwrap();
     }
 
-    let mut i: u64 = 0;
+    let mut frame_i: u64 = 0;
     let appsrc = src
         .dynamic_cast::<gstreamer_app::AppSrc>()
         .expect("Source element is expected to be an appsrc!");
@@ -81,39 +86,38 @@ pub fn create_pipeline(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) -> Result
     appsrc.set_callbacks(
         gstreamer_app::AppSrcCallbacks::builder()
             .need_data(move |appsrc, _| {
-                println!("Producing frame {}", i);
+                println!("Producing frame {}", frame_i);
 
-                let frame = rx.blocking_recv().unwrap();
+                match rx.blocking_recv() {
+                    Some(frame) => {
+                        // Convert the image buffer into raw byte data
+                        let raw_data: Vec<u8> = frame.into_raw();
 
-                if i < (30 * FRAME_RATE) as u64 {
-                    // Convert the image buffer into raw byte data
-                    let raw_data: Vec<u8> = frame.into_raw();
+                        // Create a GStreamer buffer from the raw data slice
+                        let mut buffer = gst::Buffer::from_slice(raw_data);
+                        {
+                            let buffer_ref = buffer.get_mut().unwrap();
 
-                    // Create a GStreamer buffer from the raw data slice
-                    let mut buffer = gst::Buffer::from_slice(raw_data);
-                    {
-                        let buffer_ref = buffer.get_mut().unwrap();
+                            // Calculate PTS and duration based on frame rate
+                            let pts = ClockTime::from_mseconds(1000 * frame_i / FRAME_RATE as u64);
+                            let duration = ClockTime::from_mseconds(1000 * (1 / FRAME_RATE) as u64);
 
-                        // Calculate PTS and duration based on frame rate
-                        let pts = ClockTime::from_mseconds(1000 * i / FRAME_RATE as u64);
-                        let duration = ClockTime::from_mseconds(1000 * (1 / FRAME_RATE) as u64);
+                            buffer_ref.set_pts(pts);
+                            buffer_ref.set_dts(pts);
+                            buffer_ref.set_duration(duration);
+                        }
 
-                        buffer_ref.set_pts(pts);
-                        buffer_ref.set_dts(pts);
-                        buffer_ref.set_duration(duration);
+                        println!("{:?}", buffer);
+
+                        if let Err(error) = appsrc.push_buffer(buffer) {
+                            eprintln!("Error pushing buffer to appsrc: {:?}", error);
+                            appsrc.end_of_stream().expect("Failed to send EOS");
+                        }
                     }
-
-                    println!("{:?}", buffer);
-
-                    if let Err(error) = appsrc.push_buffer(buffer) {
-                        eprintln!("Error pushing buffer to appsrc: {:?}", error);
-                        appsrc.end_of_stream().expect("Failed to send EOS");
-                    }
-                } else {
-                    appsrc.end_of_stream().expect("Failed to send EOS");
+                    _ => {}
                 }
 
-                i += 1;
+                frame_i += 1;
             }).build(),
     );
 
