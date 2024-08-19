@@ -40,11 +40,12 @@ pub const RALEWAY_FONT: Font = Font {
 
 // font style
 pub const FONT_SIZE_BODY: f32 = 14.0;
+pub const FONT_SIZE_SUBTITLE: f32 = 12.0;
 pub const FONT_SIZE_FOOTER: f32 = 11.0;
 
 // border styles
 pub const BORDER_WIDTH: f32 = 0.0;
-pub const COMPONENT_BORDER_RADIUS: f32 = 8.0;
+pub const BORDER_RADIUS: f32 = 8.0;
 pub const BORDER_ALPHA: f32 = 0.0;
 
 // button

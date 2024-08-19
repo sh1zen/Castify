@@ -11,7 +11,7 @@ use iced::widget::text::LineHeight;
 use iced::widget::{button, Button, Container, Row};
 use iced::{Alignment, Length};
 use local_ip_address::local_ip;
-use crate::gui::theme::styles::buttons::ButtonType;
+use crate::gui::theme::button::ButtonType;
 
 pub fn footer() -> Container<'static, Message, StyleType> {
     let made_by = Text::new("Made by:  A. Frolli  P. Bella  M. De Paola")

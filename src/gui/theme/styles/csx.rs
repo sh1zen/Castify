@@ -39,13 +39,19 @@ impl StyleType {
                     b: 74.0 / 255.0,
                     a: 1.0,
                 },
+                primary_darker: Color {
+                    r: 24.0 / 255.0,
+                    g: 42.0 / 255.0,
+                    b: 64.0 / 255.0,
+                    a: 1.0,
+                },
                 secondary: Color {
                     r: 159.0 / 255.0,
                     g: 106.0 / 255.0,
                     b: 65.0 / 255.0,
                     a: 1.0,
                 },
-                starred: Color {
+                highlight: Color {
                     r: 245.0 / 255.0,
                     g: 245.0 / 255.0,
                     b: 245.0 / 255.0,

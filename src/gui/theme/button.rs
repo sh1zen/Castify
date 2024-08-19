@@ -2,7 +2,7 @@ use iced::widget::button;
 use iced::widget::button::Appearance;
 use iced::{Background, Border, Color, Shadow, Vector};
 
-use crate::gui::resource::{BORDER_WIDTH, BUTTON_ALPHA, COMPONENT_BORDER_RADIUS, H_BUTTON_ALPHA};
+use crate::gui::resource::{BORDER_WIDTH, BUTTON_ALPHA, BORDER_RADIUS, H_BUTTON_ALPHA};
 use crate::gui::theme::color::mix;
 use crate::gui::theme::styles::csx::StyleType;
 
@@ -35,7 +35,7 @@ impl button::StyleSheet for StyleType {
                 }),
                 ButtonType::Starred => Background::Color(Color {
                     a: BUTTON_ALPHA,
-                    ..colors.starred
+                    ..colors.highlight
                 }),
                 ButtonType::Transparent => Background::Color(Color::TRANSPARENT),
                 _ => Background::Color(Color {
@@ -48,7 +48,7 @@ impl button::StyleSheet for StyleType {
                     ButtonType::Tab => {
                         [0.0, 0.0, 30.0, 30.0].into()
                     }
-                    _ => COMPONENT_BORDER_RADIUS.into(),
+                    _ => BORDER_RADIUS.into(),
                 },
                 width: match style {
                     ButtonType::Transparent | ButtonType::Tab | ButtonType::Standard => 0.0,
@@ -125,7 +125,7 @@ impl button::StyleSheet for StyleType {
                 }),
                 ButtonType::Starred => Background::Color(Color {
                     a: H_BUTTON_ALPHA,
-                    ..colors.starred
+                    ..colors.highlight
                 }),
                 ButtonType::Transparent => Background::Color(Color::TRANSPARENT),
                 _ => Background::Color(Color {
@@ -175,7 +175,7 @@ impl button::StyleSheet for StyleType {
                 }),
                 ButtonType::Starred => Background::Color(Color {
                     a: 0.2,
-                    ..colors.starred
+                    ..colors.highlight
                 }),
                 ButtonType::Transparent => Background::Color(Color::TRANSPARENT),
                 _ => Background::Color(Color {

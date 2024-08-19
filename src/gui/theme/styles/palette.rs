@@ -7,12 +7,14 @@ use crate::gui::theme::styles::csx::StyleType;
 pub struct Palette {
     /// Main color of the GUI (background, hovered buttons, active tab)
     pub primary: Color,
+    /// as primary but darker
+    pub primary_darker: Color,
     /// Secondary color of the GUI (header, footer, buttons' borders)
     pub secondary: Color,
     /// Color of alert
     pub alert: Color,
-    /// Color of favorites' star symbol
-    pub starred: Color,
+    /// Color notice content
+    pub highlight: Color,
     /// Color of header and footer text
     pub text_headers: Color,
     /// Color of body and buttons text
@@ -56,9 +58,10 @@ impl Hash for Palette {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let Palette {
             primary,
+            primary_darker,
             secondary,
             alert,
-            starred,
+            highlight,
             text_headers,
             text_body,
             font,
@@ -66,9 +69,10 @@ impl Hash for Palette {
         } = self;
 
         color_hash(*primary, state);
+        color_hash(*primary_darker, state);
         color_hash(*secondary, state);
         color_hash(*alert, state);
-        color_hash(*starred, state);
+        color_hash(*highlight, state);
         color_hash(*text_headers, state);
         color_hash(*text_body, state);
         font.hash(state);

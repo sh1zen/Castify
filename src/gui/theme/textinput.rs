@@ -1,4 +1,4 @@
-use crate::gui::resource::{BORDER_WIDTH, BUTTON_ALPHA, COMPONENT_BORDER_RADIUS};
+use crate::gui::resource::{BORDER_WIDTH, BUTTON_ALPHA, BORDER_RADIUS};
 use crate::gui::theme::styles::csx::StyleType;
 use iced::widget::text_input::Appearance;
 use iced::{Background, Border, Color};
@@ -24,7 +24,7 @@ impl iced::widget::text_input::StyleSheet for StyleType {
                 },
             }),
             border: Border {
-                radius: COMPONENT_BORDER_RADIUS.into(),
+                radius: BORDER_RADIUS.into(),
                 width: BORDER_WIDTH,
                 color: match style {
                     TextInputType::Standard => buttons_color,

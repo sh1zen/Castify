@@ -1,5 +1,5 @@
 use crate::gui::theme::buttons::FilledButton;
-use crate::gui::theme::styles::buttons::ButtonType;
+use crate::gui::theme::button::ButtonType;
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::appbase::App;
 use crate::gui::types::icons::Icon;

@@ -8,6 +8,7 @@ pub struct Caster {
     pub streaming: bool,
     pub blank_screen: bool,
     init: bool,
+    pub monitor: u32
 }
 
 impl Caster {
@@ -16,6 +17,7 @@ impl Caster {
             streaming: false,
             blank_screen: false,
             init: false,
+            monitor: Capture::get_main(),
         }
     }
 
@@ -30,7 +32,7 @@ impl Caster {
             tokio::spawn(async move {
                 let mut capture = Capture::new();
                 capture.set_framerate(FRAME_RATE as f32);
-                capture.stream(capture.main.clone(), tx).await;
+                capture.stream(0, tx).await;
             });
 
             // send frames over the local network

@@ -4,7 +4,7 @@ use iced::advanced::widget::Text;
 use iced::keyboard::{Key, Modifiers};
 use iced::widget::{button, Button, Container};
 
-use crate::gui::theme::styles::buttons::ButtonType;
+use crate::gui::theme::button::ButtonType;
 use crate::gui::theme::styles::csx::StyleType;
 
 

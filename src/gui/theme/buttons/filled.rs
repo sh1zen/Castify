@@ -3,7 +3,7 @@ use std::default::Default;
 use iced::advanced::widget::Text;
 use iced::widget::{button, Button, Container, horizontal_space, Row};
 
-use crate::gui::theme::styles::buttons::ButtonType;
+use crate::gui::theme::button::ButtonType;
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::icons::Icon;
 

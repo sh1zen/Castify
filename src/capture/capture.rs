@@ -1,13 +1,13 @@
 use crate::gui::resource::{FRAME_HEIGHT, FRAME_WITH};
+use crate::workers;
 use chrono::{DateTime, Local};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio::time::{interval};
+use tokio::time::interval;
 use xcap::image::imageops::FilterType;
 use xcap::image::{GenericImage, Rgba, RgbaImage};
 use xcap::{image, Monitor};
-use crate::workers;
 
 struct MonitorArea {
     x: i32,
@@ -31,7 +31,7 @@ impl Capture {
         let mut main = 0;
 
         for monitor in Monitor::all().unwrap() {
-            if main == 0 {
+            if monitor.is_primary() {
                 main = monitor.id();
             }
 
@@ -125,26 +125,30 @@ impl Capture {
     }
 
     pub async fn stream(&self, id: u32, tx: mpsc::Sender<RgbaImage>) {
+
         let interval = interval(Duration::from_secs_f32(1.0 / self.framerate));
 
         tokio::pin!(interval);
 
-        if self.monitors.contains_key(&id) {
-            loop {
-                interval.as_mut().tick().await;
+        loop {
+            interval.as_mut().tick().await;
 
-                if !workers::caster::get_instance().lock().unwrap().streaming {
-                    tokio::time::sleep(Duration::from_millis(500)).await;
-                    continue;
-                }
+            if !workers::caster::get_instance().lock().unwrap().streaming {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                continue;
+            }
 
-                let frame = self.get_frame(id, workers::caster::get_instance().lock().unwrap().blank_screen);
+            let frame = self.get_frame(
+                if id != 0 { id } else {
+                    workers::caster::get_instance().lock().unwrap().monitor
+                },
+                workers::caster::get_instance().lock().unwrap().blank_screen,
+            );
 
-                if !frame.is_none() {
-                    if tx.send(frame.unwrap().clone()).await.is_err() {
-                        eprintln!("Receiver channel dropped");
-                        break;
-                    }
+            if !frame.is_none() {
+                if tx.send(frame.unwrap().clone()).await.is_err() {
+                    eprintln!("Receiver channel dropped");
+                    break;
                 }
             }
         }
@@ -161,7 +165,29 @@ impl Capture {
     pub fn has_monitor(&self, id: u32) -> bool {
         self.monitors.contains_key(&id)
     }
+
+    pub fn get_monitors(&self) -> HashMap<i32, u32> {
+        let mut monitors = HashMap::new();
+        let mut monitor_n = 0;
+        for monitor in self.monitors.clone() {
+            monitors.insert(monitor_n, monitor.1.id());
+            monitor_n += 1;
+        }
+        monitors
+    }
+
+    pub fn get_main() -> u32 {
+        let mut main = 0;
+        for monitor in Monitor::all().unwrap() {
+            if monitor.is_primary() {
+                main = monitor.id();
+                break;
+            }
+        }
+        main
+    }
 }
+
 
 fn normalized(filename: &str) -> String {
     filename

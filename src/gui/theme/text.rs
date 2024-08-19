@@ -71,6 +71,6 @@ pub fn highlight(style: StyleType, element: TextType) -> Color {
         TextType::Secondary => colors.secondary,
         TextType::Danger => Color::from_rgb(0.8, 0.15, 0.15),
         TextType::Standard => colors.text_body,
-        TextType::White => colors.starred,
+        TextType::White => colors.highlight,
     }
 }
