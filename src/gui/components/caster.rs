@@ -6,7 +6,6 @@ use crate::gui::types::icons::Icon;
 use crate::gui::types::messages::Message as appMessage;
 use crate::utils::get_string_after;
 use crate::workers;
-use gstreamer_video::VideoFrameExt;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Column, Container, PickList, Row};
 use iced::{Alignment, Length};
@@ -28,12 +27,14 @@ pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
         )
     };
 
-    let content = Row::new()
-        .align_items(iced::Alignment::Center).spacing(10)
-        .push(action)
-        .push(monitors_picklist())
+    let mut content = Row::new()
+        .align_items(Alignment::Center).spacing(10)
         .height(400)
-        .align_items(Alignment::Center);
+        .push(action);
+
+    if !workers::caster::get_instance().lock().unwrap().streaming {
+        content = content.push(monitors_picklist());
+    }
 
     Container::new(content)
         .width(Length::Fill)

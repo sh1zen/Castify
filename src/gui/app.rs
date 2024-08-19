@@ -33,17 +33,6 @@ impl Application for App {
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
-        fn launch_receiver(app: &mut App, socket_addr: Option<SocketAddr>) {
-            let (tx, rx) = tokio::sync::mpsc::channel(1);
-            tokio::spawn(async move {
-                crate::utils::net::receiver(socket_addr, tx).await;
-            });
-            let pipeline = crate::utils::gist::create_pipeline(rx).unwrap();
-            app.video.set_pipeline(pipeline);
-            app.show_popup = None;
-            app.page = Page::Client
-        }
-
         match message {
             Message::Home => {
                 self.hotkey_map.updating = KeyTypes::None;
@@ -75,12 +64,12 @@ impl Application for App {
             }
             Message::ConnectToCaster(mut caster_ip) => {
                 if caster_ip == "auto" {
-                    launch_receiver(self, None)
+                    self.launch_receiver(None)
                 } else if !caster_ip.contains(":") {
                     caster_ip = format!("{}:{}", caster_ip, CAST_SERVICE_PORT);
                     match SocketAddr::from_str(&*caster_ip) {
                         Ok(caster_socket_addr) => {
-                            launch_receiver(self, Some(caster_socket_addr))
+                            self.launch_receiver(Some(caster_socket_addr))
                         }
                         Err(e) => {
                             println!("{}", e);
@@ -88,6 +77,12 @@ impl Application for App {
                         }
                     }
                 }
+            }
+            Message::SaveCapture => {
+               self.launch_save_stream();
+            }
+            Message::SaveCaptureStop => {
+                workers::save_stream::get_instance().lock().unwrap().stop();
             }
             Message::OpenWebPage(web_page) => open_link(&web_page),
             Message::HotkeysPage => {

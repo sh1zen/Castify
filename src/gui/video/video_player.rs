@@ -84,8 +84,8 @@ where
         let (width, height) = self.video.size();
         let (width, height) = (width as f32, height as f32);
         let size = limits.resolve(
-            iced::Length::Fill,
-            iced::Length::Fill,
+            iced::Length::Shrink,
+            iced::Length::Shrink,
             iced::Size::new(width, height),
         );
 

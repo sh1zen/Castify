@@ -2,6 +2,7 @@ use crate::gui::components::hotkeys::KeyTypes;
 use crate::gui::components::popup::{PopupMsg, PopupType};
 use crate::gui::types::messages::Message;
 use crate::gui::video::Video;
+use crate::workers;
 use iced::keyboard::key::Named;
 use iced::keyboard::{Event, Key, Modifiers};
 use iced::mouse::Event::ButtonPressed;
@@ -9,6 +10,7 @@ use iced::window::Id;
 use iced::Event::{Keyboard, Window};
 use iced::{window, Subscription};
 use std::collections::HashMap;
+use std::net::SocketAddr;
 
 pub enum Page {
     Home,
@@ -92,5 +94,20 @@ impl App {
             Window(Id::MAIN, window::Event::CloseRequested) => Some(Message::CloseRequested),
             _ => None,
         })
+    }
+
+    pub(crate) fn launch_receiver(&mut self, socket_addr: Option<SocketAddr>) {
+        let (tx, rx) = tokio::sync::mpsc::channel(1);
+        tokio::spawn(async move {
+            crate::utils::net::receiver(socket_addr, tx).await;
+        });
+        let pipeline = crate::utils::gist::create_stream_pipeline(rx).unwrap();
+        self.video.set_pipeline(pipeline);
+        self.show_popup = None;
+        self.page = Page::Client;
+    }
+
+    pub(crate) fn launch_save_stream(&mut self) {
+        workers::save_stream::get_instance().lock().unwrap().start();
     }
 }

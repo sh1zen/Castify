@@ -1,4 +1,4 @@
-use crate::gui::resource::{BORDER_ALPHA, BORDER_RADIUS};
+use crate::gui::resource::{BORDER_RADIUS};
 use crate::gui::theme::color::mix;
 use iced::widget::container;
 use iced::widget::scrollable::{Appearance, Properties};

@@ -1,5 +1,5 @@
 mod pipeline;
-mod video;
+pub(crate) mod video;
 mod video_player;
 
 pub use video::Internal;

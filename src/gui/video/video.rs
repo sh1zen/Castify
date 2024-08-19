@@ -138,9 +138,8 @@ impl Video {
     pub fn set_pipeline(&mut self, pipeline: Pipeline) {
         let live = true;
 
-        let app_sink_name = "appsink";
         let app_sink = pipeline
-            .by_name(app_sink_name)
+            .by_name("appsink")
             .and_then(|elem| elem.downcast::<gst_app::AppSink>().ok())
             .unwrap();
 
@@ -148,8 +147,8 @@ impl Video {
 
         pipeline.set_state(gst::State::Playing).unwrap();
 
-        // wait for up to 5 seconds until the decoder gets the source capabilities
-        let _ = pipeline.state(gst::ClockTime::from_seconds(5));
+        // wait decoder gets the source capabilities
+        let _ = pipeline.state(gst::ClockTime::from_seconds(1));
 
         // extract resolution and framerate
         let caps = pad.current_caps().ok_or("Failed to get media capabilities").unwrap();
@@ -211,6 +210,10 @@ impl Video {
         zante.duration = duration;
         zante.frame = frame;
         zante.upload_frame = upload_frame;
+    }
+
+    pub fn get_pipeline(&mut self) -> &Pipeline {
+        &self.0.get_mut().source
     }
 
     /// Get the size/resolution of the video as `(width, height)`.

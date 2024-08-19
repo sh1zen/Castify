@@ -17,6 +17,10 @@ pub enum Message {
     ClosePopup,
     /// Connect to caster, passing caster ip as String
     ConnectToCaster(String),
+    /// Save the capture
+    SaveCapture,
+    /// stop saving capture
+    SaveCaptureStop,
     /// Ignore
     Ignore,
     /// blank the recording
