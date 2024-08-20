@@ -2,7 +2,7 @@ use iced::font::{Family, Stretch, Style, Weight};
 use iced::Font;
 
 // conv
-pub const FRAME_RATE: i32 = 18;
+pub const FRAME_RATE: i32 = 24;
 pub const FRAME_WITH: i32 = 1920;
 pub const FRAME_HEIGHT: i32 = 1080;
 
@@ -14,6 +14,13 @@ pub const CAST_SERVICE_PORT: u16 = 31413;
 pub const APP_VERSION: &str = "1.0.0";
 pub const APP_NAME: &str = "Screen Caster";
 pub const APP_NAME_ID: &str = "screen_caster";
+
+#[cfg(target_os = "windows")]
+pub const ICON_BYTES: &[u8] = include_bytes!("../../resources/icons/96x96.png");
+#[cfg(target_os = "macos")]
+pub const ICON_BYTES: &[u8] = include_bytes!("../../resources/icons/icon.icns");
+#[cfg(target_os = "linux")]
+pub const ICON_BYTES: &[u8] = include_bytes!("../../resources/icons/96x96.png");
 
 
 //font to display icons

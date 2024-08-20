@@ -53,6 +53,10 @@ fn monitors_picklist() -> Container<'static, appMessage, StyleType> {
         monitors.push(monitor_name(monitor.1));
     }
 
+    if monitors.len() == 0 {
+        return Container::new(iced::widget::Space::new(0, 0));
+    }
+
     let selected = monitor_name(workers::caster::get_instance().lock().unwrap().monitor);
 
     let content = Column::new()

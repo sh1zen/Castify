@@ -3,16 +3,32 @@
     windows_subsystem = "windows"
 )] // hide console window on Windows in release
 
-use castgo::gui::resource::{APP_NAME_ID, FONT_SIZE_BODY, ICONS_BYTES, RALEWAY_FONT_BYTES, TEXT_FONT_FAMILY_NAME};
+use castgo::gui::resource::{APP_NAME_ID, FONT_SIZE_BODY, ICONS_BYTES, ICON_BYTES, RALEWAY_FONT_BYTES, TEXT_FONT_FAMILY_NAME};
 use castgo::gui::types::appbase::App;
-use gstreamer_app::gst;
 use iced::{Application, Font, Pixels, Settings, Size};
 use std::borrow::Cow;
 use std::{panic, process};
 
 #[tokio::main]
 async fn main() {
-    gst::init().unwrap();
+    gstreamer::init().expect("❌ gstreamer init error.");
+
+    let mut supported = true;
+
+    if !scap::is_supported() {
+        supported = false;
+    } else {
+        if !scap::has_permission() {
+            println!("❌ Permission not granted. Requesting permission...");
+            if !scap::request_permission() {
+                println!("❌ Permission denied");
+                return;
+            }
+        }
+    }
+
+    let targets = scap::get_targets();
+    println!("Targets: {:?}", targets);
 
     // kill the main thread as soon as a secondary thread panics
     let orig_hook = panic::take_hook();
@@ -36,18 +52,17 @@ async fn main() {
             visible: true,
             resizable: true,
             decorations: true,
-            transparent: false,
+            transparent: true,
             exit_on_close_request: false,
             icon: Some(
                 iced::window::icon::from_file_data(
-                    include_bytes!("../resources/icons/192x192.png"),
+                    ICON_BYTES,
                     None,
-                )
-                    .unwrap(),
+                ).unwrap(),
             ),
             ..Default::default()
         },
-        flags: App::new(),
+        flags: App::new(supported),
         fonts: vec![
             Cow::Borrowed(RALEWAY_FONT_BYTES),
             Cow::Borrowed(ICONS_BYTES),

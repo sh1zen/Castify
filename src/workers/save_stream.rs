@@ -95,26 +95,25 @@ impl SaveStream {
 
         match &self.appsrc {
             Some(appsrc) => {
-                println!("setting eos");
                 appsrc.end_of_stream().expect("Failed to send EOS");
+                // Check for pipeline state changes, errors, etc.
+                let bus = self.pipeline.bus().unwrap();
+                for msg in bus.iter() {
+                    match msg.view() {
+                        MessageView::Eos(_) => {
+                            self.pipeline.set_state(gstreamer::State::Null).unwrap();
+                            break;
+                        }
+                        _ => {
+                            // fix to allow pipeline to prepare for gstreamer::State::Null
+                            sleep(Duration::from_millis(2));
+                        }
+                    }
+                }
             }
             _ => {}
         }
 
-        // Check for pipeline state changes, errors, etc.
-        let bus = self.pipeline.bus().unwrap();
-        for msg in bus.iter() {
-            match msg.view() {
-                MessageView::Eos(_) => {
-                    self.pipeline.set_state(gstreamer::State::Null).unwrap();
-                    break;
-                }
-                _ => {
-                    // fix to allow pipeline to prepare for gstreamer::State::Null
-                    sleep(Duration::from_millis(2));
-                }
-            }
-        }
         self.appsrc = None;
         self.pipeline = Pipeline::new();
         self.is_saving = false;

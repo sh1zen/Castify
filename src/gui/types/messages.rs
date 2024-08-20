@@ -1,6 +1,6 @@
 use iced::keyboard::{Key, Modifiers};
 
-use crate::gui::components::{caster, hotkeys, popup, start};
+use crate::gui::components::{caster, hotkeys, popup, home};
 
 #[derive(Debug, Clone)]
 /// Messages types that permit to react to application interactions/subscriptions
@@ -8,7 +8,7 @@ pub enum Message {
     /// homepage
     Home,
     /// the app mode caster / receiver
-    Mode(start::Message),
+    Mode(home::Message),
     /// caster play pause
     Caster(caster::Message),
     /// A collector of all popups messages

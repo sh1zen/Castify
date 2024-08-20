@@ -6,9 +6,9 @@ use std::sync::{Arc, Mutex};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub struct Caster {
     pub streaming: bool,
-    pub blank_screen: bool,
+    blank_screen: bool,
     init: bool,
-    pub monitor: u32
+    pub monitor: u32,
 }
 
 impl Caster {
@@ -26,7 +26,8 @@ impl Caster {
 
         if !self.init {
             self.init = true;
-            let (tx, rx) = tokio::sync::mpsc::channel(1);
+
+            let (tx, rx) = tokio::sync::mpsc::channel(3);
 
             // generate frames
             tokio::spawn(async move {
@@ -40,6 +41,18 @@ impl Caster {
                 crate::utils::net::caster(rx).await;
             });
         }
+    }
+
+    pub fn pause(&mut self) {
+        self.streaming = false;
+    }
+
+    pub fn toggle_blank_screen(&mut self) {
+        self.blank_screen = !self.blank_screen;
+    }
+
+    pub fn is_blank_screen(&self) -> bool {
+        self.blank_screen.clone()
     }
 }
 

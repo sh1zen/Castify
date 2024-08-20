@@ -4,8 +4,8 @@ use crate::gui::components::client::client_page;
 use crate::gui::components::footer::footer;
 use crate::gui::components::hotkeys::{hotkeys, KeyTypes};
 use crate::gui::components::popup::{show_popup, PopupMsg, PopupType};
-use crate::gui::components::start::initial_page;
-use crate::gui::components::{caster, start};
+use crate::gui::components::home::initial_page;
+use crate::gui::components::{caster, home};
 use crate::gui::resource::{open_link, CAST_SERVICE_PORT};
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::appbase::{App, Page};
@@ -40,11 +40,11 @@ impl Application for App {
             }
             Message::Mode(mode) => {
                 match mode {
-                    start::Message::ButtonCaster => {
+                    home::Message::ButtonCaster => {
                         self.is_caster = true;
                         self.page = Page::Caster
                     }
-                    start::Message::ButtonReceiver => {
+                    home::Message::ButtonReceiver => {
                         self.show_popup = Some(PopupType::IP);
                     }
                 }
@@ -55,12 +55,12 @@ impl Application for App {
                         workers::caster::get_instance().lock().unwrap().cast_screen();
                     }
                     caster::Message::Pause => {
-                        workers::caster::get_instance().lock().unwrap().streaming = false;
+                        workers::caster::get_instance().lock().unwrap().pause();
                     }
                 }
             }
             Message::BlankScreen => {
-                workers::caster::get_instance().lock().unwrap().blank_screen = !workers::caster::get_instance().lock().unwrap().blank_screen;
+                workers::caster::get_instance().lock().unwrap().toggle_blank_screen();
             }
             Message::ConnectToCaster(mut caster_ip) => {
                 if caster_ip == "auto" {

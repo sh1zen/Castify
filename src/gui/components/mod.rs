@@ -1,4 +1,4 @@
-pub mod start;
+pub mod home;
 pub mod caster;
 pub mod client;
 pub mod footer;

@@ -4,6 +4,7 @@ use chrono::{DateTime, Local};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::error::TrySendError;
 use tokio::time::interval;
 use xcap::image::imageops::FilterType;
 use xcap::image::{GenericImage, Rgba, RgbaImage};
@@ -22,7 +23,6 @@ pub struct Capture {
     framerate: f32,
     pub main: u32,
 }
-
 
 impl Capture {
     pub fn new() -> Capture {
@@ -104,6 +104,8 @@ impl Capture {
                 for pixel in frame.pixels_mut() {
                     *pixel = Rgba([255, 255, 255, 1]);
                 }
+
+                println!("Blank Frame {}", Local::now().timestamp_millis());
             } else {
                 frame = self.frame(monitor);
 
@@ -113,7 +115,7 @@ impl Capture {
                     &frame,
                     FRAME_WITH as u32,
                     FRAME_HEIGHT as u32,
-                    FilterType::Nearest,
+                    FilterType::Lanczos3,
                 );
             }
 
@@ -125,7 +127,6 @@ impl Capture {
     }
 
     pub async fn stream(&self, id: u32, tx: mpsc::Sender<RgbaImage>) {
-
         let interval = interval(Duration::from_secs_f32(1.0 / self.framerate));
 
         tokio::pin!(interval);
@@ -140,15 +141,18 @@ impl Capture {
 
             let frame = self.get_frame(
                 if id != 0 { id } else {
-                    workers::caster::get_instance().lock().unwrap().monitor
+                    workers::caster::get_instance().lock().unwrap().monitor.clone()
                 },
-                workers::caster::get_instance().lock().unwrap().blank_screen,
+                workers::caster::get_instance().lock().unwrap().is_blank_screen(),
             );
 
             if !frame.is_none() {
-                if tx.send(frame.unwrap().clone()).await.is_err() {
-                    eprintln!("Receiver channel dropped");
-                    break;
+                match tx.try_send(frame.unwrap().clone()) {
+                    Err(TrySendError::Closed(_)) => {
+                        eprintln!("Receiver channel dropped");
+                        break;
+                    }
+                    _ => {}
                 }
             }
         }
@@ -216,6 +220,10 @@ fn resize_and_pad(image: &RgbaImage, new_width: u32, new_height: u32, filter: Fi
         let height = (new_width as f32 / aspect_ratio).round() as u32;
         (width, height)
     };
+
+    if resize_width == orig_width && resize_height == orig_height {
+       return image.to_owned()
+    }
 
     // Resize the image to the calculated dimensions
     let resized_image = image::imageops::resize(

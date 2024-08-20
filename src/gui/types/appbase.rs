@@ -29,7 +29,7 @@ pub struct HotkeyMap {
 }
 
 pub struct App {
-    /// whether this app needs act as caster or receiver
+    pub(crate) os_supported: bool,
     pub(crate) is_caster: bool,
     pub(crate) page: Page,
     pub(crate) show_popup: Option<PopupType>,
@@ -39,8 +39,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn new() -> App {
+    pub fn new(supported:bool) -> App {
         App {
+            os_supported: supported,
             is_caster: false,
             page: Page::Home,
             show_popup: None,

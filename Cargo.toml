@@ -9,7 +9,7 @@ A Rust screen caster app
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-xcap = "0.0.11"
+xcap = "0.0.12"
 tokio = { version = "1.39.3", features = ["full"] }
 chrono = "0.4.38"
 local-ip-address = "0.6.1"
@@ -30,6 +30,7 @@ gstreamer-app = "0.23.0"
 gstreamer-pbutils = "0.23.0"
 glib = "0.20.1"
 once_cell = "1.19.0"
+scap = "0.0.5"
 
 
 [lib]

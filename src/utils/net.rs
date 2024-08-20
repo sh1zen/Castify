@@ -161,8 +161,8 @@ pub async fn caster(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) {
     println!("Caster running and registered on mDNS");
 
     let streams: Arc<Mutex<Vec<StreamEntry>>> = Arc::new(Mutex::new(Vec::new()));
-
     let streams_clone = streams.clone();
+
     tokio::spawn(async move {
         while let Some(image) = rx.recv().await {
             println!("Transmitting...");
@@ -200,7 +200,6 @@ pub async fn caster(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) {
                 offset = 0;
                 while offset < packet_len {
                     let end = std::cmp::min(offset + CHUNK_SIZE, packet_len);
-                    // todo handle this error
                     if entry.stream.write_all(&(serialized_tx[offset..end]).as_ref()).is_err() {
                         entry.error_count += 1;
                         break;
