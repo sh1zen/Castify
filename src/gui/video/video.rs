@@ -107,7 +107,6 @@ impl Drop for Video {
 }
 
 impl Video {
-    // let pipeline = format!("uridecodebin uri=\"{}\" ! videoconvert ! videoscale ! appsink name=iced_video caps=video/x-raw,format=RGBA,pixel-aspect-ratio=1/1", uri.as_str());
 
     pub fn new() -> Self {
         let (notify, wait) = mpsc::channel();

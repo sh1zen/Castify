@@ -1,6 +1,7 @@
 use crate::gui::resource::{CAST_SERVICE_PORT, MAX_PACKAGES_FAIL};
 use crate::gui::types::messages::Message;
 use bincode::{deserialize, serialize};
+use image::RgbaImage;
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use serde::{Deserialize, Serialize};
@@ -11,7 +12,6 @@ use std::str;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use xcap::image::RgbaImage;
 
 const SERVICE_NAME: &'static str = "_screen_caster._tcp.local.";
 

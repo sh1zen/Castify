@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
-use xcap::image::RgbaImage;
+use image::RgbaImage;
 
 #[derive(Debug, Clone)]
 pub struct SaveStream {

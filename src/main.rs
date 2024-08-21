@@ -14,21 +14,18 @@ async fn main() {
     gstreamer::init().expect("❌ gstreamer init error.");
 
     let mut supported = true;
-
-    if !scap::is_supported() {
-        supported = false;
-    } else {
-        if !scap::has_permission() {
-            println!("❌ Permission not granted. Requesting permission...");
-            if !scap::request_permission() {
-                println!("❌ Permission denied");
-                return;
+    /*
+        if !scap::is_supported() {
+            supported = false;
+        } else {
+            if !scap::has_permission() {
+                println!("❌ Permission not granted. Requesting permission...");
+                if !scap::request_permission() {
+                    println!("❌ Permission denied");
+                    return;
+                }
             }
-        }
-    }
-
-    let targets = scap::get_targets();
-    println!("Targets: {:?}", targets);
+        }*/
 
     // kill the main thread as soon as a secondary thread panics
     let orig_hook = panic::take_hook();

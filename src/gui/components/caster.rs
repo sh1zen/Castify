@@ -49,8 +49,8 @@ fn monitor_name(id: u32) -> String {
 fn monitors_picklist() -> Container<'static, appMessage, StyleType> {
     let mut monitors = Vec::new();
 
-    for monitor in Capture::new().get_monitors() {
-        monitors.push(monitor_name(monitor.1));
+    for monitor in Capture::get_monitors() {
+        monitors.push(monitor_name(monitor.1.monitor.id()));
     }
 
     if monitors.len() == 0 {

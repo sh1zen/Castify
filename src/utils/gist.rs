@@ -4,7 +4,7 @@ use chrono::Local;
 use gstreamer as gst;
 use gstreamer::prelude::*;
 use gstreamer::{ClockTime, Element, Pipeline};
-use xcap::image::RgbaImage;
+use image::RgbaImage;
 
 pub fn create_stream_pipeline(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) -> Result<Pipeline, glib::Error> {
     let pipeline = Pipeline::new();

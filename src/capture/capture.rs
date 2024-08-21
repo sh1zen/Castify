@@ -1,67 +1,50 @@
 use crate::gui::resource::{FRAME_HEIGHT, FRAME_WITH};
 use crate::workers;
 use chrono::{DateTime, Local};
+use image::{GenericImage, Rgba, RgbaImage};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::time::interval;
 use xcap::image::imageops::FilterType;
-use xcap::image::{GenericImage, Rgba, RgbaImage};
 use xcap::{image, Monitor};
 
-struct MonitorArea {
+pub struct XMonitor {
     x: i32,
     y: i32,
     height: u32,
     width: u32,
+    pub monitor: Monitor,
 }
 
 pub struct Capture {
-    monitors: HashMap<u32, Monitor>,
-    area: HashMap<u32, MonitorArea>,
+    monitors: HashMap<u32, XMonitor>,
     framerate: f32,
     pub main: u32,
 }
 
 impl Capture {
     pub fn new() -> Capture {
-        let mut monitors_area: HashMap<u32, MonitorArea> = HashMap::new();
-        let mut monitors: HashMap<u32, Monitor> = HashMap::new();
-        let mut main = 0;
-
-        for monitor in Monitor::all().unwrap() {
-            if monitor.is_primary() {
-                main = monitor.id();
-            }
-
-            monitors.insert(monitor.id().clone(), monitor.clone());
-
-            monitors_area.insert(monitor.id().clone(), MonitorArea {
-                x: 0,
-                y: 0,
-                height: monitor.height().clone(),
-                width: monitor.width().clone(),
-            });
-        }
+        let mut monitors: HashMap<u32, XMonitor> = Self::get_monitors();
+        let mut main = Self::get_main();
 
         Capture {
             monitors,
-            area: monitors_area,
-            framerate: 18.0,
+            framerate: 24.0,
             main,
         }
     }
 
     pub fn resize(&mut self, id: u32, x: i32, y: i32, width: u32, height: u32) {
-        if !self.area.contains_key(&id) {
+        if !self.monitors.contains_key(&id) {
             return;
         }
 
-        self.area.get_mut(&id).unwrap().x = x;
-        self.area.get_mut(&id).unwrap().y = y;
-        self.area.get_mut(&id).unwrap().width = width;
-        self.area.get_mut(&id).unwrap().height = height;
+        self.monitors.get_mut(&id).unwrap().x = x;
+        self.monitors.get_mut(&id).unwrap().y = y;
+        self.monitors.get_mut(&id).unwrap().width = width;
+        self.monitors.get_mut(&id).unwrap().height = height;
 
         Monitor::from_point(x, y).unwrap();
     }
@@ -74,7 +57,7 @@ impl Capture {
                 println!("Out of bound monitor {}", id);
                 return;
             }
-            let monitor = self.monitors.get(&id).unwrap();
+            let monitor = &self.monitors.get(&id).unwrap().monitor;
             self.frame(monitor)
                 .save(format!(
                     "target/monitor-{}-{}.png",
@@ -84,9 +67,9 @@ impl Capture {
                 .unwrap();
         } else {
             for (_, monitor) in self.monitors.iter() {
-                self.frame(&monitor).save(format!(
+                self.frame(&monitor.monitor).save(format!(
                     "target/monitor-{}-{}.png",
-                    normalized(monitor.name()),
+                    normalized(monitor.monitor.name()),
                     now.timestamp().to_string()
                 )).unwrap();
             }
@@ -96,13 +79,13 @@ impl Capture {
     pub fn get_frame(&self, id: u32, blank: bool) -> Option<RgbaImage>
     {
         if self.monitors.contains_key(&id) {
-            let monitor = self.monitors.get(&id)?;
+            let monitor = &self.monitors.get(&id)?.monitor;
             let mut frame;
 
             if blank {
                 frame = RgbaImage::new(monitor.width(), monitor.height());
                 for pixel in frame.pixels_mut() {
-                    *pixel = Rgba([255, 255, 255, 1]);
+                    *pixel = Rgba([255, 255, 255, 255]);
                 }
 
                 println!("Blank Frame {}", Local::now().timestamp_millis());
@@ -118,7 +101,6 @@ impl Capture {
                     FilterType::Lanczos3,
                 );
             }
-
 
             Some(frame)
         } else {
@@ -157,7 +139,7 @@ impl Capture {
             }
         }
     }
-
+    
     pub fn set_framerate(&mut self, framerate: f32) {
         self.framerate = framerate;
     }
@@ -170,12 +152,17 @@ impl Capture {
         self.monitors.contains_key(&id)
     }
 
-    pub fn get_monitors(&self) -> HashMap<i32, u32> {
+    pub fn get_monitors() -> HashMap<u32, XMonitor> {
         let mut monitors = HashMap::new();
-        let mut monitor_n = 0;
-        for monitor in self.monitors.clone() {
-            monitors.insert(monitor_n, monitor.1.id());
-            monitor_n += 1;
+
+        for monitor in Monitor::all().unwrap() {
+            monitors.insert(monitor.id(), XMonitor {
+                x: 0,
+                y: 0,
+                height: monitor.height(),
+                width: monitor.width(),
+                monitor,
+            });
         }
         monitors
     }
@@ -222,7 +209,7 @@ fn resize_and_pad(image: &RgbaImage, new_width: u32, new_height: u32, filter: Fi
     };
 
     if resize_width == orig_width && resize_height == orig_height {
-       return image.to_owned()
+        return image.to_owned();
     }
 
     // Resize the image to the calculated dimensions
