@@ -6,7 +6,6 @@ use crate::gui::types::icons::Icon;
 use crate::gui::types::messages::Message as appMessage;
 use iced::widget::{Container, Row, Text};
 use iced::{Alignment, Length};
-use std::process::exit;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -17,13 +16,6 @@ pub fn initial_page(app: &App) -> Container<appMessage, StyleType> {
     let content = if !app.os_supported {
         Row::new().push(Text::new("Platform not supported!"))
     } else {
-        if !scap::has_permission() {
-            if !scap::request_permission() {
-                println!("❌ Permission denied");
-                exit(0);
-            }
-        }
-
         Row::new()
             .align_items(Alignment::Center).spacing(10)
             .push(FilledButton::new("Caster")

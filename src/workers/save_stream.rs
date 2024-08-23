@@ -24,7 +24,7 @@ impl SaveStream {
         Self {
             is_saving: false,
             is_available: false,
-            pipeline: Pipeline::new(),
+            pipeline: Default::default(),
             appsrc: None,
             frame_i: 0,
         }

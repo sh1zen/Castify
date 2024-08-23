@@ -10,6 +10,7 @@ use tokio::time::interval;
 use xcap::image::imageops::FilterType;
 use xcap::{image, Monitor};
 
+#[derive(Debug, Clone)]
 pub struct XMonitor {
     x: i32,
     y: i32,
@@ -18,6 +19,7 @@ pub struct XMonitor {
     pub monitor: Monitor,
 }
 
+#[derive(Debug, Clone)]
 pub struct Capture {
     monitors: HashMap<u32, XMonitor>,
     framerate: f32,
@@ -139,7 +141,7 @@ impl Capture {
             }
         }
     }
-    
+
     pub fn set_framerate(&mut self, framerate: f32) {
         self.framerate = framerate;
     }

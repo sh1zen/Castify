@@ -13,7 +13,7 @@ use std::{panic, process};
 async fn main() {
     gstreamer::init().expect("❌ gstreamer init error.");
 
-    let mut supported = true;
+    let supported = true;
     /*
         if !scap::is_supported() {
             supported = false;

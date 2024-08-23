@@ -11,6 +11,10 @@ use iced::Event::{Keyboard, Window};
 use iced::{window, Subscription};
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use gstreamer::ClockTime;
+use gstreamer::prelude::ElementExt;
+use crate::gui::resource::USE_WEBRTC;
+use crate::utils::gist::create_ss_save_pipeline;
 
 pub enum Page {
     Home,
@@ -98,14 +102,32 @@ impl App {
     }
 
     pub(crate) fn launch_receiver(&mut self, socket_addr: Option<SocketAddr>) {
+
         let (tx, rx) = tokio::sync::mpsc::channel(1);
-        tokio::spawn(async move {
-            crate::utils::net::receiver(socket_addr, tx).await;
-        });
-        let pipeline = crate::utils::gist::create_stream_pipeline(rx).unwrap();
-        self.video.set_pipeline(pipeline);
-        self.show_popup = None;
-        self.page = Page::Client;
+
+        if USE_WEBRTC {
+
+            tokio::spawn(async move {
+                let tt = crate::utils::net::WebRTCClient::new("ws://localhost:31413").await;
+                tt.receive_video(tx).await;
+            });
+
+            let pipeline = create_ss_save_pipeline(rx).unwrap();
+            pipeline.set_state(gstreamer::State::Playing).unwrap();
+            let _ = pipeline.state(ClockTime::from_seconds(1));
+            //self.video.set_pipeline(pipeline);
+            // self.show_popup = None;
+            //self.page = Page::Client;
+        } else {
+            let (tx, rx) = tokio::sync::mpsc::channel(1);
+            tokio::spawn(async move {
+                crate::utils::net::net::receiver(socket_addr, tx).await;
+            });
+            let pipeline = crate::utils::gist::create_view_pipeline(rx).unwrap();
+            self.video.set_pipeline(pipeline);
+            self.show_popup = None;
+            self.page = Page::Client;
+        }
     }
 
     pub(crate) fn launch_save_stream(&mut self) {
