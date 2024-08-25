@@ -2,6 +2,7 @@ use crate::gui::resource::{FRAME_HEIGHT, FRAME_WITH};
 use crate::workers;
 use chrono::{DateTime, Local};
 use image::{GenericImage, Rgba, RgbaImage};
+use iced::Rectangle;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -24,31 +25,75 @@ pub struct Capture {
     monitors: HashMap<u32, XMonitor>,
     framerate: f32,
     pub main: u32,
+    capture_regions: HashMap<u32, Option<Rectangle>>, // Add for saving the capture region
 }
 
 impl Capture {
     pub fn new() -> Capture {
-        let mut monitors: HashMap<u32, XMonitor> = Self::get_monitors();
-        let mut main = Self::get_main();
+        let monitors: HashMap<u32, XMonitor> = Self::get_monitors();
+        let main = Self::get_main();
 
         Capture {
             monitors,
             framerate: 24.0,
             main,
+            capture_regions: HashMap::new(), // Setting the map of regions
         }
     }
 
-    pub fn resize(&mut self, id: u32, x: i32, y: i32, width: u32, height: u32) {
-        if !self.monitors.contains_key(&id) {
-            return;
+    //Add a method for setting the capture region
+    pub fn set_capture_region(&mut self, id: u32, region: Option<Rectangle>) {
+        self.capture_regions.insert(id, region);
+    }
+
+    pub fn get_frame(&self, id: u32, blank: bool) -> Option<RgbaImage> {
+        if self.monitors.contains_key(&id) {
+            let monitor = &self.monitors.get(&id)?.monitor;
+            let mut frame;
+
+            if blank {
+                frame = RgbaImage::new(monitor.width(), monitor.height());
+                for pixel in frame.pixels_mut() {
+                    *pixel = Rgba([255, 255, 255, 255]);
+                }
+
+                println!("Blank Frame {}", Local::now().timestamp_millis());
+            } else {
+                frame = self.frame(monitor);
+
+                // its already setting (the region)?
+                if let Some(region) = self.capture_regions.get(&id).unwrap_or(&None) {
+                    if let Some(region) = region {
+                        frame = Self::crop_to_region(&frame, region);
+                    }
+                }
+
+                println!("Captured Frame {}", Local::now().timestamp_millis());
+
+                frame = resize_and_pad(
+                    &frame,
+                    FRAME_WITH as u32,
+                    FRAME_HEIGHT as u32,
+                    FilterType::Lanczos3,
+                );
+            }
+
+            Some(frame)
+        } else {
+            None
         }
+    }
 
-        self.monitors.get_mut(&id).unwrap().x = x;
-        self.monitors.get_mut(&id).unwrap().y = y;
-        self.monitors.get_mut(&id).unwrap().width = width;
-        self.monitors.get_mut(&id).unwrap().height = height;
-
-        Monitor::from_point(x, y).unwrap();
+    // Method for cutting the region
+    fn crop_to_region(image: &RgbaImage, region: &Rectangle) -> RgbaImage {
+        image::imageops::crop(
+            &mut image.clone(),
+            region.x as u32,
+            region.y as u32,
+            region.width as u32,
+            region.height as u32,
+        )
+            .to_image()
     }
 
     pub fn screen(&self, id: u32) {
@@ -78,38 +123,6 @@ impl Capture {
         }
     }
 
-    pub fn get_frame(&self, id: u32, blank: bool) -> Option<RgbaImage>
-    {
-        if self.monitors.contains_key(&id) {
-            let monitor = &self.monitors.get(&id)?.monitor;
-            let mut frame;
-
-            if blank {
-                frame = RgbaImage::new(monitor.width(), monitor.height());
-                for pixel in frame.pixels_mut() {
-                    *pixel = Rgba([255, 255, 255, 255]);
-                }
-
-                println!("Blank Frame {}", Local::now().timestamp_millis());
-            } else {
-                frame = self.frame(monitor);
-
-                println!("Captured Frame {}", Local::now().timestamp_millis());
-
-                frame = resize_and_pad(
-                    &frame,
-                    FRAME_WITH as u32,
-                    FRAME_HEIGHT as u32,
-                    FilterType::Lanczos3,
-                );
-            }
-
-            Some(frame)
-        } else {
-            None
-        }
-    }
-
     pub async fn stream(&self, id: u32, tx: mpsc::Sender<RgbaImage>) {
         let interval = interval(Duration::from_secs_f32(1.0 / self.framerate));
 
@@ -130,8 +143,8 @@ impl Capture {
                 workers::caster::get_instance().lock().unwrap().is_blank_screen(),
             );
 
-            if !frame.is_none() {
-                match tx.try_send(frame.unwrap().clone()) {
+            if let Some(frame) = frame {
+                match tx.try_send(frame.clone()) {
                     Err(TrySendError::Closed(_)) => {
                         eprintln!("Receiver channel dropped");
                         break;
