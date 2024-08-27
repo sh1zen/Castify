@@ -57,6 +57,20 @@ impl Application for App {
                     caster::Message::Pause => {
                         workers::caster::get_instance().lock().unwrap().pause();
                     }
+
+                    caster::Message::FullScreenSelected => {
+
+                        println!("FullScreen selected");
+                        //Da fare
+
+                    }
+                    caster::Message::AreaSelected => {
+
+                        println!("AreaSelected selected");
+                        //Da fare
+
+                    }
+
                 }
             }
             Message::BlankScreen => {

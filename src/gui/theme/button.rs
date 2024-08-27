@@ -15,6 +15,7 @@ pub enum ButtonType {
     Alert,
     Transparent,
     KeyBoard,
+    Disabled,
 }
 
 impl button::StyleSheet for StyleType {
@@ -38,6 +39,7 @@ impl button::StyleSheet for StyleType {
                     ..colors.highlight
                 }),
                 ButtonType::Transparent => Background::Color(Color::TRANSPARENT),
+                ButtonType::Disabled => Background::Color(Color::from_rgb(0.6, 0.6, 0.6)), // Colore grigio per il pulsante disabilitato
                 _ => Background::Color(Color {
                     a: BUTTON_ALPHA,
                     ..buttons_color
@@ -67,6 +69,7 @@ impl button::StyleSheet for StyleType {
                         b: 245.0 / 255.0,
                         a: 1.0,
                     },
+                    ButtonType::Disabled => Color::from_rgb(0.5, 0.5, 0.5), // Colore grigio per il bordo disabilitato
                     _ => colors.secondary,
                 },
             },
@@ -77,6 +80,7 @@ impl button::StyleSheet for StyleType {
             text_color: match style {
                 ButtonType::Starred | ButtonType::KeyBoard => Color::BLACK,
                 ButtonType::Transparent => mix(colors.text_headers, colors.secondary),
+                ButtonType::Disabled => Color::from_rgb(0.7, 0.7, 0.7), // Colore grigio per il testo disabilitato
                 _ => colors.text_body,
             },
             shadow: match style {
@@ -206,4 +210,3 @@ impl button::StyleSheet for StyleType {
         }
     }
 }
-
