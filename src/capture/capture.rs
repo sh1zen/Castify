@@ -1,7 +1,7 @@
 use crate::gui::resource::{FRAME_HEIGHT, FRAME_WITH};
 use crate::workers;
 use chrono::{DateTime, Local};
-use image::{GenericImage, Rgba, RgbaImage};
+use image::{GenericImage, GenericImageView, Rgba, RgbaImage};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -24,17 +24,19 @@ pub struct Capture {
     monitors: HashMap<u32, XMonitor>,
     framerate: f32,
     pub main: u32,
+    pub region: Option<(i32, i32, u32, u32)>,
 }
 
 impl Capture {
     pub fn new() -> Capture {
-        let mut monitors: HashMap<u32, XMonitor> = Self::get_monitors();
-        let mut main = Self::get_main();
+        let monitors: HashMap<u32, XMonitor> = Self::get_monitors();
+        let main = Self::get_main();
 
         Capture {
             monitors,
             framerate: 24.0,
             main,
+            region: None,
         }
     }
 
@@ -49,6 +51,14 @@ impl Capture {
         self.monitors.get_mut(&id).unwrap().height = height;
 
         Monitor::from_point(x, y).unwrap();
+    }
+
+    pub fn set_region(&mut self, x: i32, y: i32, width: u32, height: u32) {
+        self.region = Some((x, y, width, height));
+    }
+
+    pub fn clear_region(&mut self) {
+        self.region = None;
     }
 
     pub fn screen(&self, id: u32) {
@@ -92,7 +102,14 @@ impl Capture {
 
                 println!("Blank Frame {}", Local::now().timestamp_millis());
             } else {
-                frame = self.frame(monitor);
+
+                if let Some((x, y, width, height)) = self.region {
+                    let mut full_image = monitor.capture_image().unwrap();
+                    let sub_image = image::imageops::crop(&mut full_image, x as u32, y as u32, width as u32, height as u32);
+                    frame = sub_image.to_image();
+                } else {
+                    frame = self.frame(monitor);
+                }
 
                 println!("Captured Frame {}", Local::now().timestamp_millis());
 
@@ -110,9 +127,16 @@ impl Capture {
         }
     }
 
-    pub async fn stream(&self, id: u32, tx: mpsc::Sender<RgbaImage>) {
-        let interval = interval(Duration::from_secs_f32(1.0 / self.framerate));
+    pub async fn stream(&mut self, id: u32, tx: mpsc::Sender<RgbaImage>) {
+        self.stream_internal(id, tx, None).await;
+    }
 
+    pub async fn stream_area(&mut self, id: u32, area: (i32, i32, u32, u32), tx: mpsc::Sender<RgbaImage>) {
+        self.stream_internal(id, tx, Some(area)).await;
+    }
+
+    async fn stream_internal(&mut self, id: u32, tx: mpsc::Sender<RgbaImage>, area: Option<(i32, i32, u32, u32)>) {
+        let interval = interval(Duration::from_secs_f32(1.0 / self.framerate));
         tokio::pin!(interval);
 
         loop {
@@ -121,6 +145,12 @@ impl Capture {
             if !workers::caster::get_instance().lock().unwrap().streaming {
                 tokio::time::sleep(Duration::from_millis(500)).await;
                 continue;
+            }
+
+            if let Some((x, y, width, height)) = area {
+                self.set_region(x, y, width, height);
+            } else {
+                self.clear_region();
             }
 
             let frame = self.get_frame(

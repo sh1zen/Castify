@@ -5,3 +5,4 @@ pub mod footer;
 pub mod misc;
 pub mod popup;
 pub mod hotkeys;
+mod area_selector;

@@ -16,6 +16,7 @@ use iced::{executor, Application, Command, Element, Subscription};
 use std::net::SocketAddr;
 use std::process::exit;
 use std::str::FromStr;
+use crate::gui::types::appbase::CaptureMode;
 
 impl Application for App {
     type Executor = executor::Default;
@@ -52,23 +53,30 @@ impl Application for App {
             Message::Caster(mode) => {
                 match mode {
                     caster::Message::Rec => {
-                        workers::caster::get_instance().lock().unwrap().cast_screen();
+                        let capture_mode = workers::caster::get_instance().lock().unwrap().capture_mode;
+                        match capture_mode {
+                            CaptureMode::FullScreen => {
+                                println!("Selected Mode: Full Screen");
+                            }
+                            CaptureMode::Area => {
+                                let area = (1000, 500, 500, 500);
+                                println!(
+                                    "Selected Mode: Area\nCoordinates: x = {}, y = {}, width = {}, height = {}",
+                                    area.0, area.1, area.2, area.3
+                                );
+                            }
+                        }
+                        workers::caster::get_instance().lock().unwrap().cast_screen(capture_mode);
                     }
                     caster::Message::Pause => {
                         workers::caster::get_instance().lock().unwrap().pause();
                     }
 
                     caster::Message::FullScreenSelected => {
-
-                        println!("FullScreen selected");
-                        //Da fare
-
+                        workers::caster::get_instance().lock().unwrap().capture_mode = CaptureMode::FullScreen;
                     }
                     caster::Message::AreaSelected => {
-
-                        println!("AreaSelected selected");
-                        //Da fare
-
+                        workers::caster::get_instance().lock().unwrap().capture_mode = CaptureMode::Area;
                     }
 
                 }

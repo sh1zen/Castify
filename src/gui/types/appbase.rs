@@ -23,6 +23,12 @@ pub enum Page {
     Hotkeys,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum CaptureMode{
+    FullScreen,
+    Area,
+}
+
 #[derive(Clone)]
 pub struct HotkeyMap {
     pub pause: (Modifiers, Key),
@@ -40,6 +46,7 @@ pub struct App {
     pub(crate) popup_msg: HashMap<PopupType, PopupMsg>,
     pub(crate) video: Video,
     pub(crate) hotkey_map: HotkeyMap,
+    pub(crate) capture_mode: CaptureMode,
 }
 
 impl App {
@@ -58,6 +65,7 @@ impl App {
                 blank_screen: (Modifiers::CTRL, Key::Named(Named::F2)),
                 updating: KeyTypes::None,
             },
+            capture_mode: CaptureMode::FullScreen,
         }
     }
 

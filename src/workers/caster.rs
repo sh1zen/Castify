@@ -7,6 +7,7 @@ use gstreamer::{ClockTime, Pipeline};
 use gstreamer_app::gst;
 use once_cell::sync::Lazy;
 use std::sync::{Arc, Mutex};
+use crate::gui::types::appbase::CaptureMode;
 
 #[derive(Debug, Clone)]
 pub struct Caster {
@@ -16,6 +17,7 @@ pub struct Caster {
     pub monitor: u32,
     capture: Capture,
     pipeline: Pipeline,
+    pub capture_mode: CaptureMode,
 }
 
 impl Caster {
@@ -29,10 +31,11 @@ impl Caster {
             monitor: Capture::get_main(),
             capture: cap,
             pipeline: Default::default(),
+            capture_mode: CaptureMode::FullScreen,
         }
     }
 
-    pub fn cast_screen(&mut self) {
+    pub fn cast_screen(&mut self, capture_mode: CaptureMode) {
         self.streaming = true;
 
         if !self.init {
@@ -42,7 +45,7 @@ impl Caster {
                 let mut ff = self.clone();
 
                 tokio::spawn(async move {
-                    ff.get_stream().await;
+                    ff.get_stream(capture_mode).await;
                 });
             } else {
                 let (tx, rx) = tokio::sync::mpsc::channel(3);
@@ -51,7 +54,20 @@ impl Caster {
 
                 // generate frames
                 tokio::spawn(async move {
-                    selfc.capture.stream(0, tx).await;
+                    match capture_mode {
+                        CaptureMode::FullScreen => {
+                            println!("Capture Mode: Full Screen");
+                            selfc.capture.stream(0, tx).await;
+                        },
+                        CaptureMode::Area => {
+                            let area = (1000, 500, 500, 500); //valori di esempio per il momento
+                            println!(
+                                "Capture Mode: Area Selected\nCoordinates: x = {}, y = {}, width = {}, height = {}",
+                                area.0, area.1, area.2, area.3
+                            );
+                            selfc.capture.stream_area(0, area, tx).await;
+                        },
+                    }
                 });
 
                 // send frames over the local network
@@ -62,15 +78,22 @@ impl Caster {
         }
     }
 
-    async fn get_stream(&mut self) {
+    async fn get_stream(&mut self, capture_mode: CaptureMode) {
         let (tx_raw, mut rx_raw) = tokio::sync::mpsc::channel(1);
         let (tx_processed, mut rx_processed) = tokio::sync::mpsc::channel(1);
-
         let mut selfc = self.clone();
 
         // capture screens
         tokio::spawn(async move {
-            selfc.capture.stream(0, tx_raw).await;
+            match capture_mode {
+                CaptureMode::FullScreen => {
+                    selfc.capture.stream(0, tx_raw).await;
+                },
+                CaptureMode::Area => {
+                    let area = (100, 100, 500, 500); // valori d'esempio
+                    selfc.capture.stream_area(0, area, tx_raw).await;
+                },
+            }
         });
 
         // process screens
