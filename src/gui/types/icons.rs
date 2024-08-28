@@ -64,8 +64,8 @@ impl Icon {
             Icon::Download => 'U',
             Icon::Settings => 'V',
             Icon::Save => 'Y',
-            Icon::Screen => 'Z',
-            Icon::Area => 'X',
+            Icon::Screen => 'u',
+            Icon::Area => 'E',
         }
     }
 

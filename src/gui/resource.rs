@@ -4,7 +4,7 @@ use iced::Font;
 pub const USE_WEBRTC: bool = false;
 
 // conv
-pub const FRAME_RATE: i32 = 24;
+pub const FRAME_RATE: i32 = 18;
 pub const FRAME_WITH: i32 = 1920;
 pub const FRAME_HEIGHT: i32 = 1080;
 

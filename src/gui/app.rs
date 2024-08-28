@@ -1,14 +1,14 @@
+use crate::gui::appbase::{App, Page};
 use crate::gui::components::caster::caster_page;
 use crate::gui::components::caster::Message as CasterMessage;
 use crate::gui::components::client::client_page;
 use crate::gui::components::footer::footer;
+use crate::gui::components::home::initial_page;
 use crate::gui::components::hotkeys::{hotkeys, KeyTypes};
 use crate::gui::components::popup::{show_popup, PopupMsg, PopupType};
-use crate::gui::components::home::initial_page;
 use crate::gui::components::{caster, home};
 use crate::gui::resource::{open_link, CAST_SERVICE_PORT};
 use crate::gui::theme::styles::csx::StyleType;
-use crate::gui::types::appbase::{App, Page};
 use crate::gui::types::messages::Message;
 use crate::workers;
 use iced::widget::{Column, Container};
@@ -16,7 +16,6 @@ use iced::{executor, Application, Command, Element, Subscription};
 use std::net::SocketAddr;
 use std::process::exit;
 use std::str::FromStr;
-use crate::gui::types::appbase::CaptureMode;
 
 impl Application for App {
     type Executor = executor::Default;
@@ -53,32 +52,21 @@ impl Application for App {
             Message::Caster(mode) => {
                 match mode {
                     caster::Message::Rec => {
-                        let capture_mode = workers::caster::get_instance().lock().unwrap().capture_mode;
-                        match capture_mode {
-                            CaptureMode::FullScreen => {
-                                println!("Selected Mode: Full Screen");
-                            }
-                            CaptureMode::Area => {
-                                let area = (1000, 500, 500, 500);
-                                println!(
-                                    "Selected Mode: Area\nCoordinates: x = {}, y = {}, width = {}, height = {}",
-                                    area.0, area.1, area.2, area.3
-                                );
-                            }
-                        }
-                        workers::caster::get_instance().lock().unwrap().cast_screen(capture_mode);
+                        workers::caster::get_instance().lock().unwrap().cast_screen();
                     }
                     caster::Message::Pause => {
                         workers::caster::get_instance().lock().unwrap().pause();
                     }
-
                     caster::Message::FullScreenSelected => {
-                        workers::caster::get_instance().lock().unwrap().capture_mode = CaptureMode::FullScreen;
+                        // set to full screen
+                        // if needed use .change_monitor(id) to set full screen for another monitor
+                        workers::caster::get_instance().lock().unwrap().full_screen();
                     }
-                    caster::Message::AreaSelected => {
-                        workers::caster::get_instance().lock().unwrap().capture_mode = CaptureMode::Area;
+                    caster::Message::AreaSelected((x, y, w, h)) => {
+                        // set here new screen area
+                        // if needed use .change_monitor(id) to set resize_rec_area for another monitor
+                        workers::caster::get_instance().lock().unwrap().resize_rec_area(x, y, w, h);
                     }
-
                 }
             }
             Message::BlankScreen => {
@@ -101,7 +89,7 @@ impl Application for App {
                 }
             }
             Message::SaveCapture => {
-               self.launch_save_stream();
+                self.launch_save_stream();
             }
             Message::SaveCaptureStop => {
                 workers::save_stream::get_instance().lock().unwrap().stop();

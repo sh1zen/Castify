@@ -4,7 +4,7 @@
 )] // hide console window on Windows in release
 
 use castgo::gui::resource::{APP_NAME_ID, FONT_SIZE_BODY, ICONS_BYTES, ICON_BYTES, RALEWAY_FONT_BYTES, TEXT_FONT_FAMILY_NAME};
-use castgo::gui::types::appbase::App;
+use castgo::gui::appbase::App;
 use iced::{Application, Font, Pixels, Settings, Size};
 use std::borrow::Cow;
 use std::{panic, process};

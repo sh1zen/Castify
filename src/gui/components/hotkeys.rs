@@ -1,6 +1,6 @@
 use crate::gui::theme::buttons::FilledButton;
 use crate::gui::theme::styles::csx::StyleType;
-use crate::gui::types::appbase::App;
+use crate::gui::appbase::App;
 use crate::gui::types::icons::Icon;
 use crate::gui::types::messages::Message as appMessage;
 use iced::widget::{Column, Container, Row};

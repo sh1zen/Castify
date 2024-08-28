@@ -143,7 +143,7 @@ pub async fn caster(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) {
     let listener = TcpListener::bind(addr).unwrap();
 
     let mdns = ServiceDaemon::new().expect("Failed to create daemon");
-    let ip = local_ip().unwrap();
+    let ip = local_ip().expect("No internet connection");
     let host_name = String::from(ip.to_string()) + ".local.";
     let properties = [("screen_caster", CAST_SERVICE_PORT)];
 

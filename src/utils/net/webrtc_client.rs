@@ -1,64 +1,81 @@
-use crate::utils::net::webrtc_common::{create_peer_connection, create_webrtc_api};
+use crate::utils::net::webrtc_common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
 use async_tungstenite::tokio::connect_async;
+use async_tungstenite::tungstenite::Message;
 use async_tungstenite::WebSocketStream;
 use futures_util::{SinkExt, StreamExt};
 use gstreamer::{Buffer, BufferRef};
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tokio::sync::mpsc::error::SendError;
 use tokio::sync::Mutex;
-use webrtc::api::API;
-use webrtc::ice_transport::ice_candidate::RTCIceCandidateInit;
+use webrtc::ice_transport::ice_connection_state::RTCIceConnectionState;
 use webrtc::interceptor::Attributes;
-use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
+use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
 use webrtc::peer_connection::RTCPeerConnection;
 use webrtc::rtp::packet::Packet;
+use webrtc::rtp_transceiver::rtp_codec::RTPCodecType;
 use webrtc::rtp_transceiver::rtp_receiver::RTCRtpReceiver;
 use webrtc::rtp_transceiver::RTCRtpTransceiver;
 use webrtc::track::track_remote::TrackRemote;
 
-#[derive(Serialize, Deserialize, Debug)]
-struct SignalMessage {
-    sdp: Option<RTCSessionDescription>,
-    candidate: Option<String>,
-}
-
+#[derive(Clone)]
 pub struct WebRTCClient {
-    api: Arc<API>,
-    peer_connection: Arc<RTCPeerConnection>,
+    connection: Arc<RTCPeerConnection>,
     ws_stream: Arc<Mutex<WebSocketStream<async_tungstenite::tokio::ConnectStream>>>,
 }
 
 impl WebRTCClient {
     pub async fn new(signaling_server_url: &str) -> Arc<WebRTCClient> {
-        // Create the WebRTC API
-        let api = create_webrtc_api();
 
         // Connect to the signaling server
         let (ws_stream, _) = connect_async(signaling_server_url).await.unwrap();
-        let ws_stream = Arc::new(Mutex::new(ws_stream));
 
-        // Create the PeerConnection
-        let peer_connection = create_peer_connection(&api).await;
+        // Create the WebRTC API
+        let api = create_webrtc_api();
 
-        let client = Arc::new(WebRTCClient {
-            api,
-            peer_connection,
-            ws_stream,
+        let mut client = Arc::new(WebRTCClient {
+            connection: create_peer_connection(&api).await,
+            ws_stream: Arc::new(Mutex::new(ws_stream)),
         });
 
+        client.connection.add_transceiver_from_kind(RTPCodecType::Video, None).await.unwrap();
+
+        let rtp_sender = client.connection.add_track(create_video_track()).await.unwrap();
+
+        // Read incoming RTCP packets
+        // Before these packets are returned they are processed by interceptors. For things
+        // like NACK this needs to be called.
+        tokio::spawn(async move {
+            let mut rtcp_buf = vec![0u8; 1500];
+            while let Ok((x, _)) = rtp_sender.read(&mut rtcp_buf).await {
+                println!("info:::: {:?}", x);
+            }
+            Result::<(), ()>::Ok(())
+        });
+
+        // Set the handler for Peer connection state
+        // This will notify you when the peer has connected/disconnected
+        client.connection.on_peer_connection_state_change(Box::new(move |s: RTCPeerConnectionState| {
+            println!("Peer Connection State has changed: {s}");
+            Box::pin(async {})
+        }));
+
         // Set up ICE candidate handling
-        let client_clone = Arc::clone(&client);
-        client.peer_connection.on_ice_candidate(Box::new(move |candidate| {
-            let client = Arc::clone(&client_clone);
-            Box::pin(async move {
-                if let Some(candidate) = candidate {
-                    let candidate_json = serde_json::json!({
-                        "sdp": None::<RTCSessionDescription>,
-                        "candidate": Some(candidate.to_json().unwrap()),
-                    });
-                    let mut ws_stream = client.ws_stream.lock().await;
-                    if let Err(e) = ws_stream.send(candidate_json.to_string().into()).await {
-                        eprintln!("Failed to send ICE candidate: {}", e);
+        let ws_stream_clone = Arc::clone(&client.ws_stream);
+        let peer_conn_clone = Arc::clone(&client.connection);
+        client.connection.on_ice_candidate(Box::new(move |candidate| {
+            Box::pin({
+                let ws_stream_clone = ws_stream_clone.clone();
+                let peer_conn_clone = peer_conn_clone.clone();
+                async move {
+                    if let Some(candidate) = candidate {
+                        let candidate_json = serde_json::to_string(&SignalMessage {
+                            sdp: peer_conn_clone.local_description().await,
+                            candidate: Some(candidate.to_json().unwrap()),
+                        }).unwrap();
+
+                        if ws_stream_clone.lock().await.send(Message::Text(candidate_json)).await.is_err() {
+                            eprintln!("Failed to send ICE candidate to server");
+                        }
                     }
                 }
             })
@@ -77,25 +94,17 @@ impl WebRTCClient {
 
     async fn client_handle_signaling(self: Arc<Self>) -> Result<(), Box<dyn std::error::Error>> {
         let ws_stream = Arc::clone(&self.ws_stream);
-        let peer_connection = Arc::clone(&self.peer_connection);
+        let peer_connection = Arc::clone(&self.connection);
         let mut ws_stream_lock = ws_stream.lock().await;
 
-        println!("quii1");
-
-        // Send the initial offer to the server
+        // Create and send the initial offer to the server
         let offer = peer_connection.create_offer(None).await?;
         peer_connection.set_local_description(offer.clone()).await?;
-
-        println!("quii2");
-
-        let local_desc = peer_connection.local_description().await.unwrap();
-        let offer_message = serde_json::json!({
-            "sdp": local_desc,
-            "candidate": None::<String>,
-        });
-        ws_stream_lock.send(offer_message.to_string().into()).await?;
-
-        println!("quii3");
+        let offer_message = SignalMessage {
+            sdp: Some(offer),
+            candidate: None,
+        };
+        ws_stream_lock.send(Message::Text(serde_json::to_string(&offer_message)?)).await?;
 
         // Handle incoming signaling messages
         while let Some(Ok(msg)) = ws_stream_lock.next().await {
@@ -103,45 +112,57 @@ impl WebRTCClient {
                 if let Some(sdp) = signal.sdp {
                     peer_connection.set_remote_description(sdp).await?;
                 }
-
                 if let Some(candidate_sdp) = signal.candidate {
-                    let candidate_init = RTCIceCandidateInit {
-                        candidate: candidate_sdp,
-                        ..Default::default()
-                    };
-                    peer_connection.add_ice_candidate(candidate_init).await?;
+                    peer_connection.add_ice_candidate(candidate_sdp).await?;
                 }
             }
         }
+
         Ok(())
     }
 
-    pub async fn receive_video(self: Arc<Self>, mut tx: tokio::sync::mpsc::Sender<gstreamer::Buffer>) {
+    pub async fn receive_video(&self, tx: tokio::sync::mpsc::Sender<Packet>) {
+        let tx = Arc::new(Mutex::new(tx));
+        let connection = Arc::clone(&self.connection);
+
         // Set up the event handler for incoming tracks
-        self.clone().peer_connection
-            .on_track(Box::new(move |track: Arc<TrackRemote>, _receiver: Arc<RTCRtpReceiver>, _transceiver: Arc<RTCRtpTransceiver>| {
-                println!("Receiving video from {:?}", self.peer_connection.get_stats_id());
-                Box::pin({
-                    let value = tx.clone();
-                    async move {
-                        let tx_arc_clone = value.clone();
-                        while let Ok(sample) = track.read_rtp().await {
-                            // Convert the webrtc::media::Sample to a gstreamer::Buffer
-                            if let Some(gst_buffer) = Self::sample_to_gst_buffer(sample).await {
-                                if let Err(e) = tx_arc_clone.clone().try_send(gst_buffer) {
-                                    eprintln!("Error sending frame: {}", e);
-                                }
+        connection.on_track(Box::new(move |track: Arc<TrackRemote>, _receiver: Arc<RTCRtpReceiver>, _transceiver: Arc<RTCRtpTransceiver>| {
+            // Send a PLI on an interval so that the publisher is pushing a keyframe every rtcpPLIInterval
+            //let media_ssrc = track.ssrc();
+            let codec = track.codec();
+
+            Box::pin({
+                let value = Arc::clone(&tx);
+                async move {
+                    while let Ok((packet, attr)) = track.read_rtp().await {
+                        match value.lock().await.send(packet).await {
+                            Err(SendError(e)) => {
+                                println!("Error channel packet {}", e);
+                                break;
+                            }
+                            e => {
+                                println!("OKOKO {:?}", e);
                             }
                         }
                     }
-                })
-            }));
+                    println!("NEED TO CLOSE CONNECTION");
+                    //self.disconnect().await;
+                }
+            })
+        }));
     }
 
-    async fn sample_to_gst_buffer(sample: (Packet, Attributes)) -> Option<gstreamer::Buffer> {
-        let packet = sample.0;
-        let attr = sample.1;
+    pub async fn disconnect(&self) {
+        if self.connection.ice_connection_state() == RTCIceConnectionState::Connected {
+            let senders = self.connection.get_senders();
+            for sender in senders.await.iter() {
+                sender.stop().await.unwrap();
+            }
+            self.connection.close().await.unwrap();
+        }
+    }
 
+    async fn sample_to_gst_buffer(packet: Packet, attr: Attributes) -> Option<gstreamer::Buffer> {
         // Extract the payload from the RTP packet
         let payload = &packet.payload;
 
@@ -150,19 +171,10 @@ impl WebRTCClient {
         {
             let mut buffer_ref: &mut BufferRef = buffer.get_mut()?;
 
-            // Set the GStreamer buffer's timestamp based on the RTP packet's timestamp
-            buffer_ref.set_pts(
-                gstreamer::ClockTime::from_nseconds(
-                    packet.header.timestamp as u64 * 1_000_000_000 / 90_000, // Converting RTP timestamp to nanoseconds
-                )
-            );
-
             // Map the buffer writable and copy the payload data into the buffer
             let mut map = buffer_ref.map_writable().ok()?;
             map.copy_from_slice(payload);
         }
-
-        println!("{:?}", buffer);
 
         Some(buffer)
     }

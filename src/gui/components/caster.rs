@@ -1,67 +1,58 @@
-use std::sync::MutexGuard;
 use crate::capture::Capture;
+use crate::gui::appbase::App;
 use crate::gui::theme::buttons::FilledButton;
-use crate::gui::theme::button::ButtonType;
 use crate::gui::theme::styles::csx::StyleType;
-use crate::gui::types::appbase::App;
 use crate::gui::types::icons::Icon;
 use crate::gui::types::messages::Message as appMessage;
 use crate::utils::get_string_after;
 use crate::workers;
+use crate::workers::caster::Caster;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Column, Container, PickList, Row};
 use iced::{Alignment, Length};
-use crate::workers::caster::Caster;
+use std::sync::MutexGuard;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
     Rec,
     Pause,
     FullScreenSelected,
-    AreaSelected,
+    AreaSelected((i32, i32, u32, u32)),
 }
 
 pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
-    let caster_instance = workers::caster::get_instance();
-    let mut caster = caster_instance.lock().unwrap();
-
-    let action = if caster.streaming {
-        FilledButton::new("Pause")
-            .icon(Icon::Pause)
-            .build()
-            .on_press(appMessage::Caster(Message::Pause))
-    } else {
-        FilledButton::new("Rec")
-            .icon(Icon::Video)
-            .build()
-            .on_press(appMessage::Caster(Message::Rec))
-    };
-
-
-    let mut fullscreen_button = FilledButton::new("Full Screen")
-        .icon(Icon::Screen)
-        .build()
-        .on_press(appMessage::Caster(Message::FullScreenSelected));
-
-    let mut select_area_button = FilledButton::new("Select Area")
-        .icon(Icon::Area)
-        .build()
-        .on_press(appMessage::Caster(Message::AreaSelected));
-
-    if caster.streaming {
-        fullscreen_button = fullscreen_button.style(ButtonType::Disabled);
-        select_area_button = select_area_button.style(ButtonType::Disabled);
-    }
-
-
     let mut content = Row::new()
         .align_items(Alignment::Center)
         .spacing(10)
-        .height(400)
-        .push(action)
-        .push(fullscreen_button)
-        .push(select_area_button)
-        .push(test(caster));
+        .height(400);
+
+    let is_streaming = workers::caster::get_instance().try_lock().unwrap().streaming;
+
+    if is_streaming {
+        content = content.push(
+            FilledButton::new("Pause")
+                .icon(Icon::Pause)
+                .build()
+                .on_press(appMessage::Caster(Message::Pause))
+        )
+            .push(FilledButton::new("Full Screen")
+                .icon(Icon::Screen)
+                .build()
+                .on_press(appMessage::Caster(Message::FullScreenSelected)))
+            .push(FilledButton::new("Select Area")
+                .icon(Icon::Area)
+                .build()
+                .on_press(appMessage::Caster(Message::AreaSelected((100, 100, 800, 800)))));
+    } else {
+        content = content.push(
+            FilledButton::new("Rec")
+                .icon(Icon::Video)
+                .build()
+                .on_press(appMessage::Caster(Message::Rec))
+        );
+    };
+
+    content = content.push(monitors_list(is_streaming));
 
     Container::new(content)
         .width(Length::Fill)
@@ -70,13 +61,12 @@ pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
         .center_y()
 }
 
-fn test(caster: MutexGuard<Caster>) -> Container<'static, appMessage, StyleType> {
-if !caster.streaming {
-    monitors_picklist(caster)
-}
-    else {
+fn monitors_list(is_streaming: bool) -> Container<'static, appMessage, StyleType> {
+    if !is_streaming {
+        monitors_picklist(workers::caster::get_instance().lock().unwrap())
+    } else {
         let empty_content = Row::new();
-        return Container::new(empty_content);
+        Container::new(empty_content)
     }
 }
 
@@ -95,15 +85,14 @@ fn monitors_picklist(mut caster: MutexGuard<Caster>) -> Container<'static, appMe
         return Container::new(iced::widget::Space::new(0, 0));
     }
 
-    let selected = monitor_name(caster.monitor);
-    caster.monitor = get_string_after(selected.clone(), '#').trim().parse::<u32>().unwrap();
+    let selected = monitor_name(caster.current_monitor());
+    caster.change_monitor(get_string_after(selected.clone(), '#').trim().parse::<u32>().unwrap());
     let content = Column::new()
         .push(
             PickList::new(
                 monitors,
                 Some(selected),
                 |selected_value| {
-
                     appMessage::Ignore
                 },
             )

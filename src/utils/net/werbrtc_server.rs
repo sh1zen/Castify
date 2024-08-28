@@ -1,31 +1,33 @@
 use crate::gui::resource::CAST_SERVICE_PORT;
-use crate::utils::net::webrtc_common::{create_peer_connection, create_webrtc_api};
+use crate::utils::net::webrtc_common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
 use async_tungstenite::tokio::{accept_async, TokioAdapter};
+use async_tungstenite::tungstenite::Message;
 use async_tungstenite::WebSocketStream;
 use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Notify};
 use webrtc::api::API;
-use webrtc::ice_transport::ice_candidate::RTCIceCandidateInit;
-use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
+use webrtc::ice_transport::ice_connection_state::RTCIceConnectionState;
+use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
+use webrtc::peer_connection::sdp::sdp_type::RTCSdpType;
 use webrtc::peer_connection::RTCPeerConnection;
-use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
+use webrtc::rtp_transceiver::rtp_codec::RTPCodecType;
 use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSample;
+use webrtc::track::track_local::TrackLocal;
 
-#[derive(Serialize, Deserialize, Debug)]
-struct SignalMessage {
-    sdp: Option<RTCSessionDescription>,
-    candidate: Option<String>,
+struct WRTCPeer {
+    connection: Arc<RTCPeerConnection>,
+    video_track: Arc<TrackLocalStaticSample>,
+    notify: Arc<Notify>,
 }
 
 #[derive(Clone)]
 pub struct WebRTCServer {
     api: Arc<API>,
-    peers: Arc<Mutex<Vec<Arc<RTCPeerConnection>>>>,
+    peers: Arc<Mutex<Vec<Arc<WRTCPeer>>>>,
 }
 
 impl WebRTCServer {
@@ -50,79 +52,139 @@ impl WebRTCServer {
 
         println!("Listener: {:?}", listener);
 
+        let peers = Arc::clone(&self.peers);
+        let api = Arc::clone(&self.api);
+
         loop {
+            let api_clone = Arc::clone(&api);
+            let peers_clone = Arc::clone(&peers);
+
             if let Ok((stream, _)) = listener.accept().await {
                 println!("Incoming connection: {:?}", stream);
 
                 let ws_stream = accept_async(stream).await.unwrap();
 
-                let api = Arc::clone(&self.api);
-                let peers = Arc::clone(&self.peers);
-
                 tokio::spawn(async move {
-                    let peer_connection = create_peer_connection(&api).await;
+                    let peer = Arc::new(WRTCPeer {
+                        connection: create_peer_connection(&api_clone).await,
+                        video_track: create_video_track(),
+                        notify: Arc::new(Notify::new()),
+                    });
 
-                    println!("peer conn {:?}", peer_connection);
+                    peer.connection.add_transceiver_from_kind(RTPCodecType::Video, None).await.unwrap();
+
+                    let rtp_sender = peer.connection.add_track(Arc::clone(&peer.video_track) as Arc<dyn TrackLocal + Send + Sync>).await.unwrap();
+
+                    // Read incoming RTCP packets
+                    // Before these packets are returned they are processed by interceptors. For things
+                    // like NACK this needs to be called.
+                    tokio::spawn(async move {
+                        let mut rtcp_buf = vec![0u8; 1500];
+                        while let Ok((x, _)) = rtp_sender.read(&mut rtcp_buf).await {
+                            println!("info:::: {:?}", x);
+                        }
+                        Result::<(), ()>::Ok(())
+                    });
+
+                    println!("peer conn {:?}", peer.connection);
 
                     // add new peer
-                    peers.lock().await.push(Arc::clone(&peer_connection));
+                    peers_clone.lock().await.push(Arc::clone(&peer));
 
-                    if let Err(e) = WebRTCServer::remote_handle_signaling(peer_connection, ws_stream).await {
+                    if let Err(e) = WebRTCServer::remote_handle_signaling(peer, ws_stream).await {
                         eprintln!("Error handling signaling: {}", e);
                     }
-
-                    //self.remove_peer(peer_connection).await;
                 });
             }
         }
     }
 
-    async fn remote_handle_signaling(
-        peer_connection: Arc<RTCPeerConnection>,
-        ws_stream: WebSocketStream<TokioAdapter<TcpStream>>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let (mut ws_sender, mut ws_receiver) = ws_stream.split();
+    async fn remote_handle_signaling(peer: Arc<WRTCPeer>, mut ws_stream: WebSocketStream<TokioAdapter<TcpStream>>) -> Result<(), Box<dyn std::error::Error>> {
+
+        let (ws_sender, mut ws_receiver) = ws_stream.split();
+        let mut ws_sender = Arc::new(Mutex::new(ws_sender));
+
+        // Set the handler for ICE connection state
+        // This will notify you when the peer has connected/disconnected
+        let peer_clone = Arc::clone(&peer);
+        peer.connection.on_ice_connection_state_change(Box::new(move |connection_state: RTCIceConnectionState| {
+            println!("Connection State has changed {connection_state}");
+            if connection_state == RTCIceConnectionState::Connected {
+                peer_clone.notify.notify_waiters();
+            } else if connection_state == RTCIceConnectionState::Disconnected {
+                // handle disconnections
+            }
+            Box::pin(async {})
+        }));
+
+        // Set the handler for Peer connection state
+        // This will notify you when the peer has connected/disconnected
+        peer.connection.on_peer_connection_state_change(Box::new(move |s: RTCPeerConnectionState| {
+            println!("Peer Connection State has changed: {s}");
+            Box::pin(async {})
+        }));
+
+        let mut ws_sender_clone = Arc::clone(&ws_sender);
+        let peer_conn_clone = Arc::clone(&peer.connection);
+        peer.connection.on_ice_candidate(Box::new(move |candidate| {
+            println!("on_ice_candidate {:?}", candidate);
+            Box::pin({
+                let peer_conn_clone = peer_conn_clone.clone();
+                let ws_sender_clone = ws_sender_clone.clone();
+                async move {
+                    if let Some(candidate) = candidate {
+                        let desc = peer_conn_clone.remote_description().await;
+                        println!("desc {:?}", desc);
+
+                        let candidate_str = serde_json::to_string(&SignalMessage {
+                            sdp: peer_conn_clone.local_description().await,
+                            candidate: Some(candidate.to_json().unwrap()),
+                        }).unwrap();
+
+                        if ws_sender_clone.lock().await.send(Message::Text(candidate_str)).await.is_err() {
+                            eprintln!("Failed to send ICE candidate to client");
+                        }
+                    }
+                }
+            })
+        }));
 
         while let Some(Ok(msg)) = ws_receiver.next().await {
-            println!("msg: {:?}", msg);
-            if let Ok(signal) = serde_json::from_str::<SignalMessage>(&msg.to_string()) {
+
+            if let Message::Text(text) = msg {
+                let signal: SignalMessage = serde_json::from_str(&text).unwrap();
+
                 if let Some(sdp) = signal.sdp {
-                    if sdp.sdp_type == webrtc::peer_connection::sdp::sdp_type::RTCSdpType::Offer {
-                        println!("sdp: {:?}", sdp);
+                    if sdp.sdp_type == RTCSdpType::Offer {
+                        peer.connection.set_remote_description(sdp).await?;
 
-                        if let Err(err) = peer_connection.set_remote_description(sdp.clone()).await {
-                            eprintln!("Failed to set remote description: {}", err);
-                            continue;
-                        }
+                        // Create and send the answer
+                        let answer = peer.connection.create_answer(None).await?;
 
-                        let offer = peer_connection.create_offer(None).await.unwrap();
-                        peer_connection.set_local_description(offer.clone()).await.unwrap();
+                        // Create channel that is blocked until ICE Gathering is complete
+                        let mut gather_complete = peer.connection.gathering_complete_promise().await;
 
-                        // Wait until ICE gathering is complete
-                        let mut gather_complete = peer_connection.gathering_complete_promise().await;
-                        gather_complete.recv().await;
+                        peer.connection.set_local_description(answer.clone()).await?;
 
-                        let local_desc = peer_connection.local_description().await.unwrap();
+                        // Block until ICE Gathering is complete, disabling trickle ICE
+                        // we do this because we only can exchange one signaling message
+                        // in a production application you should exchange ICE Candidates via OnICECandidate
+                        let _ = gather_complete.recv().await;
 
-                        let answer_message = serde_json::json!({
-                            "sdp": local_desc,
-                            "candidate": None::<String>,
-                        });
-                        ws_sender.send(answer_message.to_string().into()).await?;
-                    } else {
-                        peer_connection.set_remote_description(sdp).await.unwrap();
+                        let answer_message = SignalMessage {
+                            sdp: Some(answer),
+                            candidate: None,
+                        };
+                        ws_sender.lock().await.send(Message::Text(serde_json::to_string(&answer_message)?)).await?;
+
+                    } else if sdp.sdp_type == RTCSdpType::Answer {
+                        peer.connection.set_remote_description(sdp).await?;
                     }
                 }
 
                 if let Some(candidate_sdp) = signal.candidate {
-                    println!("{:?}", candidate_sdp);
-
-                    let candidate_init = RTCIceCandidateInit {
-                        candidate: candidate_sdp,
-                        ..Default::default()
-                    };
-
-                    peer_connection.add_ice_candidate(candidate_init).await.unwrap();
+                    println!("received candidate {:?}", candidate_sdp);
+                    peer.connection.add_ice_candidate(candidate_sdp).await.unwrap();
                 }
             }
         }
@@ -132,6 +194,7 @@ impl WebRTCServer {
     pub async fn send_video_frames(&self, mut receiver: tokio::sync::mpsc::Receiver<gstreamer::Buffer>) -> Result<(), Box<dyn std::error::Error>> {
 
         while let Some(buffer) = receiver.recv().await {
+
             let duration = Duration::from(buffer.duration().unwrap());
             let timestamp = SystemTime::UNIX_EPOCH + Duration::from_nanos(buffer.pts().unwrap().nseconds());
 
@@ -144,33 +207,20 @@ impl WebRTCServer {
                 timestamp,
                 ..Default::default()
             };
-/*
+
             let peers = self.peers.lock().await;
             for peer in peers.iter() {
-                let video_track_pc = Arc::clone(&video_track);
-                peer.add_track(video_track_pc.clone()).await.unwrap();
+                /*if !peer.notify.notified().await {
+                    continue;
+                }*/
 
-                for sender in peer.get_senders().await {
-                    if let Some(track) = sender.track().await {
-                        let video_track = track.downcast_ref::<TrackLocalStaticSample>().unwrap();
-                        video_track.write_sample(&sample).await?;
-                    }
+                //println!("sending sample {:?} to peer {:?} track {:?}", sample.timestamp, peer.connection, peer.video_track);
+
+                if peer.video_track.write_sample(&sample).await.is_err() {
+                    println!("send video track err");
                 }
-            }*/
+            }
         }
-
         Ok(())
-    }
-
-    async fn add_peer(self: &Arc<Self>, peer: Arc<RTCPeerConnection>) {
-        let mut peers = self.peers.lock().await;
-        peers.push(peer);
-    }
-
-    async fn remove_peer(self: &Arc<Self>, peer: Arc<RTCPeerConnection>) {
-        let mut peers = self.peers.lock().await;
-        if let Some(index) = peers.iter().position(|p| Arc::ptr_eq(p, &peer)) {
-            peers.remove(index);
-        }
     }
 }

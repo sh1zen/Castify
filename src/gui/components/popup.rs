@@ -2,7 +2,7 @@ use crate::gui::components::hotkeys::KeyTypes;
 use crate::gui::theme::buttons::{FilledButton, Key4Board};
 use crate::gui::theme::container::ContainerType;
 use crate::gui::theme::styles::csx::StyleType;
-use crate::gui::types::appbase::App;
+use crate::gui::appbase::App;
 use crate::gui::types::messages::Message as appMessage;
 use iced::advanced::widget::Text;
 use iced::keyboard::Key;

@@ -1,12 +1,7 @@
 use crate::gui::resource::{FRAME_HEIGHT, FRAME_WITH};
-use crate::workers;
 use chrono::{DateTime, Local};
-use image::{GenericImage, GenericImageView, Rgba, RgbaImage};
+use image::{DynamicImage, GenericImageView, Rgba, RgbaImage};
 use std::collections::HashMap;
-use std::time::Duration;
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::error::TrySendError;
-use tokio::time::interval;
 use xcap::image::imageops::FilterType;
 use xcap::{image, Monitor};
 
@@ -19,12 +14,12 @@ pub struct XMonitor {
     pub monitor: Monitor,
 }
 
+unsafe impl Send for XMonitor {}
+
 #[derive(Debug, Clone)]
 pub struct Capture {
     monitors: HashMap<u32, XMonitor>,
-    framerate: f32,
     pub main: u32,
-    pub region: Option<(i32, i32, u32, u32)>,
 }
 
 impl Capture {
@@ -34,15 +29,26 @@ impl Capture {
 
         Capture {
             monitors,
-            framerate: 24.0,
             main,
-            region: None,
         }
     }
 
-    pub fn resize(&mut self, id: u32, x: i32, y: i32, width: u32, height: u32) {
+    pub fn resize(&mut self, id: u32, mut x: i32, mut y: i32, mut width: u32, mut height: u32) {
         if !self.monitors.contains_key(&id) {
             return;
+        }
+
+        if x == 0 {
+            x = self.monitors.get_mut(&id).unwrap().monitor.x();
+        }
+        if y == 0 {
+            y = self.monitors.get_mut(&id).unwrap().monitor.y();
+        }
+        if width == 0 {
+            width = self.monitors.get_mut(&id).unwrap().monitor.width();
+        }
+        if height == 0 {
+            height = self.monitors.get_mut(&id).unwrap().monitor.height();
         }
 
         self.monitors.get_mut(&id).unwrap().x = x;
@@ -50,15 +56,7 @@ impl Capture {
         self.monitors.get_mut(&id).unwrap().width = width;
         self.monitors.get_mut(&id).unwrap().height = height;
 
-        Monitor::from_point(x, y).unwrap();
-    }
-
-    pub fn set_region(&mut self, x: i32, y: i32, width: u32, height: u32) {
-        self.region = Some((x, y, width, height));
-    }
-
-    pub fn clear_region(&mut self) {
-        self.region = None;
+        //println!("Monitor area resized {:?}", self.monitors.get_mut(&id).unwrap());
     }
 
     pub fn screen(&self, id: u32) {
@@ -88,36 +86,29 @@ impl Capture {
         }
     }
 
-    pub fn get_frame(&self, id: u32, blank: bool) -> Option<RgbaImage>
-    {
+    pub fn get_frame(&self, id: u32, blank: bool) -> Option<RgbaImage> {
         if self.monitors.contains_key(&id) {
-            let monitor = &self.monitors.get(&id)?.monitor;
+            let x_monitor = self.monitors.get(&id)?;
+            let monitor = &x_monitor.monitor;
             let mut frame;
 
             if blank {
-                frame = RgbaImage::new(monitor.width(), monitor.height());
+                frame = RgbaImage::new(x_monitor.width - x_monitor.x as u32, x_monitor.height - x_monitor.y as u32);
                 for pixel in frame.pixels_mut() {
                     *pixel = Rgba([255, 255, 255, 255]);
                 }
-
-                println!("Blank Frame {}", Local::now().timestamp_millis());
+                // println!("Blank Frame {}", Local::now().timestamp_millis());
             } else {
+                frame = self.frame(monitor);
+                frame = self.crop(frame, x_monitor.x as u32, x_monitor.y as u32, x_monitor.width, x_monitor.height);
 
-                if let Some((x, y, width, height)) = self.region {
-                    let mut full_image = monitor.capture_image().unwrap();
-                    let sub_image = image::imageops::crop(&mut full_image, x as u32, y as u32, width as u32, height as u32);
-                    frame = sub_image.to_image();
-                } else {
-                    frame = self.frame(monitor);
-                }
-
-                println!("Captured Frame {}", Local::now().timestamp_millis());
+                // println!("Captured Frame {}", Local::now().timestamp_millis());
 
                 frame = resize_and_pad(
                     &frame,
                     FRAME_WITH as u32,
                     FRAME_HEIGHT as u32,
-                    FilterType::Lanczos3,
+                    FilterType::Nearest,
                 );
             }
 
@@ -127,53 +118,8 @@ impl Capture {
         }
     }
 
-    pub async fn stream(&mut self, id: u32, tx: mpsc::Sender<RgbaImage>) {
-        self.stream_internal(id, tx, None).await;
-    }
-
-    pub async fn stream_area(&mut self, id: u32, area: (i32, i32, u32, u32), tx: mpsc::Sender<RgbaImage>) {
-        self.stream_internal(id, tx, Some(area)).await;
-    }
-
-    async fn stream_internal(&mut self, id: u32, tx: mpsc::Sender<RgbaImage>, area: Option<(i32, i32, u32, u32)>) {
-        let interval = interval(Duration::from_secs_f32(1.0 / self.framerate));
-        tokio::pin!(interval);
-
-        loop {
-            interval.as_mut().tick().await;
-
-            if !workers::caster::get_instance().lock().unwrap().streaming {
-                tokio::time::sleep(Duration::from_millis(500)).await;
-                continue;
-            }
-
-            if let Some((x, y, width, height)) = area {
-                self.set_region(x, y, width, height);
-            } else {
-                self.clear_region();
-            }
-
-            let frame = self.get_frame(
-                if id != 0 { id } else {
-                    workers::caster::get_instance().lock().unwrap().monitor.clone()
-                },
-                workers::caster::get_instance().lock().unwrap().is_blank_screen(),
-            );
-
-            if !frame.is_none() {
-                match tx.try_send(frame.unwrap().clone()) {
-                    Err(TrySendError::Closed(_)) => {
-                        eprintln!("Receiver channel dropped");
-                        break;
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    pub fn set_framerate(&mut self, framerate: f32) {
-        self.framerate = framerate;
+    fn crop(&self, frame: RgbaImage, x: u32, y: u32, w: u32, h: u32) -> RgbaImage {
+        DynamicImage::ImageRgba8(frame).view(x, y, w, h).to_image()
     }
 
     fn frame(&self, monitor: &Monitor) -> RgbaImage {
@@ -227,14 +173,11 @@ fn resize_and_pad(image: &RgbaImage, new_width: u32, new_height: u32, filter: Fi
     let (orig_width, orig_height) = image.dimensions();
     let aspect_ratio = orig_width as f32 / orig_height as f32;
 
-    // Calculate the new dimensions that fit within the desired size while maintaining aspect ratio
     let (resize_width, resize_height) = if new_width as f32 / new_height as f32 > aspect_ratio {
-        // Fit by height
         let height = new_height;
         let width = (new_height as f32 * aspect_ratio).round() as u32;
         (width, height)
     } else {
-        // Fit by width
         let width = new_width;
         let height = (new_width as f32 / aspect_ratio).round() as u32;
         (width, height)
@@ -252,21 +195,16 @@ fn resize_and_pad(image: &RgbaImage, new_width: u32, new_height: u32, filter: Fi
         filter,
     );
 
-    // Create a new image with the specified dimensions and black background
+    // Create a new image with the specified dimensions and black background using imageproc
     let mut padded_image = RgbaImage::new(new_width, new_height);
-    let black = Rgba([0, 0, 0, 255]);
-
-    // Fill the new image with black
-    for pixel in padded_image.pixels_mut() {
-        *pixel = black;
-    }
+    //imageproc::draw_filled_rect_mut(&mut padded_image, Rect::at(0, 0).of_size(new_width, new_height), Rgba([0, 0, 0, 255]));
 
     // Calculate the position to place the resized image to center it
     let x_offset = (new_width - resize_width) / 2;
     let y_offset = (new_height - resize_height) / 2;
 
     // Overlay the resized image onto the black background
-    padded_image.copy_from(&resized_image, x_offset, y_offset).unwrap();
+    image::imageops::overlay(&mut padded_image, &resized_image, x_offset as i64, y_offset as i64);
 
     padded_image
 }

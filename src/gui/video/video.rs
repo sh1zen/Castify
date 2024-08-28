@@ -4,7 +4,7 @@ use gstreamer::Pipeline;
 use gstreamer_app as gst_app;
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 /// Position in the media.
@@ -52,8 +52,6 @@ pub struct Internal {
 
     pub(crate) frame: Arc<Mutex<Vec<u8>>>,
     pub(crate) upload_frame: Arc<AtomicBool>,
-    pub(crate) wait: mpsc::Receiver<()>,
-    pub(crate) notify: mpsc::Sender<()>,
     pub(crate) paused: bool,
     pub(crate) muted: bool,
     pub(crate) looping: bool,
@@ -109,7 +107,6 @@ impl Drop for Video {
 impl Video {
 
     pub fn new() -> Self {
-        let (notify, wait) = mpsc::channel();
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
         let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
 
@@ -123,8 +120,6 @@ impl Video {
             duration: Default::default(),
             frame: Arc::new(Mutex::new(vec![])),
             upload_frame: Arc::new(Default::default()),
-            wait,
-            notify,
             paused: false,
             muted: false,
             looping: false,
@@ -175,8 +170,6 @@ impl Video {
         let upload_frame = Arc::new(AtomicBool::new(true));
         let upload_frame_ref = Arc::clone(&upload_frame);
 
-        let (notify, wait) = mpsc::channel();
-
         app_sink.set_callbacks(
             gst_app::AppSinkCallbacks::builder()
                 .new_sample(move |sink| {
@@ -191,8 +184,6 @@ impl Video {
 
                     upload_frame_ref.store(true, Ordering::SeqCst);
 
-                    notify.send(()).map_err(|_| gst::FlowError::Error)?;
-
                     Ok(gst::FlowSuccess::Ok)
                 })
                 .build(),
@@ -202,7 +193,6 @@ impl Video {
 
         zante.bus = pipeline.bus().unwrap();
         zante.source = pipeline;
-        zante.wait = wait;
         zante.width = width;
         zante.height = height;
         zante.framerate = framerate.numer() as f64 / framerate.denom() as f64;
