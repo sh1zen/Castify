@@ -34,6 +34,13 @@ pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
                 .icon(Icon::Pause)
                 .build()
                 .on_press(appMessage::Caster(Message::Pause))
+        );
+    } else {
+        content = content.push(
+            FilledButton::new("Rec")
+                .icon(Icon::Video)
+                .build()
+                .on_press(appMessage::Caster(Message::Rec))
         )
             .push(FilledButton::new("Full Screen")
                 .icon(Icon::Screen)
@@ -43,13 +50,6 @@ pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
                 .icon(Icon::Area)
                 .build()
                 .on_press(appMessage::Caster(Message::AreaSelected((100, 100, 800, 800)))));
-    } else {
-        content = content.push(
-            FilledButton::new("Rec")
-                .icon(Icon::Video)
-                .build()
-                .on_press(appMessage::Caster(Message::Rec))
-        );
     };
 
     content = content.push(monitors_list(is_streaming));
