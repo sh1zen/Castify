@@ -6,11 +6,9 @@ use crate::gui::types::icons::Icon;
 use crate::gui::types::messages::Message as appMessage;
 use crate::utils::get_string_after;
 use crate::workers;
-use crate::workers::caster::Caster;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Column, Container, PickList, Row};
 use iced::{Alignment, Length};
-use std::sync::MutexGuard;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
@@ -63,7 +61,7 @@ pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
 
 fn monitors_list(is_streaming: bool) -> Container<'static, appMessage, StyleType> {
     if !is_streaming {
-        monitors_picklist(workers::caster::get_instance().lock().unwrap())
+        monitors_picklist()
     } else {
         let empty_content = Row::new();
         Container::new(empty_content)
@@ -74,7 +72,7 @@ fn monitor_name(id: u32) -> String {
     format!("Monitor #{}", id)
 }
 
-fn monitors_picklist(mut caster: MutexGuard<Caster>) -> Container<'static, appMessage, StyleType> {
+fn monitors_picklist() -> Container<'static, appMessage, StyleType> {
     let mut monitors = Vec::new();
 
     for monitor in Capture::get_monitors() {
@@ -85,8 +83,8 @@ fn monitors_picklist(mut caster: MutexGuard<Caster>) -> Container<'static, appMe
         return Container::new(iced::widget::Space::new(0, 0));
     }
 
-    let selected = monitor_name(caster.current_monitor());
-    caster.change_monitor(get_string_after(selected.clone(), '#').trim().parse::<u32>().unwrap());
+    let selected = monitor_name(workers::caster::get_instance().lock().unwrap().current_monitor());
+    workers::caster::get_instance().lock().unwrap().change_monitor(get_string_after(selected.clone(), '#').trim().parse::<u32>().unwrap());
     let content = Column::new()
         .push(
             PickList::new(

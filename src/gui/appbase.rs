@@ -1,12 +1,12 @@
 use crate::gui::components::hotkeys::KeyTypes;
 use crate::gui::components::popup::{PopupMsg, PopupType};
-use crate::gui::resource::USE_WEBRTC;
+use crate::gui::resource::{FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, USE_WEBRTC};
 use crate::gui::types::messages::Message;
 use crate::gui::video::Video;
 use crate::utils::gist::create_ss_save_pipeline;
 use crate::workers;
 use gstreamer::prelude::ElementExt;
-use gstreamer::ClockTime;
+use gstreamer::{ClockTime, MessageView};
 use iced::keyboard::key::Named;
 use iced::keyboard::{Event, Key, Modifiers};
 use iced::mouse::Event::ButtonPressed;
@@ -15,6 +15,9 @@ use iced::Event::{Keyboard, Window};
 use iced::{window, Subscription};
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::thread;
+use std::thread::sleep;
+use std::time::Duration;
 
 pub enum Page {
     Home,
@@ -104,20 +107,7 @@ impl App {
     pub(crate) fn launch_receiver(&mut self, socket_addr: Option<SocketAddr>) {
         let (tx, rx) = tokio::sync::mpsc::channel(1);
 
-        /*
-        // Asynchronously set the pipeline to Playing
-        app.pipeline.call_async(|pipeline| {
-            // If this fails, post an error on the bus so we exit
-            if pipeline.set_state(gst::State::Playing).is_err() {
-                gst_element_error!(
-                            pipeline,
-                            gst::LibraryError::Failed,
-                            ("Failed to set pipeline to Playing")
-                        );
-            }
-        });
-*/
-        let pipeline = if USE_WEBRTC {
+        if USE_WEBRTC {
             tokio::spawn(async move {
                 let tt = crate::utils::net::WebRTCClient::new("ws://localhost:31413").await;
                 tt.receive_video(tx).await;
@@ -125,9 +115,33 @@ impl App {
 
             let pipeline = create_ss_save_pipeline(rx).unwrap();
             pipeline.set_state(gstreamer::State::Playing).unwrap();
-            let _ = pipeline.state(ClockTime::from_seconds(5));
+            let _ = pipeline.state(ClockTime::from_seconds(3));
 
-            return;
+            thread::spawn(move || {
+                /* while let Some(x) = rx.blocking_recv() {
+                     println!("{:?}", x);
+                 }*/
+
+                sleep(Duration::from_secs(3));
+                println!("starting 2 pipeline");
+
+                let bus = pipeline.bus().unwrap();
+                for msg in bus.iter() {
+                    match msg.view() {
+                        MessageView::Error(err) => {
+                            println!(
+                                "Errore ricevuto da {:?}: {:?}", err.debug(), err.message()
+                            );
+                            break;
+                        }
+                        MessageView::Eos(_) => {
+                            println!("gstreamer received eos");
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+            });
 
             /*let pipeline = create_stream_view_pipeline(rx).unwrap();
             pipeline.set_state(gstreamer::State::Playing).unwrap();
@@ -155,18 +169,20 @@ impl App {
                 }
             });
             pipeline*/
-            gstreamer::Pipeline::new();
         } else {
-            let (tx, rx) = tokio::sync::mpsc::channel(1);
-            tokio::spawn(async move {
-                crate::utils::net::net::receiver(socket_addr, tx).await;
-            });
-            crate::utils::gist::create_view_pipeline(rx).unwrap()
-        };
+            let pipeline = {
+                let (tx, rx) = tokio::sync::mpsc::channel(1);
+                tokio::spawn(async move {
+                    crate::utils::net::net::receiver(socket_addr, tx).await;
+                });
+                crate::utils::gist::create_view_pipeline(rx).unwrap()
+            };
+            //pipeline.set_state(gstreamer::State::Playing).unwrap();
 
-        self.video.set_pipeline(pipeline);
-        self.show_popup = None;
-        self.page = Page::Client;
+            self.video.set_pipeline(pipeline, FRAME_WITH, FRAME_HEIGHT, gstreamer::Fraction::new(FRAME_RATE, 1));
+            self.show_popup = None;
+            self.page = Page::Client;
+        }
     }
 
     pub(crate) fn launch_save_stream(&mut self) {

@@ -1,5 +1,5 @@
 use crate::capture::Capture;
-use crate::gui::resource::FRAME_RATE;
+use crate::gui::resource::SAMPLING_RATE;
 use crate::workers;
 use image::RgbaImage;
 use std::sync::Arc;
@@ -14,7 +14,7 @@ pub struct Streamer {}
 impl Streamer {
     pub async fn stream(capture: Arc<Mutex<Capture>>, tx: mpsc::Sender<RgbaImage>)
     {
-        let interval = interval(Duration::from_secs_f32(1.0 / FRAME_RATE as f32));
+        let interval = interval(Duration::from_secs_f32(1.0 / SAMPLING_RATE as f32));
         tokio::pin!(interval);
 
         loop {

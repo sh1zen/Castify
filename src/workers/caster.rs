@@ -1,13 +1,13 @@
 use crate::capture::{Capture, Streamer};
-use crate::gui::resource::{FRAME_RATE, USE_WEBRTC};
+use crate::gui::resource::USE_WEBRTC;
 use crate::utils::gist::create_stream_pipeline;
-use gstreamer::prelude::ElementExt;
+use crate::utils::net::WebRTCServer;
+use gstreamer::prelude::{ElementExt, PadExt};
 use gstreamer::{ClockTime, Pipeline};
 use gstreamer_app::gst;
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::thread;
 
 #[derive(Debug, Clone)]
 pub struct Caster {
@@ -16,7 +16,7 @@ pub struct Caster {
     init: bool,
     monitor: u32,
     capture: Arc<tokio::sync::Mutex<Capture>>,
-    pipeline: Pipeline,
+    pipeline: Arc<tokio::sync::Mutex<Pipeline>>,
 }
 
 impl Caster {
@@ -34,7 +34,7 @@ impl Caster {
 
     pub fn resize_rec_area(&mut self, x: i32, y: i32, width: u32, height: u32) {
         let monitor = self.monitor;
-        let mut cap = Arc::clone(&self.capture);
+        let cap = Arc::clone(&self.capture);
         tokio::spawn(async move {
             cap.lock().await.resize(monitor, x, y, width, height);
         });
@@ -47,7 +47,6 @@ impl Caster {
     pub fn change_monitor(&mut self, id: u32) {
         self.monitor = id;
     }
-
     pub fn current_monitor(&self) -> u32 {
         self.monitor
     }
@@ -59,30 +58,70 @@ impl Caster {
             self.init = true;
 
             if USE_WEBRTC {
-                let mut ff = self.clone();
-
-                tokio::spawn(async move {
-                    ff.get_stream().await;
-                });
+                self.get_stream();
             } else {
-                let (tx, rx) = tokio::sync::mpsc::channel(1);
+                let (tx_raw, rx_raw) = tokio::sync::mpsc::channel(1);
+                let (tx_processed, mut rx_processed) = tokio::sync::mpsc::channel(1);
 
                 // generate frames
                 let capture = Arc::clone(&self.capture);
                 tokio::spawn(async move {
-                    Streamer::stream(capture, tx).await;
+                    Streamer::stream(capture, tx_raw).await;
                 });
+
+                // process screens
+                self.pipeline = Arc::new(
+                    tokio::sync::Mutex::new(
+                        create_stream_pipeline(rx_raw, tx_processed).unwrap()
+                    )
+                );
+
+                let pipeline = Arc::clone(&self.pipeline);
+                tokio::spawn(async move {
+                    pipeline.lock().await.set_state(gst::State::Playing).unwrap();
+                    let _ = pipeline.lock().await.state(ClockTime::from_seconds(2));
+
+                    let bus = pipeline.lock().await.bus();
+                    /*tokio::spawn(async move {
+                        let bus = bus.unwrap();
+                        for msg in bus.iter() {
+                            match msg.view() {
+                                MessageView::Error(err) => {
+                                    println!(
+                                        "Errore ricevuto da {:?}: {:?}", err.debug(), err.message()
+                                    );
+                                    break;
+                                }
+                                MessageView::Eos(_) => {
+                                    println!("gstreamer received eos");
+                                    break;
+                                }
+                                _ => {}
+                            }
+                        }
+                    });*/
+                });
+
+                // test save
+                /*tokio::spawn(async move {
+                    let pipeline = create_view_pipeline(rx_processed).unwrap();
+                    pipeline.set_state(gst::State::Playing).unwrap();
+                    let _ = pipeline.state(ClockTime::from_seconds(2));
+                    loop {
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                    }
+                });*/
 
                 // send frames over the local network
                 tokio::spawn(async move {
-                    crate::utils::net::net::caster(rx).await;
+                    crate::utils::net::net::caster(rx_processed).await;
                 });
             }
         }
     }
 
-    async fn get_stream(&mut self) {
-        let (tx_raw, mut rx_raw) = tokio::sync::mpsc::channel(1);
+    fn get_stream(&mut self) {
+        let (tx_raw, rx_raw) = tokio::sync::mpsc::channel(1);
         let (tx_processed, mut rx_processed) = tokio::sync::mpsc::channel(1);
 
         // capture screens
@@ -91,26 +130,52 @@ impl Caster {
             Streamer::stream(capture, tx_raw).await;
         });
 
+        let pipeline = create_stream_pipeline(rx_raw, tx_processed).unwrap();
+
         // process screens
-        self.pipeline = create_stream_pipeline(rx_raw, tx_processed).unwrap();
-        self.pipeline.set_state(gst::State::Playing).unwrap();
-        let _ = self.pipeline.state(ClockTime::from_seconds(2));
+        self.pipeline = Arc::new(tokio::sync::Mutex::new(pipeline));
 
-        // test save
-        thread::spawn(move || {
-            while let Some(x) = rx_processed.blocking_recv() {
-                println!("{:?}", x);
-            }
-            /*let pipeline = create_test_save_pipeline(rx_processed).unwrap();
+        let pipeline = Arc::clone(&self.pipeline);
+        tokio::spawn(async move {
+            pipeline.lock().await.set_state(gst::State::Playing).unwrap();
+            let _ = pipeline.lock().await.state(ClockTime::from_seconds(3));
 
-            pipeline.set_state(gst::State::Playing).unwrap();
-            let _ = pipeline.state(ClockTime::from_seconds(2));*/
+            let bus = pipeline.lock().await.bus();
+            /*tokio::spawn(async move {
+                let bus = bus.unwrap();
+                for msg in bus.iter() {
+                    match msg.view() {
+                        MessageView::Error(err) => {
+                            println!(
+                                "Errore ricevuto da {:?}: {:?}", err.debug(), err.message()
+                            );
+                            break;
+                        }
+                        MessageView::Eos(_) => {
+                            println!("gstreamer received eos");
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+            });*/
         });
 
+        // test save
+        /*
+        thread::spawn(move || {
+            /*while let Some(x) = rx_processed.blocking_recv() {
+                println!("{:?}", x);
+            }*/
+            sleep(Duration::from_secs(2));
+            println!("starting 2 pipeline");
 
-        /*let bus =  self.pipeline.bus();
-        tokio::spawn(async move {
-            let bus = bus.unwrap();
+            let pipeline = create_test_save_pipeline(rx_processed).unwrap();
+
+            pipeline.set_state(gst::State::Playing).unwrap();
+            let _ = pipeline.state(ClockTime::from_seconds(3));
+
+            let bus = pipeline.bus().unwrap();
             for msg in bus.iter() {
                 match msg.view() {
                     MessageView::Error(err) => {
@@ -126,13 +191,15 @@ impl Caster {
                     _ => {}
                 }
             }
+            loop {
+                sleep(Duration::from_secs(2));
+            }
         });*/
-
-        /*let calla = WebRTCServer::new();
 
         tokio::spawn(async move {
+            let calla = WebRTCServer::new();
             calla.send_video_frames(rx_processed).await.expect("send_video_frames webrtc error");
-        });*/
+        });
     }
 
     pub fn pause(&mut self) {

@@ -129,20 +129,18 @@ impl WebRTCClient {
         connection.on_track(Box::new(move |track: Arc<TrackRemote>, _receiver: Arc<RTCRtpReceiver>, _transceiver: Arc<RTCRtpTransceiver>| {
             // Send a PLI on an interval so that the publisher is pushing a keyframe every rtcpPLIInterval
             //let media_ssrc = track.ssrc();
-            let codec = track.codec();
+            //let codec = track.codec();
 
             Box::pin({
                 let value = Arc::clone(&tx);
                 async move {
-                    while let Ok((packet, attr)) = track.read_rtp().await {
+                    while let Ok((packet, _)) = track.read_rtp().await {
                         match value.lock().await.send(packet).await {
                             Err(SendError(e)) => {
                                 println!("Error channel packet {}", e);
                                 break;
                             }
-                            e => {
-                                println!("OKOKO {:?}", e);
-                            }
+                            _ => {}
                         }
                     }
                     println!("NEED TO CLOSE CONNECTION");
@@ -162,7 +160,7 @@ impl WebRTCClient {
         }
     }
 
-    async fn sample_to_gst_buffer(packet: Packet, attr: Attributes) -> Option<gstreamer::Buffer> {
+    async fn sample_to_gst_buffer(packet: Packet, _: Attributes) -> Option<gstreamer::Buffer> {
         // Extract the payload from the RTP packet
         let payload = &packet.payload;
 

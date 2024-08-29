@@ -1,14 +1,12 @@
-use crate::gui::resource::FRAME_RATE;
 use crate::utils::gist::create_save_pipeline;
 use glib::prelude::*;
 use gstreamer::prelude::{ElementExt, GstBinExt};
-use gstreamer::{ClockTime, MessageView, Pipeline};
+use gstreamer::{MessageView, Pipeline};
 use gstreamer_app::{gst, AppSrc};
 use once_cell::sync::Lazy;
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
-use image::RgbaImage;
 
 #[derive(Debug, Clone)]
 pub struct SaveStream {
@@ -37,53 +35,25 @@ impl SaveStream {
             tokio::spawn(async move {
                 let pipeline = create_save_pipeline().unwrap();
                 let appsrc = Some(
-                    pipeline
-                        .by_name("image-to-file")
+                    pipeline.by_name("appsrc")
                         .and_then(|elem| elem.downcast::<AppSrc>().ok())
                         .unwrap()
                 );
                 pipeline.set_state(gst::State::Playing).expect("Failed start save_pipeline");
-                let _ = pipeline.state(ClockTime::from_seconds(3));
-
-                let binding = get_instance();
-                let mut self_lock = binding.lock().unwrap();
-                self_lock.pipeline = pipeline;
-                self_lock.appsrc = appsrc;
-                self_lock.is_available = true;
+                get_instance().lock().unwrap().pipeline = pipeline;
+                get_instance().lock().unwrap().appsrc = appsrc;
+                get_instance().lock().unwrap().is_available = true;
             });
         }
     }
 
-    pub fn send_frame(&mut self, frame: RgbaImage) {
+    pub fn send_frame(&mut self, buffer: gst::Buffer) {
         if self.is_available {
             match &self.appsrc {
                 Some(appsrc) => {
-                    // Convert the image buffer into raw byte data
-                    let raw_data: Vec<u8> = frame.into_raw();
-
-                    // Create a GStreamer buffer from the raw data slice
-                    let mut buffer = gst::Buffer::from_slice(raw_data);
-                    {
-                        let buffer_ref = buffer.get_mut().unwrap();
-
-                        // Calculate PTS and duration based on frame rate
-                        let pts = ClockTime::from_mseconds(1000 * self.frame_i / FRAME_RATE as u64);
-                        let duration = ClockTime::from_mseconds(1000 * (1 / FRAME_RATE) as u64);
-
-                        buffer_ref.set_pts(pts);
-                        buffer_ref.set_dts(pts);
-                        buffer_ref.set_duration(duration);
+                    if let Err(_) = appsrc.push_buffer(buffer) {
+                        self.stop()
                     }
-
-                    match appsrc.push_buffer(buffer) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            eprintln!("{}", e);
-                            self.stop()
-                        }
-                    }
-
-                    self.frame_i += 1;
                 }
                 _ => {}
             }

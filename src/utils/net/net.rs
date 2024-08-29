@@ -1,7 +1,7 @@
 use crate::gui::resource::{CAST_SERVICE_PORT, MAX_PACKAGES_FAIL};
 use crate::gui::types::messages::Message;
 use bincode::{deserialize, serialize};
-use image::RgbaImage;
+use gstreamer::{Buffer, BufferFlags, ClockTime};
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use serde::{Deserialize, Serialize};
@@ -11,6 +11,8 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::str;
 use std::sync::Arc;
 use std::time::Duration;
+use iced_wgpu::graphics::color::pack;
+use tokio::sync::mpsc::Receiver;
 use tokio::sync::Mutex;
 
 const SERVICE_NAME: &'static str = "_screen_caster._tcp.local.";
@@ -26,11 +28,14 @@ struct StreamEntry {
     error_count: u8,
 }
 
-#[derive(Clone, Default, Serialize, Deserialize)]
-struct ImageData {
-    width: u32,
-    height: u32,
+#[derive(Clone, Serialize, Deserialize)]
+struct XGPacket {
+    pts: u64,
+    duration: u64,
     bytes: Vec<u8>,
+    len: usize,
+    flags: u32,
+    offset: u64
 }
 
 const CHUNK_SIZE: usize = 10240;
@@ -44,7 +49,7 @@ fn find_caster() -> Option<SocketAddr> {
     let mut addr: Option<SocketAddr> = None;
 
     while let Some(event) = receiver.iter().next() {
-        println!("waiting for caster");
+        println!("waiting for a caster");
         match event {
             ServiceEvent::ServiceResolved(info) => {
                 let ip_addr = info.get_addresses_v4().iter().next().unwrap().to_string();
@@ -62,15 +67,14 @@ fn find_caster() -> Option<SocketAddr> {
     addr
 }
 
-pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc::Sender<RgbaImage>) -> Message {
+pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc::Sender<Buffer>) -> Message {
     let mut stream;
 
     if socket_addr.is_none() {
         socket_addr = find_caster();
     }
 
-    if !socket_addr.is_none() {
-        let socket_addr = socket_addr.unwrap();
+    if let Some(socket_addr) = socket_addr {
         println!("Connecting to caster at {:?}", socket_addr);
 
         loop {
@@ -110,22 +114,30 @@ pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc
             }
 
             if corrupted {
+                println!("corrupeteddddd");
                 continue;
             }
 
-            match deserialize::<ImageData>(&*buffer) {
-                Ok(image_data) => {
-                    // Create an RgbaImage from the deserialized data
-                    match RgbaImage::from_raw(image_data.width, image_data.height, image_data.bytes) {
-                        Some(rgba_image) => {
-                            match tx.send(rgba_image).await {
-                                Err(e) => { println!("{}", e) }
-                                _ => {}
-                            }
-                        }
-                        None => {
-                            println!("Failed to reconstruct image from received data.");
-                        }
+            match deserialize::<XGPacket>(&*buffer) {
+                Ok(packet) => {
+                    if packet.len != packet.bytes.len() {
+                        println!("Invalid packet");
+                        continue;
+                    }
+                    let mut buffer = Buffer::from_slice(packet.bytes);
+                    {
+                        let buffer_ref = buffer.get_mut().unwrap();
+
+                        buffer_ref.set_pts(ClockTime::from_mseconds(packet.pts));
+                        buffer_ref.set_dts(ClockTime::from_mseconds(packet.pts));
+                        buffer_ref.set_duration(ClockTime::from_mseconds(packet.duration));
+                        buffer_ref.set_flags(BufferFlags::from_bits(packet.flags).unwrap());
+                        buffer_ref.set_offset(packet.offset);
+                    }
+
+                    match tx.send(buffer).await {
+                        Err(e) => { println!("{}", e) }
+                        _ => {}
                     }
                 }
                 Err(e) => {
@@ -138,7 +150,7 @@ pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc
     Message::Ignore
 }
 
-pub async fn caster(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) {
+pub async fn caster(mut rx: Receiver<Buffer>) {
     let addr = SocketAddr::new("0.0.0.0".parse().unwrap(), CAST_SERVICE_PORT);
     let listener = TcpListener::bind(addr).unwrap();
 
@@ -164,13 +176,18 @@ pub async fn caster(mut rx: tokio::sync::mpsc::Receiver<RgbaImage>) {
     let streams_clone = streams.clone();
 
     tokio::spawn(async move {
-        while let Some(image) = rx.recv().await {
+        while let Some(buffer) = rx.recv().await {
             println!("Transmitting...");
 
-            let image_tx = ImageData {
-                width: image.width(),
-                height: image.height(),
-                bytes: image.into_raw(),
+            let buff_raw = buffer.map_readable().unwrap().as_slice().to_vec();
+
+            let image_tx = XGPacket {
+                pts: buffer.pts().unwrap().mseconds(),
+                duration: buffer.duration().unwrap().mseconds(),
+                len: buff_raw.len(),
+                bytes: buff_raw,
+                flags: buffer.flags().bits(),
+                offset: buffer.offset()
             };
 
             let serialized_tx: Vec<u8> = serialize(&image_tx).unwrap();

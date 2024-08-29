@@ -1,6 +1,6 @@
 use gst::prelude::*;
 use gstreamer as gst;
-use gstreamer::Pipeline;
+use gstreamer::{Fraction, MessageView, Pipeline};
 use gstreamer_app as gst_app;
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -105,7 +105,6 @@ impl Drop for Video {
 }
 
 impl Video {
-
     pub fn new() -> Self {
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
         let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
@@ -129,7 +128,7 @@ impl Video {
         }))
     }
 
-    pub fn set_pipeline(&mut self, pipeline: Pipeline) {
+    pub fn set_pipeline(&mut self, pipeline: Pipeline, width: i32, height: i32, framerate: gst::Fraction) {
         let live = true;
 
         let app_sink = pipeline
@@ -137,20 +136,7 @@ impl Video {
             .and_then(|elem| elem.downcast::<gst_app::AppSink>().ok())
             .unwrap();
 
-        let pad = app_sink.pads().first().cloned().unwrap();
-
         pipeline.set_state(gst::State::Playing).unwrap();
-
-        // wait decoder gets the source capabilities
-        let _ = pipeline.state(gst::ClockTime::from_seconds(1));
-
-        // extract resolution and framerate
-        let caps = pad.current_caps().ok_or("Failed to get media capabilities").unwrap();
-        let s = caps.structure(0).ok_or("Failed to get media capabilities").unwrap();
-        let width = s.get::<i32>("width").expect("Failed to get media width");
-        let height = s.get::<i32>("height").expect("Failed to get media height");
-        let framerate = s
-            .get::<gst::Fraction>("framerate").expect("Failed to get framerate");
 
         let duration = if !live {
             std::time::Duration::from_nanos(
@@ -174,7 +160,7 @@ impl Video {
             gst_app::AppSinkCallbacks::builder()
                 .new_sample(move |sink| {
                     let sample = sink.pull_sample().map_err(|_| gst::FlowError::Eos)?;
-                    let buffer = sample.buffer().ok_or(gst::FlowError::Error)?;
+                    let buffer = sample.buffer().ok_or(gst::FlowError::Error)?.to_owned();
                     let map = buffer.map_readable().map_err(|_| gst::FlowError::Error)?;
 
                     frame_ref

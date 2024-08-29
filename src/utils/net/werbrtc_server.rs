@@ -1,3 +1,4 @@
+use std::ops::Add;
 use crate::gui::resource::CAST_SERVICE_PORT;
 use crate::utils::net::webrtc_common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
 use async_tungstenite::tokio::{accept_async, TokioAdapter};
@@ -9,6 +10,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, Notify};
+use tokio::time::sleep;
 use webrtc::api::API;
 use webrtc::ice_transport::ice_connection_state::RTCIceConnectionState;
 use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
@@ -193,10 +195,17 @@ impl WebRTCServer {
 
     pub async fn send_video_frames(&self, mut receiver: tokio::sync::mpsc::Receiver<gstreamer::Buffer>) -> Result<(), Box<dyn std::error::Error>> {
 
+        let mut frame_i = 0;
         while let Some(buffer) = receiver.recv().await {
 
+            /*if self.peers.lock().await.len() == 0 {
+                sleep(Duration::from_millis(100)).await;
+                continue;
+            }*/
+
             let duration = Duration::from(buffer.duration().unwrap());
-            let timestamp = SystemTime::UNIX_EPOCH + Duration::from_nanos(buffer.pts().unwrap().nseconds());
+            let timestamp = SystemTime::now().add(Duration::from_millis(frame_i)); // + Duration::from_nanos(buffer.pts().unwrap().nseconds());
+            frame_i += 1;
 
             let map = buffer.map_readable().unwrap();
             let slice = map.as_slice();
