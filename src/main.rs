@@ -12,20 +12,7 @@ use std::{panic, process};
 #[tokio::main]
 async fn main() {
     gstreamer::init().expect("❌ gstreamer init error.");
-
     let supported = true;
-    /*
-        if !scap::is_supported() {
-            supported = false;
-        } else {
-            if !scap::has_permission() {
-                println!("❌ Permission not granted. Requesting permission...");
-                if !scap::request_permission() {
-                    println!("❌ Permission denied");
-                    return;
-                }
-            }
-        }*/
 
     // kill the main thread as soon as a secondary thread panics
     let orig_hook = panic::take_hook();

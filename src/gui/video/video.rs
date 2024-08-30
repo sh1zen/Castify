@@ -1,6 +1,6 @@
 use gst::prelude::*;
 use gstreamer as gst;
-use gstreamer::{Fraction, MessageView, Pipeline};
+use gstreamer::Pipeline;
 use gstreamer_app as gst_app;
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};

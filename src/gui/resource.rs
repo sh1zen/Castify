@@ -1,12 +1,12 @@
 use iced::font::{Family, Stretch, Style, Weight};
 use iced::Font;
 
-pub const USE_WEBRTC: bool = false;
+pub const USE_WEBRTC: bool = true;
 
 // conv
-pub const SAMPLING_RATE: i32 = 24;
+pub const SAMPLING_RATE: i32 = 30;
 
-pub const FRAME_RATE: i32 = 24;
+pub const FRAME_RATE: i32 = 30;
 pub const FRAME_WITH: i32 = 1920;
 pub const FRAME_HEIGHT: i32 = 1080;
 

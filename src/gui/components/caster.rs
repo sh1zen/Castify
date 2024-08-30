@@ -90,7 +90,7 @@ fn monitors_picklist() -> Container<'static, appMessage, StyleType> {
             PickList::new(
                 monitors,
                 Some(selected),
-                |selected_value| {
+                |_| {
                     appMessage::Ignore
                 },
             )

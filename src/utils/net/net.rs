@@ -1,9 +1,8 @@
 use crate::gui::resource::{CAST_SERVICE_PORT, MAX_PACKAGES_FAIL};
 use crate::gui::types::messages::Message;
+use crate::utils::net::find_caster;
 use bincode::{deserialize, serialize};
 use gstreamer::{Buffer, BufferFlags, ClockTime};
-use local_ip_address::local_ip;
-use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use serde::{Deserialize, Serialize};
 use socket2::TcpKeepalive;
 use std::io::{Read, Write};
@@ -11,11 +10,8 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::str;
 use std::sync::Arc;
 use std::time::Duration;
-use iced_wgpu::graphics::color::pack;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::Mutex;
-
-const SERVICE_NAME: &'static str = "_screen_caster._tcp.local.";
 
 pub enum SendingData {
     Transmit,
@@ -35,37 +31,11 @@ struct XGPacket {
     bytes: Vec<u8>,
     len: usize,
     flags: u32,
-    offset: u64
+    offset: u64,
 }
 
 const CHUNK_SIZE: usize = 10240;
 
-fn find_caster() -> Option<SocketAddr> {
-    // Create a daemon
-    let mdns = ServiceDaemon::new().expect("Failed to create daemon");
-    // Browse for a service type.
-    let receiver = mdns.browse(SERVICE_NAME).expect("Failed to browse");
-
-    let mut addr: Option<SocketAddr> = None;
-
-    while let Some(event) = receiver.iter().next() {
-        println!("waiting for a caster");
-        match event {
-            ServiceEvent::ServiceResolved(info) => {
-                let ip_addr = info.get_addresses_v4().iter().next().unwrap().to_string();
-                println!("Resolved a new service: {:?}", ip_addr);
-                addr = Option::from(SocketAddr::new(ip_addr.parse().unwrap(), info.get_port()));
-                break;
-            }
-            _ => {
-                // skipping event
-            }
-        }
-    }
-    mdns.shutdown().unwrap();
-
-    addr
-}
 
 pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc::Sender<Buffer>) -> Message {
     let mut stream;
@@ -154,24 +124,6 @@ pub async fn caster(mut rx: Receiver<Buffer>) {
     let addr = SocketAddr::new("0.0.0.0".parse().unwrap(), CAST_SERVICE_PORT);
     let listener = TcpListener::bind(addr).unwrap();
 
-    let mdns = ServiceDaemon::new().expect("Failed to create daemon");
-    let ip = local_ip().expect("No internet connection");
-    let host_name = String::from(ip.to_string()) + ".local.";
-    let properties = [("screen_caster", CAST_SERVICE_PORT)];
-
-    let my_service = ServiceInfo::new(
-        SERVICE_NAME,
-        "ScreenCaster",
-        &*host_name,
-        ip,
-        CAST_SERVICE_PORT,
-        &properties[..],
-    ).unwrap();
-
-    mdns.register(my_service).expect("Failed to register our service");
-
-    println!("Caster running and registered on mDNS");
-
     let streams: Arc<Mutex<Vec<StreamEntry>>> = Arc::new(Mutex::new(Vec::new()));
     let streams_clone = streams.clone();
 
@@ -187,7 +139,7 @@ pub async fn caster(mut rx: Receiver<Buffer>) {
                 len: buff_raw.len(),
                 bytes: buff_raw,
                 flags: buffer.flags().bits(),
-                offset: buffer.offset()
+                offset: buffer.offset(),
             };
 
             let serialized_tx: Vec<u8> = serialize(&image_tx).unwrap();

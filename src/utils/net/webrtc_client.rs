@@ -3,12 +3,10 @@ use async_tungstenite::tokio::connect_async;
 use async_tungstenite::tungstenite::Message;
 use async_tungstenite::WebSocketStream;
 use futures_util::{SinkExt, StreamExt};
-use gstreamer::{Buffer, BufferRef};
 use std::sync::Arc;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::Mutex;
 use webrtc::ice_transport::ice_connection_state::RTCIceConnectionState;
-use webrtc::interceptor::Attributes;
 use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
 use webrtc::peer_connection::RTCPeerConnection;
 use webrtc::rtp::packet::Packet;
@@ -32,7 +30,7 @@ impl WebRTCClient {
         // Create the WebRTC API
         let api = create_webrtc_api();
 
-        let mut client = Arc::new(WebRTCClient {
+        let client = Arc::new(WebRTCClient {
             connection: create_peer_connection(&api).await,
             ws_stream: Arc::new(Mutex::new(ws_stream)),
         });
@@ -158,22 +156,5 @@ impl WebRTCClient {
             }
             self.connection.close().await.unwrap();
         }
-    }
-
-    async fn sample_to_gst_buffer(packet: Packet, _: Attributes) -> Option<gstreamer::Buffer> {
-        // Extract the payload from the RTP packet
-        let payload = &packet.payload;
-
-        // Allocate a new GStreamer buffer with the size of the payload
-        let mut buffer = Buffer::with_size(payload.len()).ok()?;
-        {
-            let mut buffer_ref: &mut BufferRef = buffer.get_mut()?;
-
-            // Map the buffer writable and copy the payload data into the buffer
-            let mut map = buffer_ref.map_writable().ok()?;
-            map.copy_from_slice(payload);
-        }
-
-        Some(buffer)
     }
 }

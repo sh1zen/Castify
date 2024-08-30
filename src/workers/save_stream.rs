@@ -1,4 +1,5 @@
-use crate::utils::gist::create_save_pipeline;
+use crate::gui::resource::USE_WEBRTC;
+use crate::utils::gist::{create_rtp_save_pipeline, create_save_pipeline};
 use glib::prelude::*;
 use gstreamer::prelude::{ElementExt, GstBinExt};
 use gstreamer::{MessageView, Pipeline};
@@ -33,7 +34,11 @@ impl SaveStream {
             self.is_saving = true;
             self.frame_i = 0;
             tokio::spawn(async move {
-                let pipeline = create_save_pipeline().unwrap();
+                let pipeline = if USE_WEBRTC {
+                    create_rtp_save_pipeline().unwrap()
+                } else {
+                    create_save_pipeline().unwrap()
+                };
                 let appsrc = Some(
                     pipeline.by_name("appsrc")
                         .and_then(|elem| elem.downcast::<AppSrc>().ok())

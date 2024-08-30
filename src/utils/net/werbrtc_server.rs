@@ -101,10 +101,10 @@ impl WebRTCServer {
         }
     }
 
-    async fn remote_handle_signaling(peer: Arc<WRTCPeer>, mut ws_stream: WebSocketStream<TokioAdapter<TcpStream>>) -> Result<(), Box<dyn std::error::Error>> {
+    async fn remote_handle_signaling(peer: Arc<WRTCPeer>, ws_stream: WebSocketStream<TokioAdapter<TcpStream>>) -> Result<(), Box<dyn std::error::Error>> {
 
         let (ws_sender, mut ws_receiver) = ws_stream.split();
-        let mut ws_sender = Arc::new(Mutex::new(ws_sender));
+        let ws_sender = Arc::new(Mutex::new(ws_sender));
 
         // Set the handler for ICE connection state
         // This will notify you when the peer has connected/disconnected
@@ -126,7 +126,7 @@ impl WebRTCServer {
             Box::pin(async {})
         }));
 
-        let mut ws_sender_clone = Arc::clone(&ws_sender);
+        let ws_sender_clone = Arc::clone(&ws_sender);
         let peer_conn_clone = Arc::clone(&peer.connection);
         peer.connection.on_ice_candidate(Box::new(move |candidate| {
             println!("on_ice_candidate {:?}", candidate);
@@ -198,10 +198,10 @@ impl WebRTCServer {
         let mut frame_i = 0;
         while let Some(buffer) = receiver.recv().await {
 
-            /*if self.peers.lock().await.len() == 0 {
+            if self.peers.lock().await.len() == 0 {
                 sleep(Duration::from_millis(100)).await;
                 continue;
-            }*/
+            }
 
             let duration = Duration::from(buffer.duration().unwrap());
             let timestamp = SystemTime::now().add(Duration::from_millis(frame_i)); // + Duration::from_nanos(buffer.pts().unwrap().nseconds());
