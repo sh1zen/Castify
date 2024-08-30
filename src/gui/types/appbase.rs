@@ -8,7 +8,7 @@ use iced::keyboard::{Event, Key, Modifiers};
 use iced::mouse::Event::ButtonPressed;
 use iced::window::Id;
 use iced::Event::{Keyboard, Window};
-use iced::{window, Subscription};
+use iced::{window, Subscription, Point};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use gstreamer::ClockTime;
@@ -47,6 +47,10 @@ pub struct App {
     pub(crate) video: Video,
     pub(crate) hotkey_map: HotkeyMap,
     pub(crate) capture_mode: CaptureMode,
+    pub(crate) selecting_area: bool,
+    pub(crate) start_selection: Option<Point>,
+    pub(crate) end_selection: Option<Point>,
+
 }
 
 impl App {
@@ -66,6 +70,9 @@ impl App {
                 updating: KeyTypes::None,
             },
             capture_mode: CaptureMode::FullScreen,
+            selecting_area: false,
+            start_selection: None,
+            end_selection: None,
         }
     }
 

@@ -5,7 +5,7 @@ use crate::gui::theme::button::ButtonType;
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::appbase::App;
 use crate::gui::types::icons::Icon;
-use crate::gui::types::messages::Message as appMessage;
+use crate::gui::types::messages::{AreaSelectionMessage, Message as appMessage};
 use crate::utils::get_string_after;
 use crate::workers;
 use iced::alignment::{Horizontal, Vertical};
@@ -46,7 +46,9 @@ pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
     let mut select_area_button = FilledButton::new("Select Area")
         .icon(Icon::Area)
         .build()
-        .on_press(appMessage::Caster(Message::AreaSelected));
+        .on_press(appMessage::AreaSelection(AreaSelectionMessage::StartSelection { x: 0.0, y: 0.0 }));
+
+    println!("Rendering the Select Area button and setting up AreaSelector");
 
     if caster.streaming {
         fullscreen_button = fullscreen_button.style(ButtonType::Disabled);

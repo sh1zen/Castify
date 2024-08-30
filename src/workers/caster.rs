@@ -116,6 +116,12 @@ impl Caster {
         });*/
     }
 
+    pub fn set_area_selection(&mut self, x: f32, y: f32, width: f32, height: f32) {
+        self.capture.set_region(x as i32, y as i32, width as u32, height as u32);
+        self.capture_mode = CaptureMode::Area;
+        println!("Area set: x = {}, y = {}, width = {}, height = {}", x, y, width, height);
+    }
+
     pub fn pause(&mut self) {
         self.streaming = false;
     }

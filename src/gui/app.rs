@@ -9,14 +9,16 @@ use crate::gui::components::{caster, home};
 use crate::gui::resource::{open_link, CAST_SERVICE_PORT};
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::appbase::{App, Page};
-use crate::gui::types::messages::Message;
+use crate::gui::types::messages::{AreaSelectionMessage, Message};
 use crate::workers;
 use iced::widget::{Column, Container};
-use iced::{executor, Application, Command, Element, Subscription};
+use iced::{executor, Application, Command, Element, Subscription, Point};
 use std::net::SocketAddr;
 use std::process::exit;
 use std::str::FromStr;
 use crate::gui::types::appbase::CaptureMode;
+use crate::gui::components::area_selector::AreaSelector;
+
 
 impl Application for App {
     type Executor = executor::Default;
@@ -54,18 +56,6 @@ impl Application for App {
                 match mode {
                     caster::Message::Rec => {
                         let capture_mode = workers::caster::get_instance().lock().unwrap().capture_mode;
-                        match capture_mode {
-                            CaptureMode::FullScreen => {
-                                println!("Selected Mode: Full Screen");
-                            }
-                            CaptureMode::Area => {
-                                let area = (1000, 500, 500, 500);
-                                println!(
-                                    "Selected Mode: Area\nCoordinates: x = {}, y = {}, width = {}, height = {}",
-                                    area.0, area.1, area.2, area.3
-                                );
-                            }
-                        }
                         workers::caster::get_instance().lock().unwrap().cast_screen(capture_mode);
                     }
                     caster::Message::Pause => {
@@ -79,6 +69,41 @@ impl Application for App {
                         workers::caster::get_instance().lock().unwrap().capture_mode = CaptureMode::Area;
                     }
 
+                }
+            }
+            Message::AreaSelection(msg) => {
+                match msg {
+                    AreaSelectionMessage::StartSelection { x, y } => {
+                        // Inizializza la selezione
+                        self.start_selection = Some(Point::new(x, y));
+                        self.end_selection = None;
+                        println!("Start selection at: ({}, {})", x, y);
+                    }
+                    AreaSelectionMessage::UpdateSelection { x, y } => {
+                        // Aggiorna la selezione
+                        if let Some(start) = self.start_selection {
+                            self.end_selection = Some(Point::new(x, y));
+                            println!("Selection updated to: ({}, {})", x, y);
+                        }
+                    }
+                    AreaSelectionMessage::EndSelection => {
+                        // Concludi la selezione e calcola i dati dell'area
+                        if let (Some(start), Some(end)) = (self.start_selection, self.end_selection) {
+                            let area_x = start.x.min(end.x);
+                            let area_y = start.y.min(end.y);
+                            let area_width = (start.x - end.x).abs();
+                            let area_height = (start.y - end.y).abs();
+                            println!("Selection area: x = {}, y = {}, width = {}, height = {}", area_x, area_y, area_width, area_height);
+
+                            // Passa queste informazioni al worker
+                            let caster_instance = workers::caster::get_instance();
+                            let mut caster = caster_instance.lock().unwrap();
+                            caster.set_area_selection(area_x, area_y, area_width, area_height);
+
+                        }
+                        self.start_selection = None;
+                        self.end_selection = None;
+                    }
                 }
             }
             Message::BlankScreen => {
@@ -167,31 +192,32 @@ impl Application for App {
     }
 
     fn view(&self) -> Element<Message, StyleType> {
-        let body = match self.page {
-            Page::Home => {
-                initial_page(self)
-            }
+        let body: Element<Message, StyleType> = match self.page {
+            Page::Home => initial_page(self).into(),
             Page::Caster => {
-                caster_page(self)
+                if self.selecting_area {
+                    AreaSelector::new().view().map(Message::AreaSelection).into()
+                } else {
+                    caster_page(self).into()
+                }
             }
-            Page::Client => {
-                client_page(self)
-            }
-            Page::Hotkeys => {
-                hotkeys(self)
-            }
+            Page::Client => client_page(self).into(),
+            Page::Hotkeys => hotkeys(self).into(),
         };
 
-        let footer = footer();
+        let footer = footer().into();
 
         let mut content = Column::new().padding(0).push(body).push(footer);
 
         if !self.show_popup.is_none() {
-            content = Column::new().push(show_popup(self, Container::new(content)));
+            content = Column::new().push(show_popup(self, Container::new(content)).into());
         }
 
         content.into()
     }
+
+
+
 
     fn theme(&self) -> Self::Theme {
         StyleType::Venus

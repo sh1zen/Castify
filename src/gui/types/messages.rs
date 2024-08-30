@@ -47,4 +47,15 @@ pub enum Message {
     HotkeysUpdate((Modifiers, Key)),
     /// hotkeys support
     KeyPressed((Modifiers, Key)),
+    /// Messages for handling area selection
+    AreaSelection(AreaSelectionMessage),
+}
+#[derive(Debug, Clone, Copy)]
+pub enum AreaSelectionMessage {
+    /// Start the area selection
+    StartSelection { x: f32, y: f32 },
+    /// Update the area selection
+    UpdateSelection { x: f32, y: f32 },
+    /// End the area selection
+    EndSelection,
 }
