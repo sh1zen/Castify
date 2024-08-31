@@ -85,7 +85,7 @@ impl Caster {
                     let calla = WebRTCServer::new();
                     calla.send_video_frames(rx_processed).await.expect("send_video_frames webrtc error");
                 } else {
-                    crate::utils::net::net::caster(rx_processed).await;
+                    crate::utils::net::xgp::caster(rx_processed).await;
                 }
             });
         }

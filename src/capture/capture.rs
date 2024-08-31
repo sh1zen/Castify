@@ -102,7 +102,7 @@ impl Capture {
                 frame = self.frame(monitor);
                 frame = self.crop(frame, x_monitor.x as u32, x_monitor.y as u32, x_monitor.width, x_monitor.height);
 
-                // println!("Captured Frame {}", Local::now().timestamp_millis());
+                println!("Captured Frame {}", Local::now().timestamp_millis());
 
                 frame = resize_and_pad(
                     &frame,

@@ -113,7 +113,7 @@ impl App {
         } else {
             let (tx, rx) = tokio::sync::mpsc::channel(1);
             tokio::spawn(async move {
-                crate::utils::net::net::receiver(socket_addr, tx).await;
+                crate::utils::net::xgp::receiver(socket_addr, tx).await;
             });
             crate::utils::gist::create_view_pipeline(rx).unwrap()
         };

@@ -34,7 +34,7 @@ struct XGPacket {
     offset: u64,
 }
 
-const CHUNK_SIZE: usize = 10240;
+const CHUNK_SIZE: usize = 40960;
 
 
 pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc::Sender<Buffer>) -> Message {
