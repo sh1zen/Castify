@@ -11,51 +11,53 @@ use tokio::time::{interval, Interval};
 #[derive(Debug, Clone)]
 pub struct Streamer {
     capture: Arc<Mutex<Capture>>,
-    interval: Arc<Mutex<Interval>>,
     tx: Arc<Mutex<mpsc::Sender<RgbaImage>>>,
+    interval: Arc<Mutex<Interval>>,
 }
 
+unsafe impl Send for Streamer {}
 
 impl Streamer {
-    pub async fn stream(capture: Arc<Mutex<Capture>>, tx: mpsc::Sender<RgbaImage>)
-    {
-        let tx = Arc::new(Mutex::new(tx));
+    pub async fn stream(capture: Arc<Mutex<Capture>>, tx: mpsc::Sender<RgbaImage>) {
         let interval = Arc::new(Mutex::new(interval(Duration::from_secs_f32(1.0 / SAMPLING_RATE as f32))));
 
-        let mut st = Streamer {
+        let tx = Arc::new(Mutex::new(tx));
+
+        let st = Streamer {
             capture,
-            interval,
             tx,
+            interval,
         };
 
-        st.threaded_stream().await;
+        for i in 0..3 {
+            let mut tr = st.clone();
+            tokio::spawn(async move {
+                tr.threaded_stream(i).await;
+            });
+        }
     }
 
-    async fn threaded_stream(&mut self) {
+    async fn threaded_stream(&mut self, id: u32) {
+        loop {
+            self.interval.lock().await.tick().await;
 
-        let interval = Arc::clone(&self.interval);
-        let capture = Arc::clone(&self.capture);
-        let tx = Arc::clone(&self.tx);
+            if !workers::caster::get_instance().lock().unwrap().streaming {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                continue;
+            }
 
-        let handle = tokio::spawn(async move {
-            loop {
-                interval.lock().await.tick().await;
+            let monitor = workers::caster::get_instance().lock().unwrap().current_monitor();
+            let blank = workers::caster::get_instance().lock().unwrap().is_blank_screen();
 
-                if !workers::caster::get_instance().lock().unwrap().streaming {
-                    tokio::time::sleep(Duration::from_millis(500)).await;
-                    continue;
-                }
+            let x_monitor = {
+                let capture = self.capture.lock().await;
+                capture.get_x_monitor(monitor).cloned()  // Use `cloned()` to extend lifetime
+            };
 
-                let monitor = workers::caster::get_instance().lock().unwrap().current_monitor();
-                let blank = workers::caster::get_instance().lock().unwrap().is_blank_screen();
-
-                let frame = capture.lock().await.get_frame(
-                    monitor,
-                    blank,
-                );
-
+            if let Some(x_monitor) = x_monitor {
+                let frame = Capture::get_frame(&x_monitor, blank);
                 if let Some(frame) = frame {
-                    match tx.lock().await.try_send(frame.clone()) {
+                    match self.tx.lock().await.try_send(frame.clone()) {
                         Err(TrySendError::Closed(_)) => {
                             eprintln!("Receiver channel dropped");
                             break;
@@ -64,8 +66,6 @@ impl Streamer {
                     }
                 }
             }
-        });
-
-        handle.await.unwrap();
+        }
     }
 }

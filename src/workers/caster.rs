@@ -1,5 +1,5 @@
 use crate::capture::{Capture, Streamer};
-use crate::gui::resource::USE_WEBRTC;
+use crate::gui::resource::{FRAME_RATE, SAMPLING_RATE, USE_WEBRTC};
 use crate::utils::gist::create_stream_pipeline;
 use crate::utils::net::WebRTCServer;
 use gstreamer::prelude::ElementExt;
@@ -57,8 +57,8 @@ impl Caster {
         if !self.init {
             self.init = true;
 
-            let (tx_raw, rx_raw) = tokio::sync::mpsc::channel(1);
-            let (tx_processed, rx_processed) = tokio::sync::mpsc::channel(1);
+            let (tx_raw, rx_raw) = tokio::sync::mpsc::channel(SAMPLING_RATE as usize);
+            let (tx_processed, rx_processed) = tokio::sync::mpsc::channel(FRAME_RATE as usize);
 
             // generate frames
             let capture = Arc::clone(&self.capture);

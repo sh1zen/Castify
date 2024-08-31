@@ -16,6 +16,8 @@ use iced::{executor, Application, Command, Element, Subscription};
 use std::net::SocketAddr;
 use std::process::exit;
 use std::str::FromStr;
+use crate::gui::components::screen_overlay::AreaSelectionMessage;
+use crate::gui::components::screen_overlay::screen_area_layer;
 
 impl Application for App {
     type Executor = executor::Default;
@@ -71,6 +73,32 @@ impl Application for App {
             }
             Message::BlankScreen => {
                 workers::caster::get_instance().lock().unwrap().toggle_blank_screen();
+            }
+            Message::AreaSelection(msg) => {
+                match msg {
+                    AreaSelectionMessage::StartSelection { x, y } => {
+                        self.cast_area.start_x = x as i32;
+                        self.cast_area.start_y = y as i32;
+                        self.cast_area.updating = true;
+                        println!("Start selection at: ({}, {})", x, y);
+                    }
+                    AreaSelectionMessage::UpdateSelection { x, y } => {
+                        self.cast_area.end_x = x as u32;
+                        self.cast_area.end_y = y as u32;
+                        println!("Selection updated to: ({}, {})", x, y);
+                    }
+                    AreaSelectionMessage::EndSelection => {
+                        let area_x = self.cast_area.start_x.min(self.cast_area.end_x as i32);
+                        let area_y = self.cast_area.start_y.min(self.cast_area.end_y as i32);
+                        let area_width = (self.cast_area.start_x - self.cast_area.end_x as i32).abs();
+                        let area_height = (self.cast_area.start_y - self.cast_area.end_y as i32).abs();
+                        println!("Selection area: x = {}, y = {}, width = {}, height = {}", area_x, area_y, area_width, area_height);
+
+                        // Passa queste informazioni al worker
+                        workers::caster::get_instance().lock().unwrap().resize_rec_area(area_x, area_y, area_width as u32, area_height as u32);
+                        self.cast_area.updating = false;
+                    }
+                }
             }
             Message::ConnectToCaster(mut caster_ip) => {
                 if caster_ip == "auto" {
@@ -160,7 +188,12 @@ impl Application for App {
                 initial_page(self)
             }
             Page::Caster => {
-                caster_page(self)
+                screen_area_layer(self)
+                /*if self.cast_area.updating {
+                    screen_area_layer(self)
+                } else {
+                    caster_page(self)
+                }*/
             }
             Page::Client => {
                 client_page(self)
@@ -186,34 +219,6 @@ impl Application for App {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        /*
-        /// handle mouse trascina schermo parte registra
-        fn subscription(&self) -> Subscription<Message> {
-        event::listen_with(|event, status| {
-            if status == iced::event::Status::Captured {
-                match event {
-                    Mouse(ButtonPressed(Left)) => Some(Message::StartPan),
-                    Mouse(ButtonReleased(Left)) => Some(Message::EndPan),
-                    Mouse(CursorMoved {
-                        position: Point { x, y },
-                    }) => Some(Message::CursorMoved(x, y)),
-                    Mouse(WheelScrolled {
-                        delta: ScrollDelta::Lines { x: _, y },
-                    }) => Some(Message::Scroll(y)),
-                    _ => None,
-                }
-            } else {
-                match event {
-                    Window(_, window::Event::Resized { width, height }) => {
-                        Some(Message::Resized(width, height))
-                    }
-                    _ => None,
-                }
-            }
-        })
-    }
-         */
-
         Subscription::batch([
             self.keyboard_subscription(),
             self.mouse_subscription(),

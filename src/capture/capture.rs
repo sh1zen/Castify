@@ -68,7 +68,7 @@ impl Capture {
                 return;
             }
             let monitor = &self.monitors.get(&id).unwrap().monitor;
-            self.frame(monitor)
+            Self::frame(monitor)
                 .save(format!(
                     "target/monitor-{}-{}.png",
                     normalized(monitor.name()),
@@ -77,7 +77,7 @@ impl Capture {
                 .unwrap();
         } else {
             for (_, monitor) in self.monitors.iter() {
-                self.frame(&monitor.monitor).save(format!(
+                Self::frame(&monitor.monitor).save(format!(
                     "target/monitor-{}-{}.png",
                     normalized(monitor.monitor.name()),
                     now.timestamp().to_string()
@@ -86,43 +86,44 @@ impl Capture {
         }
     }
 
-    pub fn get_frame(&self, id: u32, blank: bool) -> Option<RgbaImage> {
+    pub fn get_x_monitor(&self, id: u32) -> Option<&XMonitor> {
         if self.monitors.contains_key(&id) {
-            let x_monitor = self.monitors.get(&id)?;
-            let monitor = &x_monitor.monitor;
-            let mut frame;
-
-            if blank {
-                frame = RgbaImage::new(x_monitor.width - x_monitor.x as u32, x_monitor.height - x_monitor.y as u32);
-                for pixel in frame.pixels_mut() {
-                    *pixel = Rgba([255, 255, 255, 255]);
-                }
-                // println!("Blank Frame {}", Local::now().timestamp_millis());
-            } else {
-                frame = self.frame(monitor);
-                frame = self.crop(frame, x_monitor.x as u32, x_monitor.y as u32, x_monitor.width, x_monitor.height);
-
-                println!("Captured Frame {}", Local::now().timestamp_millis());
-
-                frame = resize_and_pad(
-                    &frame,
-                    FRAME_WITH as u32,
-                    FRAME_HEIGHT as u32,
-                    FilterType::Nearest,
-                );
-            }
-
-            Some(frame)
+            self.monitors.get(&id)
         } else {
             None
         }
     }
 
-    fn crop(&self, frame: RgbaImage, x: u32, y: u32, w: u32, h: u32) -> RgbaImage {
+    pub fn get_frame(x_monitor: &XMonitor, blank: bool) -> Option<RgbaImage> {
+        let monitor = &x_monitor.monitor;
+        let mut frame;
+        if blank {
+            frame = RgbaImage::new(x_monitor.width - x_monitor.x as u32, x_monitor.height - x_monitor.y as u32);
+            for pixel in frame.pixels_mut() {
+                *pixel = Rgba([255, 255, 255, 255]);
+            }
+            // println!("Blank Frame {}", Local::now().timestamp_millis());
+        } else {
+            frame = Self::frame(monitor);
+            frame = Self::crop(frame, x_monitor.x as u32, x_monitor.y as u32, x_monitor.width, x_monitor.height);
+
+            // println!("Captured Frame {}", Local::now().timestamp_millis());
+
+            frame = resize_and_pad(
+                &frame,
+                FRAME_WITH as u32,
+                FRAME_HEIGHT as u32,
+                FilterType::Nearest,
+            );
+        }
+        Some(frame)
+    }
+
+    fn crop(frame: RgbaImage, x: u32, y: u32, w: u32, h: u32) -> RgbaImage {
         DynamicImage::ImageRgba8(frame).view(x, y, w, h).to_image()
     }
 
-    fn frame(&self, monitor: &Monitor) -> RgbaImage {
+    fn frame(monitor: &Monitor) -> RgbaImage {
         monitor.capture_image().unwrap()
     }
 

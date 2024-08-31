@@ -1,5 +1,6 @@
 use crate::capture::Capture;
 use crate::gui::appbase::App;
+use crate::gui::components::screen_overlay::AreaSelectionMessage;
 use crate::gui::theme::buttons::FilledButton;
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::icons::Icon;
@@ -19,40 +20,46 @@ pub enum Message {
 }
 
 pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
-    let mut content = Row::new()
+    let mut action_row = Row::new()
         .align_items(Alignment::Center)
-        .spacing(10)
-        .height(400);
+        .spacing(15);
 
     let is_streaming = workers::caster::get_instance().try_lock().unwrap().streaming;
 
-    if is_streaming {
-        content = content.push(
-            FilledButton::new("Pause")
-                .icon(Icon::Pause)
-                .build()
-                .on_press(appMessage::Caster(Message::Pause))
-        )
-            .push(FilledButton::new("Full Screen")
-                .icon(Icon::Screen)
-                .build()
-                .on_press(appMessage::Caster(Message::FullScreenSelected)))
+    let actions = if is_streaming {
+        FilledButton::new("Pause")
+            .icon(Icon::Pause)
+            .build()
+            .on_press(appMessage::Caster(Message::Pause))
+    } else {
+        FilledButton::new("Rec")
+            .icon(Icon::Video)
+            .build()
+            .on_press(appMessage::Caster(Message::Rec))
+    };
+
+    action_row = action_row.push(actions).push(monitors_list(is_streaming));
+
+    let mut screen_row = Row::new().spacing(15);
+
+    if !is_streaming {
+        screen_row = screen_row.push(FilledButton::new("Full Screen")
+            .icon(Icon::Screen)
+            .build()
+            .on_press(appMessage::Caster(Message::FullScreenSelected)))
             .push(FilledButton::new("Select Area")
                 .icon(Icon::Area)
                 .build()
-                .on_press(appMessage::Caster(Message::AreaSelected((100, 100, 800, 800)))));
-    } else {
-        content = content.push(
-            FilledButton::new("Rec")
-                .icon(Icon::Video)
-                .build()
-                .on_press(appMessage::Caster(Message::Rec))
-        );
-    };
+                .on_press(appMessage::AreaSelection(AreaSelectionMessage::StartSelection { x: 0.0, y: 0.0 })));
+    }
 
-    content = content.push(monitors_list(is_streaming));
-
-    Container::new(content)
+    Container::new(
+        Column::new().align_items(Alignment::Center)
+            .spacing(20)
+            .align_items(Alignment::Center)
+            .push(action_row)
+            .push(screen_row)
+    )
         .width(Length::Fill)
         .height(Length::Fill)
         .center_x()

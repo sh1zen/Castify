@@ -1,7 +1,6 @@
 use iced::keyboard::{Key, Modifiers};
 
-use crate::gui::components::{caster, hotkeys, popup, home};
-
+use crate::gui::components::{caster, home, hotkeys, popup, screen_overlay};
 #[derive(Debug, Clone)]
 /// Messages types that permit to react to application interactions/subscriptions
 pub enum Message {
@@ -47,4 +46,6 @@ pub enum Message {
     HotkeysUpdate((Modifiers, Key)),
     /// hotkeys support
     KeyPressed((Modifiers, Key)),
+    /// Messages for handling area selection
+    AreaSelection(screen_overlay::AreaSelectionMessage),
 }

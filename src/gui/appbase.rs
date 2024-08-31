@@ -34,6 +34,39 @@ pub struct HotkeyMap {
     pub updating: KeyTypes,
 }
 
+impl Default for HotkeyMap {
+    fn default() -> Self {
+        HotkeyMap {
+            pause: (Modifiers::CTRL, Key::Named(Named::F10)),
+            record: (Modifiers::CTRL, Key::Named(Named::F11)),
+            end_session: (Modifiers::SHIFT, Key::Named(Named::Escape)),
+            blank_screen: (Modifiers::CTRL, Key::Named(Named::F2)),
+            updating: KeyTypes::None,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct CastArea {
+    pub start_x: i32,
+    pub start_y: i32,
+    pub end_x: u32,
+    pub end_y: u32,
+    pub updating: bool,
+}
+
+impl Default for CastArea {
+    fn default() -> Self {
+        CastArea {
+            start_x: 0,
+            start_y: 0,
+            end_x: 0,
+            end_y: 0,
+            updating: false,
+        }
+    }
+}
+
 pub struct App {
     pub(crate) os_supported: bool,
     pub(crate) is_caster: bool,
@@ -42,6 +75,7 @@ pub struct App {
     pub(crate) popup_msg: HashMap<PopupType, PopupMsg>,
     pub(crate) video: Video,
     pub(crate) hotkey_map: HotkeyMap,
+    pub(crate) cast_area: CastArea,
 }
 
 impl App {
@@ -53,13 +87,8 @@ impl App {
             show_popup: None,
             popup_msg: HashMap::new(),
             video: Video::new(),
-            hotkey_map: HotkeyMap {
-                pause: (Modifiers::CTRL, Key::Named(Named::F10)),
-                record: (Modifiers::CTRL, Key::Named(Named::F11)),
-                end_session: (Modifiers::SHIFT, Key::Named(Named::Escape)),
-                blank_screen: (Modifiers::CTRL, Key::Named(Named::F2)),
-                updating: KeyTypes::None,
-            },
+            hotkey_map: Default::default(),
+            cast_area: Default::default(),
         }
     }
 
