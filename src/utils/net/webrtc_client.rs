@@ -123,6 +123,8 @@ impl WebRTCClient {
         let tx = Arc::new(Mutex::new(tx));
         let connection = Arc::clone(&self.connection);
 
+        let self_c= self.clone();
+
         // Set up the event handler for incoming tracks
         connection.on_track(Box::new(move |track: Arc<TrackRemote>, _receiver: Arc<RTCRtpReceiver>, _transceiver: Arc<RTCRtpTransceiver>| {
             // Send a PLI on an interval so that the publisher is pushing a keyframe every rtcpPLIInterval
@@ -130,10 +132,11 @@ impl WebRTCClient {
             //let codec = track.codec();
 
             Box::pin({
-                let value = Arc::clone(&tx);
+                let tx = Arc::clone(&tx);
+                let self_c = self_c.clone();
                 async move {
                     while let Ok((packet, _)) = track.read_rtp().await {
-                        match value.lock().await.send(packet).await {
+                        match tx.lock().await.send(packet).await {
                             Err(SendError(e)) => {
                                 println!("Error channel packet {}", e);
                                 break;
@@ -141,8 +144,8 @@ impl WebRTCClient {
                             _ => {}
                         }
                     }
-                    println!("NEED TO CLOSE CONNECTION");
-                    //self.disconnect().await;
+                    //println!("NEED TO CLOSE CONNECTION");
+                    self_c.disconnect().await;
                 }
             })
         }));

@@ -1,5 +1,4 @@
 use crate::gui::resource::{CAST_SERVICE_PORT, MAX_PACKAGES_FAIL};
-use crate::gui::types::messages::Message;
 use crate::utils::net::find_caster;
 use bincode::{deserialize, serialize};
 use gstreamer::{Buffer, BufferFlags, ClockTime};
@@ -12,6 +11,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::Mutex;
+use crate::workers;
 
 pub enum SendingData {
     Transmit,
@@ -37,7 +37,7 @@ struct XGPacket {
 const CHUNK_SIZE: usize = 40960;
 
 
-pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc::Sender<Buffer>) -> Message {
+pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc::Sender<Buffer>) -> bool {
     let mut stream;
 
     if socket_addr.is_none() {
@@ -54,8 +54,7 @@ pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc
                     break;
                 }
                 Err(_) => {
-                    //return Message::ConnectionError;
-                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    tokio::time::sleep(Duration::from_millis(500)).await;
                 }
             }
         }
@@ -67,7 +66,7 @@ pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc
             // Read the length of the image data
             if stream.read_exact(&mut length_bytes).is_err() {
                 // If length can't be read, the stream has ended
-                return Message::ConnectionError;
+                return false;
             }
             let packet_len = usize::from_le_bytes(length_bytes);
             let mut received: usize = 0;
@@ -84,7 +83,7 @@ pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc
             }
 
             if corrupted {
-                println!("corrupeteddddd");
+                println!("packet corrupted");
                 continue;
             }
 
@@ -116,8 +115,7 @@ pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc
             }
         }
     }
-
-    Message::Ignore
+    return true;
 }
 
 pub async fn caster(mut rx: Receiver<Buffer>) {

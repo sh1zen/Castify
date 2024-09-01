@@ -63,26 +63,21 @@ pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
                 FilledButton::new("Select Area")
                     .icon(Icon::Area)
                     .build()
-                    .on_press(appMessage::AreaSelection));
-    }
-
-    Container::new(
-        Column::new()
-            .align_items(Alignment::Center)
-            .spacing(40)
-            .push(
-                Column::new().align_items(Alignment::Center)
-                    .align_items(Alignment::Center)
-                    .spacing(20)
-                    .push(action_row)
-                    .push(screen_row)
-            )
+                    .on_press(appMessage::AreaSelection))
             .push(
                 FilledButton::new("Home")
                     .icon(Icon::Browser)
                     .build()
                     .on_press(appMessage::Home)
-            )
+            );
+    }
+
+    Container::new(
+        Column::new().align_items(Alignment::Center)
+            .align_items(Alignment::Center)
+            .spacing(40)
+            .push(screen_row)
+            .push(action_row)
     )
         .width(Length::Fill)
         .height(Length::Fill)
@@ -115,13 +110,13 @@ fn monitors_picklist() -> Container<'static, appMessage, StyleType> {
     }
 
     let selected = monitor_name(workers::caster::get_instance().lock().unwrap().current_monitor());
-    workers::caster::get_instance().lock().unwrap().change_monitor(get_string_after(selected.clone(), '#').trim().parse::<u32>().unwrap());
     let content = Column::new()
         .push(
             PickList::new(
                 monitors,
                 Some(selected),
-                |_| {
+                |val| {
+                    workers::caster::get_instance().lock().unwrap().change_monitor(get_string_after(val.clone(), '#').trim().parse::<u32>().unwrap());
                     appMessage::Ignore
                 },
             )

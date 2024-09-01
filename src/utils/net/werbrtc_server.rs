@@ -191,11 +191,6 @@ impl WebRTCServer {
         let mut frame_i = 0;
         while let Some(buffer) = receiver.recv().await {
 
-            if workers::sos::get_instance().lock().unwrap().is_closing() {
-                receiver.close();
-                break;
-            }
-
             if self.peers.lock().await.len() == 0 {
                 sleep(Duration::from_millis(100)).await;
                 continue;

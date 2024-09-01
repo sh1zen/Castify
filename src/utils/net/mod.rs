@@ -12,6 +12,7 @@ use std::net::{SocketAddr};
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use crate::gui::resource::CAST_SERVICE_PORT;
+use crate::workers;
 
 const SERVICE_NAME: &'static str = "_screen_caster._tcp.local.";
 
@@ -27,14 +28,12 @@ pub(crate) fn find_caster() -> Option<SocketAddr> {
         println!("waiting for a caster");
         match event {
             ServiceEvent::ServiceResolved(info) => {
-                let ip_addr = info.get_addresses_v4().iter().next().unwrap().to_string();
+                let ip_addr = info.get_addresses_v4().iter().next()?.to_string();
                 println!("Resolved a new service: {:?}", ip_addr);
                 addr = Option::from(SocketAddr::new(ip_addr.parse().unwrap(), info.get_port()));
                 break;
             }
-            _ => {
-                // skipping event
-            }
+            _ => {            }
         }
     }
     mdns.shutdown().unwrap();

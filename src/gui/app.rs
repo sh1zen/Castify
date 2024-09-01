@@ -166,6 +166,7 @@ impl Application for App {
             Message::CloseRequested => {
                 exit(0)
             }
+            Message::Ignore => {}
             _ => {
                 println!("Command not yet implemented!");
             }
