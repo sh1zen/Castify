@@ -16,6 +16,7 @@ pub enum ButtonType {
     Transparent,
     KeyBoard,
     Disabled,
+    Round
 }
 
 impl button::StyleSheet for StyleType {
@@ -47,6 +48,9 @@ impl button::StyleSheet for StyleType {
             }),
             border: Border {
                 radius: match style {
+                    ButtonType::Round => {
+                        [80.0, 80.0, 80.0, 80.0].into()
+                    },
                     ButtonType::Tab => {
                         [0.0, 0.0, 30.0, 30.0].into()
                     }
@@ -54,7 +58,7 @@ impl button::StyleSheet for StyleType {
                 },
                 width: match style {
                     ButtonType::Transparent | ButtonType::Tab | ButtonType::Standard => 0.0,
-                    ButtonType::KeyBoard => 2.0,
+                    ButtonType::KeyBoard | ButtonType::Round => 2.0,
                     _ => BORDER_WIDTH,
                 },
                 color: match style {

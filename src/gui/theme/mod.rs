@@ -9,4 +9,3 @@ mod modal;
 mod picklist;
 mod scollbar;
 pub mod button;
-mod areaselector;

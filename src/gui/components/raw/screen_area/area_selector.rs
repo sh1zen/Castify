@@ -1,48 +1,49 @@
-use iced::advanced::mouse;
-use iced::mouse::Cursor;
-use iced::widget::canvas::{Frame, Path, Program};
-use iced::{Color, Element, Point, Rectangle, Size};
-use iced::widget::{canvas, Canvas, Container};
-use iced_core::{Length, Widget};
-use crate::gui::components::raw::screen_area::style::StyleSheet;
+use iced::widget::canvas::{Frame, Path};
+use iced::widget::{canvas, Canvas};
+use iced::{Element, Renderer};
+use iced_core::{mouse, Color, Length, Point, Rectangle, Size};
 
-#[derive(Default)]
+
+#[derive(Debug, Clone)]
+pub struct ScreenRect {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+#[derive(Default, Clone, Copy)]
 pub struct AreaSelectorState {
     pub updating: bool,
     pub start: Option<Point>,
     pub end: Option<Point>,
 }
 
-pub struct AreaSelector<'a, Message, Theme = iced::Theme, Renderer = iced::Renderer>
-where
-    Theme: StyleSheet,
-    Renderer: iced_core::Renderer + iced_graphics::geometry::Renderer,
+pub struct AreaSelector<'a, Message, Theme>
 {
-    on_drag: Option<Box<dyn Fn((f32, f32)) -> Message + 'a>>,
-    on_release: Option<Box<dyn Fn((f32, f32)) -> Message + 'a>>,
-    on_press: Option<Box<dyn Fn((f32, f32)) -> Message + 'a>>,
-    style: Theme::Style,
-    content: Option<iced_core::Element<'a, Message, Theme, Renderer>>,
+    on_press: Option<Box<dyn Fn(f32, f32) -> Message + 'a>>,
+    on_drag: Option<Box<dyn Fn(f32, f32) -> Message + 'a>>,
+    on_release: Option<Box<dyn Fn(f32, f32) -> Message + 'a>>,
+    on_release_rect: Option<Box<dyn Fn(ScreenRect) -> Message + 'a>>,
+    theme: Option<Theme>,
 }
 
-impl<'a, Message, Theme, Renderer> AreaSelector<'a, Message, Theme, Renderer>
-where
-    Theme: StyleSheet + for<'b> Fn(&'b iced::Theme),
-    Renderer: iced_core::Renderer + iced_graphics::geometry::Renderer,
+
+impl<'a, Message, Theme> AreaSelector<'a, Message, Theme>
 {
     pub fn new() -> Self {
         Self {
+            on_press: None,
             on_drag: None,
             on_release: None,
-            on_press: None,
-            style: Theme::Style::default(),
-            content: None,
+            on_release_rect: None,
+            theme: None,
         }
     }
 
     pub fn on_drag<F>(mut self, callback: F) -> Self
     where
-        F: 'a + Fn((f32, f32)) -> Message,
+        F: 'a + Fn(f32, f32) -> Message,
     {
         self.on_drag = Some(Box::new(callback));
         self
@@ -50,7 +51,7 @@ where
 
     pub fn on_press<F>(mut self, callback: F) -> Self
     where
-        F: 'a + Fn((f32, f32)) -> Message,
+        F: 'a + Fn(f32, f32) -> Message,
     {
         self.on_press = Some(Box::new(callback));
         self
@@ -58,29 +59,55 @@ where
 
     pub fn on_release<F>(mut self, callback: F) -> Self
     where
-        F: 'a + Fn((f32, f32)) -> Message,
+        F: 'a + Fn(f32, f32) -> Message,
     {
         self.on_release = Some(Box::new(callback));
         self
     }
 
-    pub fn style(mut self, style: impl Into<Theme::Style>) -> Self {
-        self.style = style.into();
+    pub fn on_release_rect<F>(mut self, callback: F) -> Self
+    where
+        F: 'a + Fn(ScreenRect) -> Message,
+    {
+        self.on_release_rect = Some(Box::new(callback));
         self
     }
 
-    pub fn view(&self) -> Element<'a, Message, Theme, Renderer> {
-        Canvas::new(self)
+    fn calc_rect(start: Option<Point>, end: Option<Point>) -> ScreenRect {
+        if let Some(start) = start {
+            if let Some(end) = end {
+                return ScreenRect {
+                    x: start.x.min(end.x),
+                    y: start.y.min(end.y),
+                    width: (start.x - end.x).abs(),
+                    height: (start.y - end.y).abs(),
+                };
+            }
+        }
+
+        ScreenRect {
+            x: 0.0,
+            y: 0.0,
+            width: 0.0,
+            height: 0.0,
+        }
+    }
+
+    pub fn view<'b>(oop: AreaSelector<'b, Message, Theme>) -> Element<'b, Message, Theme>
+    where
+        Message: 'b,
+        Theme: 'b,
+    {
+        let canvas = Canvas::new(oop)
             .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
+            .height(Length::Fill);
+
+        canvas.into()
     }
 }
 
-impl<'a, Message, Theme, Renderer> Program<Message, Theme, Renderer> for AreaSelector<'a, Message, Theme, Renderer>
-where
-    Theme: StyleSheet,
-    Renderer: iced_core::Renderer + iced_graphics::geometry::Renderer,
+
+impl<'a, Message, Theme> canvas::Program<Message, Theme> for AreaSelector<'a, Message, Theme>
 {
     type State = AreaSelectorState;
 
@@ -89,7 +116,7 @@ where
         state: &mut Self::State,
         event: canvas::Event,
         bounds: Rectangle,
-        cursor: Cursor,
+        cursor: mouse::Cursor,
     ) -> (canvas::event::Status, Option<Message>) {
         let cursor_position = if let Some(position) = cursor.position_in(bounds) {
             position
@@ -105,7 +132,7 @@ where
 
                 let mut message = None;
                 if let Some(callback) = &self.on_press {
-                    message = Some(callback((cursor_position.x, cursor_position.y)));
+                    message = Some(callback(cursor_position.x, cursor_position.y));
                 }
                 (canvas::event::Status::Captured, message)
             }
@@ -115,7 +142,7 @@ where
 
                     let mut message = None;
                     if let Some(callback) = &self.on_drag {
-                        message = Some(callback((cursor_position.x, cursor_position.y)));
+                        message = Some(callback(cursor_position.x, cursor_position.y));
                     }
                     (canvas::event::Status::Captured, message)
                 } else {
@@ -127,8 +154,11 @@ where
 
                 let mut message = None;
                 if let Some(callback) = &self.on_release {
-                    message = Some(callback((cursor_position.x, cursor_position.y)));
+                    message = Some(callback(cursor_position.x, cursor_position.y));
+                } else if let Some(callback) = &self.on_release_rect {
+                    message = Some(callback(Self::calc_rect(state.start, state.end)));
                 }
+
                 (canvas::event::Status::Captured, message)
             }
             _ => (canvas::event::Status::Ignored, None),
@@ -139,12 +169,11 @@ where
         &self,
         state: &Self::State,
         renderer: &Renderer,
-        theme: &Theme,
+        _theme: &Theme,
         bounds: Rectangle,
-        cursor: Cursor,
-    ) -> Vec<<Renderer as iced_graphics::geometry::Renderer>::Geometry> {
+        _cursor: mouse::Cursor,
+    ) -> Vec<<Renderer as iced::widget::canvas::Renderer>::Geometry> {
         let mut frame = Frame::new(renderer, bounds.size());
-
         if let (Some(start), Some(end)) = (state.start, state.end) {
             let rect = Path::rectangle(
                 Point::new(
@@ -163,24 +192,3 @@ where
     }
 }
 
-impl<'a, Message, Theme, Renderer> Default for AreaSelector<'a, Message, Theme, Renderer>
-where
-    Theme: StyleSheet,
-    Renderer: iced_core::Renderer + iced_graphics::geometry::Renderer,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<'a, Message, Theme, Renderer> From<AreaSelector<'a, Message, Theme, Renderer>>
-for Element<'a, Message, Theme, Renderer>
-where
-    Message: 'a,
-    Theme: StyleSheet + 'a,
-    Renderer: iced_core::Renderer + iced_graphics::geometry::Renderer + 'a,
-{
-    fn from(area: AreaSelector<'a, Message, Theme, Renderer>) -> Self {
-        Self::new(area)
-    }
-}

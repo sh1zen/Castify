@@ -6,6 +6,7 @@ use crate::gui::components::footer::footer;
 use crate::gui::components::home::initial_page;
 use crate::gui::components::hotkeys::{hotkeys, KeyTypes};
 use crate::gui::components::popup::{show_popup, PopupMsg, PopupType};
+use crate::gui::components::screen_overlay::screen_area_layer;
 use crate::gui::components::{caster, home};
 use crate::gui::resource::{open_link, CAST_SERVICE_PORT};
 use crate::gui::theme::styles::csx::StyleType;
@@ -13,11 +14,11 @@ use crate::gui::types::messages::Message;
 use crate::workers;
 use iced::widget::{Column, Container};
 use iced::{executor, Application, Command, Element, Subscription};
+use iced_core::window::Mode;
+use iced_core::Size;
 use std::net::SocketAddr;
 use std::process::exit;
 use std::str::FromStr;
-use crate::gui::components::screen_overlay::AreaSelectionMessage;
-use crate::gui::components::screen_overlay::screen_area_layer;
 
 impl Application for App {
     type Executor = executor::Default;
@@ -25,6 +26,7 @@ impl Application for App {
 
     type Theme = StyleType;
     type Flags = App;
+
 
     fn new(flags: App) -> (App, Command<Message>) {
         (flags, Command::none())
@@ -74,31 +76,27 @@ impl Application for App {
             Message::BlankScreen => {
                 workers::caster::get_instance().lock().unwrap().toggle_blank_screen();
             }
-            Message::AreaSelection(msg) => {
-                match msg {
-                    AreaSelectionMessage::StartSelection { x, y } => {
-                        self.cast_area.start_x = x as i32;
-                        self.cast_area.start_y = y as i32;
-                        self.cast_area.updating = true;
-                        println!("Start selection at: ({}, {})", x, y);
-                    }
-                    AreaSelectionMessage::UpdateSelection { x, y } => {
-                        self.cast_area.end_x = x as u32;
-                        self.cast_area.end_y = y as u32;
-                        println!("Selection updated to: ({}, {})", x, y);
-                    }
-                    AreaSelectionMessage::EndSelection => {
-                        let area_x = self.cast_area.start_x.min(self.cast_area.end_x as i32);
-                        let area_y = self.cast_area.start_y.min(self.cast_area.end_y as i32);
-                        let area_width = (self.cast_area.start_x - self.cast_area.end_x as i32).abs();
-                        let area_height = (self.cast_area.start_y - self.cast_area.end_y as i32).abs();
-                        println!("Selection area: x = {}, y = {}, width = {}, height = {}", area_x, area_y, area_width, area_height);
-
-                        // Passa queste informazioni al worker
-                        workers::caster::get_instance().lock().unwrap().resize_rec_area(area_x, area_y, area_width as u32, area_height as u32);
-                        self.cast_area.updating = false;
-                    }
-                }
+            Message::WindowResized(width, height) => {
+                self.current_size = Size { width: width as f32, height: height as f32 }
+            }
+            Message::AreaSelection => {
+                let commands = vec![
+                    iced_runtime::window::change_mode::<Message>(iced_core::window::Id::MAIN, Mode::Fullscreen),
+                    iced_runtime::window::toggle_decorations::<Message>(iced_core::window::Id::MAIN),
+                    iced_runtime::window::change_level::<Message>(iced_core::window::Id::MAIN, iced_core::window::Level::AlwaysOnTop),
+                ];
+                self.page = Page::AreaSelection;
+                return Command::batch(commands);
+            }
+            Message::AreaSelected(rect) => {
+                let commands = vec![
+                    iced_runtime::window::change_mode::<Message>(iced_core::window::Id::MAIN, Mode::Windowed),
+                    iced_runtime::window::toggle_decorations::<Message>(iced_core::window::Id::MAIN),
+                    iced_runtime::window::change_level::<Message>(iced_core::window::Id::MAIN, iced_core::window::Level::Normal),
+                ];
+                workers::caster::get_instance().lock().unwrap().resize_rec_area(rect.x as i32, rect.y as i32, rect.width as u32, rect.height as u32);
+                self.page = Page::Caster;
+                return Command::batch(commands);
             }
             Message::ConnectToCaster(mut caster_ip) => {
                 if caster_ip == "auto" {
@@ -187,13 +185,11 @@ impl Application for App {
             Page::Home => {
                 initial_page(self)
             }
-            Page::Caster => {
+            Page::AreaSelection => {
                 screen_area_layer(self)
-                /*if self.cast_area.updating {
-                    screen_area_layer(self)
-                } else {
-                    caster_page(self)
-                }*/
+            }
+            Page::Caster => {
+                caster_page(self)
             }
             Page::Client => {
                 client_page(self)
@@ -221,7 +217,7 @@ impl Application for App {
     fn subscription(&self) -> Subscription<Message> {
         Subscription::batch([
             self.keyboard_subscription(),
-            self.mouse_subscription(),
+            //self.mouse_subscription(),
             self.window_subscription()
         ])
     }

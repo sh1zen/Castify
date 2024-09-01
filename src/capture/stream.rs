@@ -29,15 +29,15 @@ impl Streamer {
             interval,
         };
 
-        for i in 0..3 {
+        for _i in 0..3 {
             let mut tr = st.clone();
             tokio::spawn(async move {
-                tr.threaded_stream(i).await;
+                tr.threaded_stream().await;
             });
         }
     }
 
-    async fn threaded_stream(&mut self, id: u32) {
+    async fn threaded_stream(&mut self) {
         loop {
             self.interval.lock().await.tick().await;
 

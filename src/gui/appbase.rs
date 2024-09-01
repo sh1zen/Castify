@@ -4,25 +4,23 @@ use crate::gui::resource::{FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, USE_WEBRTC};
 use crate::gui::types::messages::Message;
 use crate::gui::video::Video;
 use crate::workers;
-use gstreamer::prelude::ElementExt;
-use gstreamer::{MessageView, Pipeline};
+use gstreamer::Pipeline;
 use iced::keyboard::key::Named;
 use iced::keyboard::{Event, Key, Modifiers};
-use iced::mouse::Event::ButtonPressed;
 use iced::window::Id;
 use iced::Event::{Keyboard, Window};
 use iced::{window, Subscription};
+use iced_core::Size;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::thread;
-use std::thread::sleep;
-use std::time::Duration;
+
 
 pub enum Page {
     Home,
     Caster,
     Client,
     Hotkeys,
+    AreaSelection,
 }
 
 #[derive(Clone)]
@@ -46,27 +44,6 @@ impl Default for HotkeyMap {
     }
 }
 
-#[derive(Clone)]
-pub struct CastArea {
-    pub start_x: i32,
-    pub start_y: i32,
-    pub end_x: u32,
-    pub end_y: u32,
-    pub updating: bool,
-}
-
-impl Default for CastArea {
-    fn default() -> Self {
-        CastArea {
-            start_x: 0,
-            start_y: 0,
-            end_x: 0,
-            end_y: 0,
-            updating: false,
-        }
-    }
-}
-
 pub struct App {
     pub(crate) os_supported: bool,
     pub(crate) is_caster: bool,
@@ -75,7 +52,7 @@ pub struct App {
     pub(crate) popup_msg: HashMap<PopupType, PopupMsg>,
     pub(crate) video: Video,
     pub(crate) hotkey_map: HotkeyMap,
-    pub(crate) cast_area: CastArea,
+    pub(crate) current_size: Size<f32>,
 }
 
 impl App {
@@ -88,7 +65,7 @@ impl App {
             popup_msg: HashMap::new(),
             video: Video::new(),
             hotkey_map: Default::default(),
-            cast_area: Default::default(),
+            current_size: Size { width: 400f32, height: 300f32 },
         }
     }
 
@@ -115,15 +92,13 @@ impl App {
 
     pub(crate) fn mouse_subscription(&self) -> Subscription<Message> {
         iced::event::listen_with(|event, _| match event {
-            iced::event::Event::Mouse(ButtonPressed(_)) => Some(Message::Drag),
+            //iced::event::Event::Mouse(ButtonPressed(_)) => Some(Message::Drag),
             _ => None,
         })
     }
 
     pub(crate) fn window_subscription(&self) -> Subscription<Message> {
         iced::event::listen_with(|event, _| match event {
-            Window(Id::MAIN, window::Event::Focused) => Some(Message::WindowFocused),
-            Window(Id::MAIN, window::Event::Moved { x, y }) => Some(Message::WindowMoved(x, y)),
             Window(Id::MAIN, window::Event::Resized { width, height }) => {
                 Some(Message::WindowResized(width, height))
             }
@@ -147,34 +122,6 @@ impl App {
             crate::utils::gist::create_view_pipeline(rx).unwrap()
         };
 
-
-        let bus = pipeline.bus().unwrap();
-        if USE_WEBRTC {
-            thread::spawn(move || {
-                /* while let Some(x) = rx.blocking_recv() {
-                     println!("{:?}", x);
-                 }*/
-
-                sleep(Duration::from_secs(3));
-
-                for msg in bus.iter() {
-                    match msg.view() {
-                        MessageView::Error(err) => {
-                            println!(
-                                "Errore ricevuto da {:?}: {:?}", err.debug(), err.message()
-                            );
-                            break;
-                        }
-                        MessageView::Eos(_) => {
-                            println!("gstreamer received eos");
-                            break;
-                        }
-                        _ => {}
-                    }
-                }
-            });
-        }
-
         self.video.set_pipeline(pipeline, FRAME_WITH, FRAME_HEIGHT, gstreamer::Fraction::new(FRAME_RATE, 1));
         self.show_popup = None;
         self.page = Page::Client;
@@ -184,3 +131,5 @@ impl App {
         workers::save_stream::get_instance().lock().unwrap().start();
     }
 }
+
+

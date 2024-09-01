@@ -1,6 +1,5 @@
 use crate::capture::Capture;
 use crate::gui::appbase::App;
-use crate::gui::components::screen_overlay::AreaSelectionMessage;
 use crate::gui::theme::buttons::FilledButton;
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::icons::Icon;
@@ -10,6 +9,7 @@ use crate::workers;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Column, Container, PickList, Row};
 use iced::{Alignment, Length};
+use crate::gui::theme::button::ButtonType;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
@@ -22,35 +22,40 @@ pub enum Message {
 pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
     let mut action_row = Row::new()
         .align_items(Alignment::Center)
-        .spacing(15);
+        .spacing(20);
 
     let is_streaming = workers::caster::get_instance().try_lock().unwrap().streaming;
 
     let actions = if is_streaming {
         FilledButton::new("Pause")
             .icon(Icon::Pause)
+            .style(ButtonType::Round)
             .build()
             .on_press(appMessage::Caster(Message::Pause))
     } else {
         FilledButton::new("Rec")
             .icon(Icon::Video)
+            .style(ButtonType::Round)
             .build()
             .on_press(appMessage::Caster(Message::Rec))
     };
 
-    action_row = action_row.push(actions).push(monitors_list(is_streaming));
+    action_row = action_row.push(actions);
 
     let mut screen_row = Row::new().spacing(15);
 
     if !is_streaming {
-        screen_row = screen_row.push(FilledButton::new("Full Screen")
+        screen_row = screen_row
+            .push(monitors_list(is_streaming))
+            .push(FilledButton::new("Full Screen")
             .icon(Icon::Screen)
             .build()
             .on_press(appMessage::Caster(Message::FullScreenSelected)))
-            .push(FilledButton::new("Select Area")
+            .push(
+                FilledButton::new("Select Area")
                 .icon(Icon::Area)
                 .build()
-                .on_press(appMessage::AreaSelection(AreaSelectionMessage::StartSelection { x: 0.0, y: 0.0 })));
+                .on_press(appMessage::AreaSelection));
     }
 
     Container::new(

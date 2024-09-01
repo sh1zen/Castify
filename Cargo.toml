@@ -10,15 +10,15 @@ A Rust screen caster app
 
 [dependencies]
 xcap = "0.0.13"
-scap = "0.0.5"
+# scap = "0.0.5"
 tokio = { version = "1.40.0", features = ["full"] }
 chrono = "0.4.38"
 local-ip-address = "0.6.2"
 iced = { version = "0.12.1", features = ["image", "advanced", "wgpu"] }
 iced_aw = "0.9.3"
 iced_native = "0.10.3"
+iced_runtime = "0.12.1"
 iced_core = "0.12.3"
-iced_graphics = "0.12.1"
 iced_wgpu = "0.12.1"
 socket2 = "0.5.7"
 ctrlc = "3.4.5"
@@ -42,7 +42,6 @@ webrtc-ice = "0.11.0"
 async-tungstenite = { version = "0.27.0", features = ["tokio-runtime"] }
 futures-util = { version = "0.3.30" }
 # imageproc = "0.25.0"
-
 
 
 [lib]

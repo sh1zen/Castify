@@ -1,6 +1,8 @@
 use iced::keyboard::{Key, Modifiers};
 
-use crate::gui::components::{caster, home, hotkeys, popup, screen_overlay};
+use crate::gui::components::raw::screenArea::ScreenRect;
+use crate::gui::components::{caster, home, hotkeys, popup};
+
 #[derive(Debug, Clone)]
 /// Messages types that permit to react to application interactions/subscriptions
 pub enum Message {
@@ -24,16 +26,10 @@ pub enum Message {
     Ignore,
     /// blank the recording
     BlankScreen,
-    /// Emit when the main window be focused
-    WindowFocused,
-    /// The app window position has been changed
-    WindowMoved(i32, i32),
     /// The app window size has been changed
     WindowResized(u32, u32),
     /// Quit the app
     CloseRequested,
-    /// Drag the window
-    Drag,
     /// Open the supplied web page
     OpenWebPage(String),
     /// Connection Error
@@ -46,6 +42,8 @@ pub enum Message {
     HotkeysUpdate((Modifiers, Key)),
     /// hotkeys support
     KeyPressed((Modifiers, Key)),
+    /// Request for area selection page
+    AreaSelection,
     /// Messages for handling area selection
-    AreaSelection(screen_overlay::AreaSelectionMessage),
+    AreaSelected(ScreenRect),
 }

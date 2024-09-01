@@ -12,18 +12,6 @@ pub enum AreaSelector {
     Box,
 }
 
-impl From<Appearance> for AreaSelector {
-    fn from(appearance: Appearance) -> Self {
-        Self::Custom(Box::new(move |_: &_| appearance))
-    }
-}
-
-impl<T: Fn(&Theme) -> Appearance + 'static> From<T> for AreaSelector {
-    fn from(f: T) -> Self {
-        Self::Custom(Box::new(f))
-    }
-}
-
 impl StyleSheet for Theme {
     type Style = AreaSelector;
 
