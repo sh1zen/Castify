@@ -23,7 +23,7 @@ pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
         .align_items(Alignment::Center)
         .spacing(20);
 
-    let is_streaming = workers::caster::get_instance().try_lock().unwrap().streaming;
+    let is_streaming = workers::caster::get_instance().lock().unwrap().streaming;
 
     let actions = if is_streaming {
         FilledButton::new("Pause")
@@ -67,11 +67,22 @@ pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
     }
 
     Container::new(
-        Column::new().align_items(Alignment::Center)
-            .spacing(20)
+        Column::new()
             .align_items(Alignment::Center)
-            .push(action_row)
-            .push(screen_row)
+            .spacing(40)
+            .push(
+                Column::new().align_items(Alignment::Center)
+                    .align_items(Alignment::Center)
+                    .spacing(20)
+                    .push(action_row)
+                    .push(screen_row)
+            )
+            .push(
+                FilledButton::new("Home")
+                    .icon(Icon::Browser)
+                    .build()
+                    .on_press(appMessage::Home)
+            )
     )
         .width(Length::Fill)
         .height(Length::Fill)

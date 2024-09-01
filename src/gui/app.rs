@@ -40,12 +40,12 @@ impl Application for App {
         match message {
             Message::Home => {
                 self.hotkey_map.updating = KeyTypes::None;
+                self.show_popup = None;
                 self.page = Page::Home
             }
             Message::Mode(mode) => {
                 match mode {
                     home::Message::ButtonCaster => {
-                        self.is_caster = true;
                         self.page = Page::Caster
                     }
                     home::Message::ButtonReceiver => {

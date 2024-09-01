@@ -21,7 +21,7 @@ pub fn client_page(app: &App) -> Container<appMessage, StyleType> {
                     .on_press(appMessage::SaveCaptureStop)
             } else {
                 FilledButton::new("Save")
-                    .icon(Icon::Save)
+                    .icon(Icon::Download)
                     .build()
                     .on_press(appMessage::SaveCapture)
             }

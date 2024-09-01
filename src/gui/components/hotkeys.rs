@@ -56,7 +56,7 @@ pub fn hotkeys(_: &App) -> Container<appMessage, StyleType> {
         .push(actions)
         .push(
             FilledButton::new("Home")
-                .icon(Icon::Warning)
+                .icon(Icon::Browser)
                 .build()
                 .on_press(appMessage::Home)
         )

@@ -5,32 +5,28 @@
 
 use castgo::gui::appbase::App;
 use castgo::gui::resource::{APP_NAME_ID, FONT_SIZE_BODY, ICONS_BYTES, ICON_BYTES, RALEWAY_FONT_BYTES, TEXT_FONT_FAMILY_NAME};
+use castgo::workers;
 use iced::{Application, Font, Pixels, Settings, Size};
 use iced_core::window::Position;
 use std::borrow::Cow;
 use std::{panic, process};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 #[tokio::main]
 async fn main() {
     gstreamer::init().expect("gstreamer init error.");
-    let stop_signal = Arc::new(AtomicBool::new(false));
 
     // kill the main thread as soon as a secondary thread panics
     let orig_hook = panic::take_hook();
-    let sos = Arc::clone(&stop_signal);
     panic::set_hook(Box::new(move |panic_info| {
-        sos.store(true, Ordering::Relaxed);
+        workers::sos::get_instance().lock().unwrap().terminate();
         // invoke the default handler and exit the process
         orig_hook(panic_info);
         process::exit(120);
     }));
 
     // gracefully close the app when receiving SIGINT, SIGTERM, or SIGHUP
-    let sos = Arc::clone(&stop_signal);
     ctrlc::set_handler(move || {
-        sos.store(true, Ordering::Relaxed);
+        workers::sos::get_instance().lock().unwrap().terminate();
         process::exit(130);
     }).expect("Error setting Ctrl-C handler");
 
@@ -54,7 +50,7 @@ async fn main() {
             ),
             ..Default::default()
         },
-        flags: App::new(stop_signal),
+        flags: App::new(true),
         fonts: vec![
             Cow::Borrowed(RALEWAY_FONT_BYTES),
             Cow::Borrowed(ICONS_BYTES),

@@ -44,7 +44,7 @@ impl Icon {
             Icon::Warning => '8',
             Icon::Error => '9',
             Icon::Invalid => 'a',
-            Icon::Connection => 'c',
+            Icon::Connection => 'Z',
             Icon::Pause => 'd',
             Icon::Stop => 'f',
             Icon::GitHub => 'g',

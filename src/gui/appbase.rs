@@ -13,8 +13,6 @@ use iced::{window, Subscription};
 use iced_core::Size;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 
 #[derive(PartialEq, Eq)]
 pub enum Page {
@@ -47,9 +45,7 @@ impl Default for HotkeyMap {
 }
 
 pub struct App {
-    pub(crate) stop_signal: Arc<AtomicBool>,
     pub(crate) os_supported: bool,
-    pub(crate) is_caster: bool,
     pub(crate) page: Page,
     pub(crate) show_popup: Option<PopupType>,
     pub(crate) popup_msg: HashMap<PopupType, PopupMsg>,
@@ -59,11 +55,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(stop_signal: Arc<AtomicBool>) -> App {
+    pub fn new(os_supported: bool) -> App {
         App {
-            stop_signal,
-            os_supported: true,
-            is_caster: false,
+            os_supported,
             page: Page::Home,
             show_popup: None,
             popup_msg: HashMap::new(),

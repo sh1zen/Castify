@@ -4,7 +4,7 @@ use crate::workers;
 use chrono::Local;
 use gstreamer as gst;
 use gstreamer::prelude::*;
-use gstreamer::{Buffer, Element, ElementFactory, Fraction, Pipeline};
+use gstreamer::{Buffer, Element, ElementFactory, Fraction, Pipeline, State};
 use gstreamer_rtp::RTPBuffer;
 use image::RgbaImage;
 use tokio::sync::mpsc::error::TrySendError;

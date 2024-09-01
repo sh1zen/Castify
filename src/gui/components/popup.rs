@@ -10,6 +10,8 @@ use iced::widget::{Column, Container, Row, Space, TextInput};
 use iced_aw::widgets::Modal;
 use iced_wgpu::core::keyboard::Modifiers;
 use std::hash::Hash;
+use iced_core::Alignment;
+use crate::gui::types::icons::Icon;
 
 #[derive(Debug, Clone)]
 pub struct Interaction {
@@ -130,6 +132,12 @@ fn ip_popup(app: &App) -> Container<appMessage, StyleType> {
             Row::new().spacing(12)
                 .push(button)
                 .push(FilledButton::new("Auto").build().on_press(appMessage::ConnectToCaster("auto".parse().unwrap())))
+                .push(
+                    FilledButton::new("Home")
+                        .icon(Icon::Browser)
+                        .build()
+                        .on_press(appMessage::Home)
+                )
         );
 
     Container::new(content.width(500).height(300)).style(ContainerType::Modal)

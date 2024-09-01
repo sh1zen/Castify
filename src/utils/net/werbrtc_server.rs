@@ -19,6 +19,7 @@ use webrtc::peer_connection::RTCPeerConnection;
 use webrtc::rtp_transceiver::rtp_codec::RTPCodecType;
 use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSample;
 use webrtc::track::track_local::TrackLocal;
+use crate::workers;
 
 struct WRTCPeer {
     connection: Arc<RTCPeerConnection>,
@@ -189,6 +190,12 @@ impl WebRTCServer {
     pub async fn send_video_frames(&self, mut receiver: tokio::sync::mpsc::Receiver<gstreamer::Buffer>) -> Result<(), Box<dyn std::error::Error>> {
         let mut frame_i = 0;
         while let Some(buffer) = receiver.recv().await {
+
+            if workers::sos::get_instance().lock().unwrap().is_closing() {
+                receiver.close();
+                break;
+            }
+
             if self.peers.lock().await.len() == 0 {
                 sleep(Duration::from_millis(100)).await;
                 continue;
