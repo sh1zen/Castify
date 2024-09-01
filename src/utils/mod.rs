@@ -1,5 +1,6 @@
 pub mod gist;
 pub mod net;
+pub mod events;
 
 pub fn get_string_after(s: String, c: char) -> String {
     let index = s.find(c);

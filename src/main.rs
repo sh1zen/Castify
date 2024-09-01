@@ -7,8 +7,10 @@ use castgo::gui::appbase::App;
 use castgo::gui::resource::{APP_NAME_ID, FONT_SIZE_BODY, ICONS_BYTES, ICON_BYTES, RALEWAY_FONT_BYTES, TEXT_FONT_FAMILY_NAME};
 use iced::{Application, Font, Pixels, Settings, Size};
 use iced_core::window::Position;
+use rdev::grab;
 use std::borrow::Cow;
 use std::{panic, process};
+use castgo::utils::events;
 
 #[tokio::main]
 async fn main() {

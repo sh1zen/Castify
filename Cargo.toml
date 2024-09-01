@@ -10,6 +10,7 @@ A Rust screen caster app
 
 [dependencies]
 xcap = "0.0.13"
+rdev = { version ="0.5.3", features = ["unstable_grab"]}
 # scap = "0.0.5"
 tokio = { version = "1.40.0", features = ["full"] }
 chrono = "0.4.38"

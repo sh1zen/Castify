@@ -37,7 +37,7 @@ impl Default for HotkeyMap {
         HotkeyMap {
             pause: (Modifiers::CTRL, Key::Named(Named::F10)),
             record: (Modifiers::CTRL, Key::Named(Named::F11)),
-            end_session: (Modifiers::SHIFT, Key::Named(Named::Escape)),
+            end_session: (Modifiers::CTRL, Key::Character("w".parse().unwrap())),
             blank_screen: (Modifiers::CTRL, Key::Named(Named::F2)),
             updating: KeyTypes::None,
         }
