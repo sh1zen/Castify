@@ -1,39 +1,65 @@
-use std::process::exit;
-use crate::gui::resource::{FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, SAMPLING_RATE};
+use crate::gui::resource::{FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, SAMPLING_RATE, TARGET_OS};
 use crate::workers;
 use chrono::Local;
 use gstreamer as gst;
 use gstreamer::prelude::*;
-use gstreamer::{Buffer, Element, ElementFactory, Fraction, Pipeline, State};
+use gstreamer::{Buffer, Element, ElementFactory, Fraction, Pipeline};
 use gstreamer_rtp::RTPBuffer;
-use image::RgbaImage;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::Receiver;
 use webrtc::rtp::packet::Packet;
 use webrtc::util::Marshal;
 
-pub fn create_stream_pipeline(mut rx_frames: Receiver<RgbaImage>, tx_processed: tokio::sync::mpsc::Sender<Buffer>, use_rtp: bool) -> Result<Pipeline, glib::Error> {
+pub fn create_stream_pipeline(monitor: &str, tx_processed: tokio::sync::mpsc::Sender<Buffer>, use_rtp: bool) -> Result<Pipeline, glib::Error> {
     let pipeline = Pipeline::new();
 
-    let src = ElementFactory::make("appsrc")
-        .name("stream-pipeline")
-        .property("is-live", &true)
-        .property("block", &true)
-        .property("format", &gst::Format::Time)
-        .property("do-timestamp", &true)
+    let src = match TARGET_OS {
+        "windows" => {
+            ElementFactory::make("d3d11screencapturesrc")
+                .property("show-cursor", true)
+                .property_from_str("monitor-handle", monitor)
+                .property("do-timestamp", true)
+        }
+        "macos" => {
+            ElementFactory::make("avfvideosrc")
+                .property("capture-screen", true)
+                .property("capture-screen-cursor", true)
+                .property_from_str("device-name", monitor)
+        }
+        "linux" => {
+            ElementFactory::make("ximagesrc")
+                .property_from_str("device-name", monitor)
+                .property("show-pointer", true)
+        }
+        _ => {
+            ElementFactory::make("appsrc")
+        }
+    }
+        .name("src")
+        .build().unwrap();
+
+    let videobox = ElementFactory::make("videobox")
+        .name("videobox")
+        .build().unwrap();
+
+    let video_convert = ElementFactory::make("videoconvert")
+        .name("videoconvert")
+        .build().unwrap();
+
+    let videoscale = ElementFactory::make("videoscale")
+        .name("videoscale")
+        .build().unwrap();
+
+    let videoscale_capsfilter = ElementFactory::make("capsfilter")
+        .name("videoscale-capsfilter")
         .property("caps",
                   &gst::Caps::builder("video/x-raw")
-                      .field("format", &"RGBA")
                       .field("width", FRAME_WITH)
                       .field("height", FRAME_HEIGHT)
                       .field("pixel-aspect-ratio", Fraction::new(1, 1))
                       .field("framerate", Fraction::new(FRAME_RATE, 1))
                       .build(),
         ).build().unwrap();
-
-    let video_convert = ElementFactory::make("videoconvert")
-        .name("videoconvert")
-        .build().unwrap();
 
     let video_encoder = ElementFactory::make("x264enc")
         .name("x264enc")
@@ -88,9 +114,9 @@ pub fn create_stream_pipeline(mut rx_frames: Receiver<RgbaImage>, tx_processed: 
     };
 
     let video_elements: Vec<&Element> = if use_rtp {
-        vec![&src, &video_convert, &video_encoder, &h264parse, &video_queue, &rtph264pay, &sink]
+        vec![&src, &videobox, &video_convert, &videoscale, &videoscale_capsfilter, &video_encoder, &h264parse, &video_queue, &rtph264pay, &sink]
     } else {
-        vec![&src, &video_convert, &video_encoder, &h264parse, &video_queue, &sink]
+        vec![&src, &videobox, &video_convert, &videoscale, &videoscale_capsfilter, &video_encoder, &h264parse, &video_queue, &sink]
     };
 
     // Add elements to pipeline
@@ -102,28 +128,6 @@ pub fn create_stream_pipeline(mut rx_frames: Receiver<RgbaImage>, tx_processed: 
     for e in video_elements {
         e.sync_state_with_parent().unwrap();
     }
-
-    let appsrc = src
-        .dynamic_cast::<gstreamer_app::AppSrc>()
-        .expect("Source element is expected to be an appsrc!");
-    appsrc.set_callbacks(
-        gstreamer_app::AppSrcCallbacks::builder()
-            .need_data(move |appsrc, _| {
-                match rx_frames.blocking_recv() {
-                    Some(frame) => {
-                        // Convert the image buffer into raw byte data
-                        let raw_data: Vec<u8> = frame.into_raw();
-                        // Create a GStreamer buffer from the raw data slice
-                        let buffer = Buffer::from_slice(raw_data);
-
-                        if let Err(error) = appsrc.push_buffer(buffer) {
-                            eprintln!("Error pushing buffer to appsrc: {:?}", error);
-                        }
-                    }
-                    _ => {}
-                }
-            }).build(),
-    );
 
     let appsink = sink
         .dynamic_cast::<gstreamer_app::AppSink>()
@@ -138,7 +142,6 @@ pub fn create_stream_pipeline(mut rx_frames: Receiver<RgbaImage>, tx_processed: 
                     Ok(_) => {}
                     Err(TrySendError::Closed(_)) => {
                         eprintln!("Receiver channel dropped: create_stream_pipeline");
-                        appsrc.end_of_stream().expect("Failed to send EOS");
                     }
                     _ => {}
                 };
@@ -261,8 +264,8 @@ pub fn create_save_pipeline() -> Result<Pipeline, glib::Error> {
                       .field("alignment", "au") // Optional: set alignment if needed
                       .field("width", &FRAME_WITH)
                       .field("height", &FRAME_HEIGHT)
-                      .field("pixel-aspect-ratio", &gst::Fraction::new(1, 1))
-                      .field("framerate", &gst::Fraction::new(SAMPLING_RATE, 1))
+                      .field("pixel-aspect-ratio", &Fraction::new(1, 1))
+                      .field("framerate", &Fraction::new(SAMPLING_RATE, 1))
                       .build(),
         )
         .build().unwrap();

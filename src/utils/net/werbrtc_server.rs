@@ -7,6 +7,7 @@ use async_tungstenite::WebSocketStream;
 use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, Notify};
@@ -187,13 +188,16 @@ impl WebRTCServer {
         Ok(())
     }
 
-    pub async fn send_video_frames(&self, mut receiver: tokio::sync::mpsc::Receiver<gstreamer::Buffer>) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn send_video_frames(&self, mut receiver: tokio::sync::mpsc::Receiver<gstreamer::Buffer>, running: Arc<AtomicBool>) {
         let mut frame_i = 0;
         while let Some(buffer) = receiver.recv().await {
-
             if self.peers.lock().await.len() == 0 {
                 sleep(Duration::from_millis(100)).await;
                 continue;
+            }
+
+            if !running.load(Ordering::Relaxed) {
+                break;
             }
 
             let duration = Duration::from(buffer.duration().unwrap());
@@ -221,6 +225,5 @@ impl WebRTCServer {
                 }
             }
         }
-        Ok(())
     }
 }

@@ -1,16 +1,16 @@
-use crate::capture::Capture;
 use crate::gui::appbase::App;
+use crate::gui::components::raw::screenArea::ScreenRect;
+use crate::gui::theme::button::ButtonType;
 use crate::gui::theme::buttons::FilledButton;
 use crate::gui::theme::styles::csx::StyleType;
 use crate::gui::types::icons::Icon;
 use crate::gui::types::messages::Message as appMessage;
 use crate::utils::get_string_after;
 use crate::workers;
+use crate::workers::caster::Caster;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Column, Container, PickList, Row};
 use iced::{Alignment, Length};
-use crate::gui::components::raw::screenArea::ScreenRect;
-use crate::gui::theme::button::ButtonType;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
@@ -101,8 +101,8 @@ fn monitor_name(id: u32) -> String {
 fn monitors_picklist() -> Container<'static, appMessage, StyleType> {
     let mut monitors = Vec::new();
 
-    for monitor in Capture::get_monitors() {
-        monitors.push(monitor_name(monitor.1.monitor.id()));
+    for monitor_id in workers::caster::get_instance().lock().unwrap().get_monitors() {
+        monitors.push(monitor_name(monitor_id));
     }
 
     if monitors.len() == 0 {

@@ -1,4 +1,3 @@
-use std::cmp::PartialEq;
 use crate::gui::appbase::{App, Page};
 use crate::gui::components::caster::caster_page;
 use crate::gui::components::caster::Message as CasterMessage;
@@ -20,6 +19,8 @@ use iced_core::Size;
 use std::net::SocketAddr;
 use std::process::exit;
 use std::str::FromStr;
+use std::time::Duration;
+use tokio::time::sleep;
 
 impl Application for App {
     type Executor = executor::Default;
@@ -40,6 +41,7 @@ impl Application for App {
         match message {
             Message::Home => {
                 self.hotkey_map.updating = KeyTypes::None;
+                workers::caster::get_instance().lock().unwrap().close();
                 self.show_popup = None;
                 self.page = Page::Home
             }
@@ -56,7 +58,7 @@ impl Application for App {
             Message::Caster(mode) => {
                 match mode {
                     caster::Message::Rec => {
-                        workers::caster::get_instance().lock().unwrap().cast_screen();
+                        workers::caster::get_instance().lock().unwrap().cast();
                     }
                     caster::Message::Pause => {
                         workers::caster::get_instance().lock().unwrap().pause();
@@ -70,12 +72,12 @@ impl Application for App {
                 self.current_size = Size { width: width as f32, height: height as f32 }
             }
             Message::AreaSelection => {
+                self.page = Page::AreaSelection;
                 let commands = vec![
                     iced_runtime::window::change_mode::<Message>(iced_core::window::Id::MAIN, Mode::Fullscreen),
                     iced_runtime::window::toggle_decorations::<Message>(iced_core::window::Id::MAIN),
                     iced_runtime::window::change_level::<Message>(iced_core::window::Id::MAIN, iced_core::window::Level::AlwaysOnTop),
                 ];
-                self.page = Page::AreaSelection;
                 return Command::batch(commands);
             }
             Message::AreaSelected(rect) => {
@@ -164,7 +166,11 @@ impl Application for App {
                 self.show_popup = None
             }
             Message::CloseRequested => {
-                exit(0)
+                tokio::spawn(async {
+                    workers::sos::get_instance().lock().unwrap().terminate();
+                    sleep(Duration::from_millis(250)).await;
+                    exit(0)
+                });
             }
             Message::Ignore => {}
             _ => {
@@ -195,7 +201,11 @@ impl Application for App {
 
         let footer = footer();
 
-        let mut content = Column::new().padding(0).push(body).push(footer);
+        let mut content = Column::new().padding(0).push(body);
+
+        if self.page != Page::AreaSelection{
+            content = content.push(footer);
+        }
 
         if !self.show_popup.is_none() {
             content = Column::new().push(show_popup(self, Container::new(content)));

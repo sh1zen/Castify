@@ -7,11 +7,11 @@ use socket2::TcpKeepalive;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::str;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::Mutex;
-use crate::workers;
 
 pub enum SendingData {
     Transmit,
@@ -115,18 +115,23 @@ pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc
             }
         }
     }
-    return true;
+    true
 }
 
-pub async fn caster(mut rx: Receiver<Buffer>) {
+pub async fn caster(mut rx: Receiver<Buffer>, running: Arc<AtomicBool>) {
     let addr = SocketAddr::new("0.0.0.0".parse().unwrap(), CAST_SERVICE_PORT);
     let listener = TcpListener::bind(addr).unwrap();
 
     let streams: Arc<Mutex<Vec<StreamEntry>>> = Arc::new(Mutex::new(Vec::new()));
     let streams_clone = streams.clone();
 
+    let running_c = Arc::clone(&running);
+
     tokio::spawn(async move {
         while let Some(buffer) = rx.recv().await {
+            if !running_c.load(Ordering::Relaxed) {
+                break;
+            }
             println!("Transmitting...");
 
             let buff_raw = buffer.map_readable().unwrap().as_slice().to_vec();
@@ -181,8 +186,13 @@ pub async fn caster(mut rx: Receiver<Buffer>) {
         }
     });
 
+    let running_c = Arc::clone(&running);
     tokio::spawn(async move {
         loop {
+            if !running_c.load(Ordering::Relaxed) {
+                break;
+            }
+
             let (stream, _addr) = listener.accept().unwrap();
             println!("---- Connection established! N° {:?} ----", streams.lock().await.len() + 1);
 

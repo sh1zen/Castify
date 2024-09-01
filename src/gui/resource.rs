@@ -20,6 +20,13 @@ pub const APP_NAME: &str = "Screen Caster";
 pub const APP_NAME_ID: &str = "screen_caster";
 
 #[cfg(target_os = "windows")]
+pub const TARGET_OS :&str = "windows";
+#[cfg(target_os = "macos")]
+pub const TARGET_OS :&str = "macos";
+#[cfg(target_os = "linux")]
+pub const TARGET_OS :&str = "linux";
+
+#[cfg(target_os = "windows")]
 pub const ICON_BYTES: &[u8] = include_bytes!("../../resources/icons/96x96.png");
 #[cfg(target_os = "macos")]
 pub const ICON_BYTES: &[u8] = include_bytes!("../../resources/icons/icon.icns");

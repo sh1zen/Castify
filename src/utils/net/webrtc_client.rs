@@ -14,6 +14,7 @@ use webrtc::rtp_transceiver::rtp_codec::RTPCodecType;
 use webrtc::rtp_transceiver::rtp_receiver::RTCRtpReceiver;
 use webrtc::rtp_transceiver::RTCRtpTransceiver;
 use webrtc::track::track_remote::TrackRemote;
+use crate::workers;
 
 #[derive(Clone)]
 pub struct WebRTCClient {
@@ -130,12 +131,14 @@ impl WebRTCClient {
             // Send a PLI on an interval so that the publisher is pushing a keyframe every rtcpPLIInterval
             //let media_ssrc = track.ssrc();
             //let codec = track.codec();
-
             Box::pin({
                 let tx = Arc::clone(&tx);
                 let self_c = self_c.clone();
                 async move {
                     while let Ok((packet, _)) = track.read_rtp().await {
+                        if workers::sos::get_instance().lock().unwrap().is_closing(){
+                            break;
+                        }
                         match tx.lock().await.send(packet).await {
                             Err(SendError(e)) => {
                                 println!("Error channel packet {}", e);
