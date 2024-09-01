@@ -11,7 +11,6 @@ A Rust screen caster app
 [dependencies]
 xcap = "0.0.13"
 rdev = { version ="0.5.3", features = ["unstable_grab"]}
-# scap = "0.0.5"
 tokio = { version = "1.40.0", features = ["full"] }
 chrono = "0.4.38"
 local-ip-address = "0.6.2"
@@ -50,17 +49,16 @@ futures-util = { version = "0.3.30" }
 name = "castgo"
 path = "src/lib.rs"
 
+[profile.dev]
+opt-level = 0
+debug = true
+split-debuginfo = 'unpacked'
+
+[profile.release]
+opt-level = 3
+debug = false
+split-debuginfo = 'packed'
+
 [package.metadata.nix]
 app = true
 build = true
-runtimeLibs = [
-    "vulkan-loader",
-    "wayland",
-    "wayland-protocols",
-    "libxkbcommon",
-    "xorg.libX11",
-    "xorg.libXrandr",
-    "xorg.libXi", "gst_all_1.gstreamer", "gst_all_1.gstreamermm", "gst_all_1.gst-plugins-bad", "gst_all_1.gst-plugins-ugly", "gst_all_1.gst-plugins-good", "gst_all_1.gst-plugins-base",
-]
-buildInputs = ["libxkbcommon", "gst_all_1.gstreamer", "gst_all_1.gstreamermm", "gst_all_1.gst-plugins-bad", "gst_all_1.gst-plugins-ugly", "gst_all_1.gst-plugins-good", "gst_all_1.gst-plugins-base"]
-

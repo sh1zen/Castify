@@ -37,8 +37,8 @@ pub(crate) async fn create_peer_connection(api: &Arc<API>) -> Arc<RTCPeerConnect
         ice_servers: vec![
             webrtc::ice_transport::ice_server::RTCIceServer {
                 urls: vec![
-                    // "stun:stun.l.google.com:19302".to_string(),
-                    // "stun:stun.services.mozilla.com:3478".to_string()
+                    //"stun:stun.l.google.com:19302".to_string(),
+                    //"stun:stun.services.mozilla.com:3478".to_string()
                 ],
                 ..Default::default()
             },

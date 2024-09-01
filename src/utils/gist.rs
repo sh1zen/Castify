@@ -1,3 +1,4 @@
+use std::process::exit;
 use crate::gui::resource::{FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, SAMPLING_RATE};
 use crate::workers;
 use chrono::Local;
@@ -117,7 +118,6 @@ pub fn create_stream_pipeline(mut rx_frames: Receiver<RgbaImage>, tx_processed: 
 
                         if let Err(error) = appsrc.push_buffer(buffer) {
                             eprintln!("Error pushing buffer to appsrc: {:?}", error);
-                            appsrc.end_of_stream().expect("Failed to send EOS");
                         }
                     }
                     _ => {}
@@ -138,6 +138,7 @@ pub fn create_stream_pipeline(mut rx_frames: Receiver<RgbaImage>, tx_processed: 
                     Ok(_) => {}
                     Err(TrySendError::Closed(_)) => {
                         eprintln!("Receiver channel dropped: create_stream_pipeline");
+                        appsrc.end_of_stream().expect("Failed to send EOS");
                     }
                     _ => {}
                 };
@@ -235,7 +236,6 @@ pub fn create_view_pipeline(mut rx: Receiver<Buffer>) -> Result<Pipeline, glib::
                         }
                         if let Err(error) = appsrc.push_buffer(buffer) {
                             eprintln!("Error pushing buffer to appsrc: {:?}", error);
-                            appsrc.end_of_stream().expect("Failed to send EOS");
                         }
                     }
                     _ => {}
@@ -408,7 +408,6 @@ pub fn create_rtp_view_pipeline(mut rx_processed: Receiver<Packet>) -> Result<Pi
                         // Invia il buffer a GStreamer
                         if let Err(e) = appsrc.push_buffer(buffer) {
                             eprintln!("Error pushing buffer to appsrc: {:?}", e);
-                            appsrc.end_of_stream().expect("Failed to send EOS");
                         }
                     }
                     _ => {}

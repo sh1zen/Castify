@@ -1,3 +1,4 @@
+use std::cmp::PartialEq;
 use crate::gui::appbase::{App, Page};
 use crate::gui::components::caster::caster_page;
 use crate::gui::components::caster::Message as CasterMessage;
@@ -26,7 +27,6 @@ impl Application for App {
 
     type Theme = StyleType;
     type Flags = App;
-
 
     fn new(flags: App) -> (App, Command<Message>) {
         (flags, Command::none())
@@ -61,16 +61,6 @@ impl Application for App {
                     caster::Message::Pause => {
                         workers::caster::get_instance().lock().unwrap().pause();
                     }
-                    caster::Message::FullScreenSelected => {
-                        // set to full screen
-                        // if needed use .change_monitor(id) to set full screen for another monitor
-                        workers::caster::get_instance().lock().unwrap().full_screen();
-                    }
-                    caster::Message::AreaSelected((x, y, w, h)) => {
-                        // set here new screen area
-                        // if needed use .change_monitor(id) to set resize_rec_area for another monitor
-                        workers::caster::get_instance().lock().unwrap().resize_rec_area(x, y, w, h);
-                    }
                 }
             }
             Message::BlankScreen => {
@@ -89,14 +79,17 @@ impl Application for App {
                 return Command::batch(commands);
             }
             Message::AreaSelected(rect) => {
-                let commands = vec![
-                    iced_runtime::window::change_mode::<Message>(iced_core::window::Id::MAIN, Mode::Windowed),
-                    iced_runtime::window::toggle_decorations::<Message>(iced_core::window::Id::MAIN),
-                    iced_runtime::window::change_level::<Message>(iced_core::window::Id::MAIN, iced_core::window::Level::Normal),
-                ];
+                // set the nue area selected
                 workers::caster::get_instance().lock().unwrap().resize_rec_area(rect.x as i32, rect.y as i32, rect.width as u32, rect.height as u32);
-                self.page = Page::Caster;
-                return Command::batch(commands);
+                if self.page == Page::AreaSelection {
+                    let commands = vec![
+                        iced_runtime::window::change_mode::<Message>(iced_core::window::Id::MAIN, Mode::Windowed),
+                        iced_runtime::window::toggle_decorations::<Message>(iced_core::window::Id::MAIN),
+                        iced_runtime::window::change_level::<Message>(iced_core::window::Id::MAIN, iced_core::window::Level::Normal),
+                    ];
+                    self.page = Page::Caster;
+                    return Command::batch(commands);
+                }
             }
             Message::ConnectToCaster(mut caster_ip) => {
                 if caster_ip == "auto" {

@@ -9,14 +9,13 @@ use crate::workers;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Column, Container, PickList, Row};
 use iced::{Alignment, Length};
+use crate::gui::components::raw::screenArea::ScreenRect;
 use crate::gui::theme::button::ButtonType;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
     Rec,
     Pause,
-    FullScreenSelected,
-    AreaSelected((i32, i32, u32, u32)),
 }
 
 pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
@@ -48,14 +47,23 @@ pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
         screen_row = screen_row
             .push(monitors_list(is_streaming))
             .push(FilledButton::new("Full Screen")
-            .icon(Icon::Screen)
-            .build()
-            .on_press(appMessage::Caster(Message::FullScreenSelected)))
+                .icon(Icon::Screen)
+                .build()
+                .on_press(
+                    appMessage::AreaSelected(
+                        ScreenRect {
+                            x: 0.0,
+                            y: 0.0,
+                            width: 0.0,
+                            height: 0.0,
+                        }
+                    )
+                ))
             .push(
                 FilledButton::new("Select Area")
-                .icon(Icon::Area)
-                .build()
-                .on_press(appMessage::AreaSelection));
+                    .icon(Icon::Area)
+                    .build()
+                    .on_press(appMessage::AreaSelection));
     }
 
     Container::new(
