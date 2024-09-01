@@ -45,9 +45,9 @@ impl Default for Appearance {
             shadow_offset: Vector::default(),
             background: Some(Background::Color(
                 Color {
-                    r: 1.0,
-                    g: 1.0,
-                    b: 1.0,
+                    r: 150.0,
+                    g: 150.0,
+                    b: 150.0,
                     a: 0.6,
                 }
             )),

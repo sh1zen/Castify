@@ -1,8 +1,8 @@
-use iced::widget::canvas::{Frame, Path};
+use iced::widget::canvas::{Frame, Path, Stroke};
 use iced::widget::{canvas, Canvas};
 use iced::{Element, Renderer};
 use iced_core::{mouse, Color, Length, Point, Rectangle, Size};
-
+use iced_graphics::geometry::LineJoin;
 
 #[derive(Debug, Clone)]
 pub struct ScreenRect {
@@ -185,7 +185,31 @@ impl<'a, Message, Theme> canvas::Program<Message, Theme> for AreaSelector<'a, Me
                     (end.y - start.y).abs(),
                 ),
             );
-            frame.fill(&rect, Color::from_rgba(0.5, 0.0, 0.5, 0.3));
+            let shadow_rect = Path::rectangle(
+                Point::new(
+                    start.x.min(end.x) - 6.0,
+                    start.y.min(end.y) - 6.0,
+                ),
+                Size::new(
+                    (end.x - start.x).abs() + 12.0,
+                    (end.y - start.y).abs() + 12.0,
+                ),
+            );
+
+            frame.fill(&rect, Color::from_rgba(1.0, 1.0, 1.0, 0.3));
+            frame.fill(&shadow_rect, Color::from_rgba(0.0, 0.0, 0.0, 0.2));
+
+            frame.stroke(&rect, Stroke {
+                style: iced_graphics::geometry::Style::Solid(Color {
+                    r: 1.0,
+                    g: 1.0,
+                    b: 1.0,
+                    a: 1.0,
+                }),
+                width: 2.0,
+                line_join: LineJoin::Round,
+                ..Default::default()
+            });
         }
 
         vec![frame.into_geometry()]
