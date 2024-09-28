@@ -1,6 +1,8 @@
+use iced_core::Color;
 use std::hash::{Hash, Hasher};
-use iced::Color;
 
+
+#[allow(dead_code)]
 pub trait ColorExt {
     fn with_alpha(self, a: f32) -> Self;
     fn mix(self, other: Color) -> Self;

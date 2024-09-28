@@ -1,11 +1,9 @@
+use crate::gui::components::screenArea::ScreenRect;
+use crate::gui::components::{caster, home, hotkeys, popup};
 use iced::keyboard::{Key, Modifiers};
 
-use crate::gui::components::raw::screenArea::ScreenRect;
-use crate::gui::components::{caster, home, hotkeys, popup};
-
 #[derive(Debug, Clone)]
-/// Messages types that permit to react to application interactions/subscriptions
-pub enum Message {
+pub enum AppEvent {
     /// homepage
     Home,
     /// the app mode caster / receiver
@@ -44,6 +42,6 @@ pub enum Message {
     KeyPressed((Modifiers, Key)),
     /// Request for area selection page
     AreaSelection,
-    /// Messages for handling area selection
+    /// Messages for handling area selection, set to 0 to restore default screen size
     AreaSelected(ScreenRect),
 }

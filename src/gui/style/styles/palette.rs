@@ -1,7 +1,7 @@
 use std::hash::{Hash, Hasher};
-use iced::{Color, Font};
-use crate::gui::theme::color::color_hash;
-use crate::gui::theme::styles::csx::StyleType;
+use iced_core::{Color, Font};
+use crate::gui::style::color::color_hash;
+use crate::gui::style::styles::csx::StyleType;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Palette {
@@ -26,7 +26,7 @@ pub struct Palette {
 }
 
 impl Palette {
-    pub fn generate_buttons_color(mut self) -> Color {
+    pub fn generate_element_color(mut self) -> Color {
         let primary = self.primary;
         self.is_nightly = primary.r + primary.g + primary.b <= 1.5;
         if self.is_nightly {

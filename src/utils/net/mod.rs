@@ -1,18 +1,16 @@
 mod werbrtc_server;
 mod webrtc_client;
 mod webrtc_common;
+
 pub mod xgp;
 pub mod rtp;
 
-pub use self::werbrtc_server::WebRTCServer;
 pub use self::webrtc_client::WebRTCClient;
-
-
-use std::net::{SocketAddr};
+pub use self::werbrtc_server::WebRTCServer;
+use crate::gui::resource::CAST_SERVICE_PORT;
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
-use crate::gui::resource::CAST_SERVICE_PORT;
-use crate::workers;
+use std::net::SocketAddr;
 
 const SERVICE_NAME: &'static str = "_screen_caster._tcp.local.";
 

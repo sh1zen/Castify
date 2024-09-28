@@ -13,12 +13,6 @@ use std::time::Duration;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::Mutex;
 
-pub enum SendingData {
-    Transmit,
-    Pause,
-    Stop,
-}
-
 struct StreamEntry {
     stream: TcpStream,
     error_count: u8,

@@ -1,10 +1,11 @@
-use crate::gui::theme::styles::csx::StyleType;
-use crate::gui::types::messages::Message;
-use iced::widget::text::Appearance;
-use iced::widget::{Column, Text};
-use iced::{Color, Font};
+use crate::gui::style::styles::csx::StyleType;
+use crate::gui::common::messages::AppEvent;
+use crate::gui::widget::{Column, Text};
+use iced_core::Color;
+use iced_core::Font;
 
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default)]
+#[allow(dead_code)]
 pub enum TextType {
     #[default]
     Standard,
@@ -20,32 +21,35 @@ impl TextType {
         subtitle: &str,
         desc: &str,
         font: Font,
-    ) -> Column<'static, Message, StyleType> {
+    ) -> Column<'static, AppEvent> {
         Column::new()
             .push(
                 Text::new(format!("{subtitle}:"))
-                    .style(TextType::Subtitle)
+                    .class(TextType::Subtitle)
                     .font(font),
             )
             .push(Text::new(format!("   {desc}")).font(font))
     }
 }
 
-impl iced::widget::text::StyleSheet for StyleType {
-    type Style = TextType;
+impl iced_core::widget::text::Catalog for StyleType {
+    type Class<'a> = TextType;
 
-    fn appearance(&self, style: Self::Style) -> Appearance {
-        Appearance {
-            color: if style == TextType::Standard {
-                None
-            } else {
-                Some(highlight(*self, style))
-            },
+    fn default<'a>() -> Self::Class<'a> {
+        TextType::Standard
+    }
+
+    fn style(&self, class: &Self::Class<'_>) -> iced_core::widget::text::Style {
+        iced_core::widget::text::Style {
+            color: match class {
+                TextType::Standard => None,
+                _ => Some(highlight(&self, class))
+            }
         }
     }
 }
 
-pub fn highlight(style: StyleType, element: TextType) -> Color {
+pub fn highlight(style: &StyleType, element: &TextType) -> Color {
     let colors = style.get_palette();
     let secondary = colors.secondary;
     let is_nightly = style.get_palette().is_nightly;

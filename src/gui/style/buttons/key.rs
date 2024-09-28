@@ -1,17 +1,13 @@
-use std::default::Default;
-
-use iced::advanced::widget::Text;
+use crate::gui::style::button::ButtonType;
+use crate::gui::widget::{Button, Container, Text};
 use iced::keyboard::{Key, Modifiers};
-use iced::widget::{button, Button, Container};
-
-use crate::gui::theme::button::ButtonType;
-use crate::gui::theme::styles::csx::StyleType;
+use iced_core::{alignment, Padding};
+use std::default::Default;
 
 
 #[derive(Default)]
 pub struct Key4Board {
     label: String,
-    style: ButtonType,
     size: usize,
 }
 
@@ -19,7 +15,6 @@ impl Key4Board {
     pub fn new(label: String, size: usize) -> Self {
         Self {
             label,
-            style: ButtonType::KeyBoard,
             size,
         }
     }
@@ -46,19 +41,14 @@ impl Key4Board {
         Key4Board::new(label, 2)
     }
 
-    pub fn style(mut self, style: ButtonType) -> Self {
-        self.style = style;
-        self
-    }
-
-    pub fn build<'a, Message: 'a>(self) -> Button<'a, Message, StyleType>
+    pub fn build<'a, Message: 'a>(self) -> Button<'a, Message>
     {
-        button(
+        Button::new(
             Container::new(Text::new(self.label.clone()))
-                .center_y()
-                .center_x()
+                .align_x(alignment::Horizontal::Center)
+                .align_y(alignment::Vertical::Center)
         )
-            .padding([2, 8, 2, 8])
+            .padding(Padding { top: 2.0, right: 8.0, bottom: 2.0, left: 8.0 })
             .height(40)
             .width(
                 match self.size {
@@ -69,6 +59,6 @@ impl Key4Board {
                     _ => 120
                 }
             )
-            .style(self.style)
+            .class(ButtonType::KeyBoard)
     }
 }

@@ -1,4 +1,4 @@
-use crate::gui::components::raw::screenAreaStyle::{Appearance, StyleSheet};
+use crate::gui::components::screenAreaStyle::{Appearance, StyleSheet};
 use iced::Theme;
 use iced_core::{Border, Shadow};
 
@@ -24,7 +24,7 @@ impl StyleSheet for Theme {
                 Appearance {
                     shadow_offset: Default::default(),
                     background: Some(palette.background.weak.color.into()),
-                    border: Border::with_radius(2),
+                    border: Border::default().rounded(10),
                     shadow: Shadow::default(),
                 }
             }
@@ -36,6 +36,6 @@ impl<T: Fn(&Theme) -> Appearance> StyleSheet for T {
     type Style = Theme;
 
     fn appearance(&self, style: &Self::Style) -> Appearance {
-        (self)(style)
+        self(style)
     }
 }

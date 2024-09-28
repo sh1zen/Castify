@@ -1,17 +1,13 @@
+use crate::gui::app::App;
 use crate::gui::components::hotkeys::KeyTypes;
-use crate::gui::theme::buttons::{FilledButton, Key4Board};
-use crate::gui::theme::container::ContainerType;
-use crate::gui::theme::styles::csx::StyleType;
-use crate::gui::appbase::App;
-use crate::gui::types::messages::Message as appMessage;
-use iced::advanced::widget::Text;
+use crate::gui::style::buttons::{FilledButton, Key4Board};
+use crate::gui::style::container::ContainerType;
+use crate::gui::common::icons::Icon;
+use crate::gui::common::messages::AppEvent as appMessage;
+use crate::gui::widget::{Column, Container, Row, Space, Stack, Text, TextInput};
 use iced::keyboard::Key;
-use iced::widget::{Column, Container, Row, Space, TextInput};
-use iced_aw::widgets::Modal;
 use iced_wgpu::core::keyboard::Modifiers;
 use std::hash::Hash;
-use iced_core::Alignment;
-use crate::gui::types::icons::Icon;
 
 #[derive(Debug, Clone)]
 pub struct Interaction {
@@ -31,7 +27,7 @@ pub enum PopupMsg {
     HotKey(KeyTypes),
 }
 
-pub fn show_popup<'a>(app: &'a App, body: Container<'a, appMessage, StyleType>) -> Container<'a, appMessage, StyleType> {
+pub fn show_popup<'a>(app: &'a App, body: Container<'a, appMessage>) -> Container<'a, appMessage> {
     if app.show_popup.is_none() {
         return Container::new(Space::new(0, 0));
     }
@@ -48,17 +44,12 @@ pub fn show_popup<'a>(app: &'a App, body: Container<'a, appMessage, StyleType>) 
     };
 
     Container::new(
-        Modal::new(
-            body,
-            Some(
-                content
-            ),
-        )
+       Stack::new().push(body).push(content)
     )
 }
 
 
-fn hotkey_update(app: &App) -> Container<appMessage, StyleType> {
+fn hotkey_update(app: &App) -> Container<appMessage> {
     let updating_key = match get_popup_data(app, PopupType::HotkeyUpdate) {
         PopupMsg::HotKey(key) => {
             key
@@ -96,10 +87,10 @@ fn hotkey_update(app: &App) -> Container<appMessage, StyleType> {
             ok_button
         );
 
-    Container::new(content.width(500).height(300)).style(ContainerType::Modal)
+    Container::new(content.width(500).height(300)).class(ContainerType::Modal)
 }
 
-fn ip_popup(app: &App) -> Container<appMessage, StyleType> {
+fn ip_popup(app: &App) -> Container<appMessage> {
     let mut entered_ip = match get_popup_data(app, PopupType::IP) {
         PopupMsg::String(str) => {
             str
@@ -140,7 +131,7 @@ fn ip_popup(app: &App) -> Container<appMessage, StyleType> {
                 )
         );
 
-    Container::new(content.width(500).height(300)).style(ContainerType::Modal)
+    Container::new(content.width(500).height(300)).class(ContainerType::Modal)
 }
 
 fn get_popup_data(app: &App, popup_type: PopupType) -> PopupMsg {

@@ -1,15 +1,12 @@
-use crate::gui::appbase::App;
-use crate::gui::components::raw::screenArea::ScreenRect;
-use crate::gui::theme::button::ButtonType;
-use crate::gui::theme::buttons::FilledButton;
-use crate::gui::theme::styles::csx::StyleType;
-use crate::gui::types::icons::Icon;
-use crate::gui::types::messages::Message as appMessage;
+use crate::gui::components::screenArea::ScreenRect;
+use crate::gui::style::button::ButtonType;
+use crate::gui::style::buttons::FilledButton;
+use crate::gui::common::icons::Icon;
+use crate::gui::common::messages::AppEvent as appMessage;
+use crate::gui::widget::{Column, Container, PickList, Row};
 use crate::utils::get_string_after;
 use crate::workers;
-use crate::workers::caster::Caster;
 use iced::alignment::{Horizontal, Vertical};
-use iced::widget::{Column, Container, PickList, Row};
 use iced::{Alignment, Length};
 
 #[derive(Debug, Clone, Copy)]
@@ -18,9 +15,9 @@ pub enum Message {
     Pause,
 }
 
-pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
+pub fn caster_page<'a>() -> Container<'a, appMessage> {
     let mut action_row = Row::new()
-        .align_items(Alignment::Center)
+        .align_y(Alignment::Center)
         .spacing(20);
 
     let is_streaming = workers::caster::get_instance().lock().unwrap().streaming;
@@ -73,19 +70,19 @@ pub fn caster_page(_: &App) -> Container<appMessage, StyleType> {
     }
 
     Container::new(
-        Column::new().align_items(Alignment::Center)
-            .align_items(Alignment::Center)
+        Column::new()
+            .align_x(Alignment::Center)
             .spacing(40)
             .push(screen_row)
             .push(action_row)
     )
         .width(Length::Fill)
         .height(Length::Fill)
-        .center_x()
-        .center_y()
+        .align_x(Horizontal::Center)
+        .align_y(Vertical::Center)
 }
 
-fn monitors_list(is_streaming: bool) -> Container<'static, appMessage, StyleType> {
+fn monitors_list(is_streaming: bool) -> Container<'static, appMessage> {
     if !is_streaming {
         monitors_picklist()
     } else {
@@ -98,7 +95,7 @@ fn monitor_name(id: u32) -> String {
     format!("Monitor #{}", id)
 }
 
-fn monitors_picklist() -> Container<'static, appMessage, StyleType> {
+fn monitors_picklist() -> Container<'static, appMessage> {
     let mut monitors = Vec::new();
 
     for monitor_id in workers::caster::get_instance().lock().unwrap().get_monitors() {

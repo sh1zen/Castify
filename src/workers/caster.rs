@@ -50,7 +50,7 @@ impl Caster {
         }
     }
 
-    pub fn resize_rec_area(&mut self, mut x: i32, mut y: i32, width: u32, height: u32) -> bool {
+    pub fn resize_rec_area(&mut self, x: i32, y: i32, width: u32, height: u32) -> bool {
         self.lazy_init();
 
         let state = self.pipeline.current_state();
@@ -83,10 +83,6 @@ impl Caster {
         self.pipeline.set_state(state).is_err()
     }
 
-    pub fn full_screen(&mut self) {
-        self.resize_rec_area(0, 0, 0, 0);
-    }
-
     pub fn change_monitor(&mut self, id: u32) -> bool {
         if !self.has_monitor(id) {
             return false;
@@ -109,7 +105,6 @@ impl Caster {
 
     pub fn cast(&mut self) {
         self.lazy_init();
-
         self.streaming = !self.pipeline.set_state(gst::State::Playing).is_err();
     }
 
@@ -203,8 +198,8 @@ impl Caster {
         if let Ok(vec_display) = DisplayInfo::all() {
             for display in vec_display {
                 monitors.insert(display.id, XMonitor {
-                    x: 0,
-                    y: 0,
+                    x: display.x,
+                    y: display.y,
                     height: display.height,
                     width: display.width,
                     primary: display.is_primary,

@@ -1,5 +1,3 @@
-//! Change the appearance of a AreaSelector.
-
 use iced_core::{Background, Border, Color, Pixels, Shadow, Vector};
 
 /// The appearance of a AreaSelector.

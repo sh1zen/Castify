@@ -1,15 +1,16 @@
-use crate::gui::video::{pipeline::VideoPrimitive, video::Video};
+use crate::gui::video::pipeline::VideoPrimitive;
+use crate::gui::video::Video;
 use gstreamer as gst;
 use iced::{
     advanced::{self, graphics::core::event::Status, layout, widget, Widget},
-    Element,
 };
-use iced_wgpu::primitive::pipeline::Renderer as PrimitiveRenderer;
+use iced_wgpu::primitive::Renderer as PrimitiveRenderer;
 use std::{marker::PhantomData, sync::atomic::Ordering};
 use std::{sync::Arc, time::Duration};
+use crate::gui::widget::Element;
 
 /// Video player widget which displays the current frame of a [`Video`](crate::Video).
-pub struct VideoPlayer<'a, Message, Theme = iced::Theme, Renderer = iced::Renderer>
+pub struct VideoPlayer<'a, Message, Theme, Renderer>
 where
     Renderer: PrimitiveRenderer,
 {
@@ -63,7 +64,7 @@ where
 }
 
 impl<'a, Message, Theme, Renderer> Widget<Message, Theme, Renderer>
-    for VideoPlayer<'a, Message, Theme, Renderer>
+for VideoPlayer<'a, Message, Theme, Renderer>
 where
     Message: Clone,
     Renderer: PrimitiveRenderer,
@@ -110,7 +111,7 @@ where
         _viewport: &iced::Rectangle,
     ) {
         let inner = self.video.0.borrow();
-        renderer.draw_pipeline_primitive(
+        renderer.draw_primitive(
             layout.bounds(),
             VideoPrimitive::new(
                 inner.id,
@@ -134,12 +135,12 @@ where
     ) -> Status {
         let mut inner = self.video.0.borrow_mut();
 
-        if let iced::Event::Window(_, iced::window::Event::RedrawRequested(now)) = event {
+        if let iced::Event::Window(iced::window::Event::RedrawRequested(now)) = event {
             if inner.restart_stream || (!inner.is_eos && !inner.paused) {
                 let mut restart_stream = false;
                 if inner.restart_stream {
                     restart_stream = true;
-                    // Set flag to false to avoid potentially multiple seeks
+                    // Set false flag to avoid potentially multiple seeks
                     inner.restart_stream = false;
                 }
                 let mut eos_pause = false;
@@ -192,7 +193,7 @@ where
 }
 
 impl<'a, Message, Theme, Renderer> From<VideoPlayer<'a, Message, Theme, Renderer>>
-    for Element<'a, Message, Theme, Renderer>
+for Element<'a, Message, Theme, Renderer>
 where
     Message: 'a + Clone,
     Theme: 'a,

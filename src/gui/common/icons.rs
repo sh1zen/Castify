@@ -1,7 +1,8 @@
-use iced::widget::Text;
 use crate::gui::resource::ICONS;
-use crate::gui::theme::styles::csx::StyleType;
+use iced::widget::Text;
+use crate::gui::style::styles::csx::StyleType;
 
+#[allow(dead_code)]
 pub enum Icon {
     Browser,
     Search,
@@ -69,7 +70,7 @@ impl Icon {
         }
     }
 
-    pub fn to_text(&self) -> Text<'static, StyleType> {
+    pub fn to_text<'a>(&self) -> Text<'a, StyleType> {
         Text::new(self.codepoint().to_string()).font(ICONS)
     }
 }

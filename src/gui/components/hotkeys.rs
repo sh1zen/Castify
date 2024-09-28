@@ -1,10 +1,9 @@
-use crate::gui::theme::buttons::FilledButton;
-use crate::gui::theme::styles::csx::StyleType;
-use crate::gui::appbase::App;
-use crate::gui::types::icons::Icon;
-use crate::gui::types::messages::Message as appMessage;
-use iced::widget::{Column, Container, Row};
+use crate::gui::style::buttons::FilledButton;
+use crate::gui::common::icons::Icon;
+use crate::gui::common::messages::AppEvent as appMessage;
+use crate::gui::widget::{Column, Container, Row};
 use iced::{Alignment, Length};
+use iced_core::alignment;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum KeyTypes {
@@ -15,11 +14,11 @@ pub enum KeyTypes {
     None,
 }
 
-pub fn hotkeys(_: &App) -> Container<appMessage, StyleType> {
+pub fn hotkeys<'a>() -> Container<'a, appMessage> {
     let actions = Column::new()
         .push(
             Row::new()
-                .align_items(Alignment::Center).spacing(10)
+                .align_y(Alignment::Center).spacing(10)
                 .push(
                     FilledButton::new("Pause")
                         .icon(Icon::Pause)
@@ -34,7 +33,7 @@ pub fn hotkeys(_: &App) -> Container<appMessage, StyleType> {
                 ))
         .push(
             Row::new()
-                .align_items(Alignment::Center).spacing(10)
+                .align_y(Alignment::Center).spacing(10)
                 .push(
                     FilledButton::new("Terminate")
                         .icon(Icon::Stop)
@@ -49,7 +48,7 @@ pub fn hotkeys(_: &App) -> Container<appMessage, StyleType> {
                 )
         )
         .width(Length::Fill)
-        .align_items(Alignment::Center)
+        .align_x(Alignment::Center)
         .spacing(10);
 
     let content = Column::new()
@@ -61,11 +60,12 @@ pub fn hotkeys(_: &App) -> Container<appMessage, StyleType> {
                 .on_press(appMessage::Home)
         )
         .width(Length::Fill)
-        .align_items(Alignment::Center)
+        .align_x(alignment::Horizontal::Center)
         .spacing(40);
 
     Container::new(content)
         .width(Length::Fill)
         .height(Length::Fill)
-        .center_x().center_y()
+        .align_x(alignment::Horizontal::Center)
+        .align_y(alignment::Vertical::Center)
 }

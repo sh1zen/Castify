@@ -1,5 +1,5 @@
-use iced::font::{Family, Stretch, Style, Weight};
-use iced::Font;
+use iced_core::Font;
+use iced_core::font::{Family, Stretch, Style, Weight};
 
 pub const USE_WEBRTC: bool = true;
 
@@ -16,15 +16,15 @@ pub const CAST_SERVICE_PORT: u16 = 31413;
 
 // app name
 pub const APP_VERSION: &str = "1.0.0";
-pub const APP_NAME: &str = "Screen Caster";
-pub const APP_NAME_ID: &str = "screen_caster";
+pub const APP_NAME: &str = "Castify";
+pub const APP_NAME_ID: &str = "castify";
 
 #[cfg(target_os = "windows")]
-pub const TARGET_OS :&str = "windows";
+pub const TARGET_OS: &str = "windows";
 #[cfg(target_os = "macos")]
-pub const TARGET_OS :&str = "macos";
+pub const TARGET_OS: &str = "macos";
 #[cfg(target_os = "linux")]
-pub const TARGET_OS :&str = "linux";
+pub const TARGET_OS: &str = "linux";
 
 #[cfg(target_os = "windows")]
 pub const ICON_BYTES: &[u8] = include_bytes!("../../resources/icons/96x96.png");
@@ -58,7 +58,6 @@ pub const RALEWAY_FONT: Font = Font {
 
 // font style
 pub const FONT_SIZE_BODY: f32 = 14.0;
-pub const FONT_SIZE_SUBTITLE: f32 = 12.0;
 pub const FONT_SIZE_FOOTER: f32 = 11.0;
 
 // border styles
@@ -68,14 +67,9 @@ pub const BORDER_ALPHA: f32 = 0.0;
 
 // button
 pub const BUTTON_ALPHA: f32 = 0.7;
-pub const P_BUTTON_ALPHA: f32 = 1.0;
 pub const H_BUTTON_ALPHA: f32 = 0.9;
 
 // utils
-pub fn get(file: String) -> String {
-    format!("resources/{}", file)
-}
-
 pub(crate) fn open_link(web_page: &String) {
     let url = web_page;
     #[cfg(target_os = "windows")]

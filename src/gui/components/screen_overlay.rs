@@ -1,13 +1,9 @@
-use crate::gui::appbase::App;
-use crate::gui::components::raw::screenArea::AreaSelector;
-use crate::gui::theme::styles::csx::StyleType;
-use crate::gui::types::messages::Message as appMessage;
-use iced::widget::Container;
-use iced_core::Length;
+use crate::gui::components::screenArea::AreaSelector;
+use crate::gui::common::messages::AppEvent as appMessage;
+use crate::gui::widget::Container;
+use iced_core::{alignment, Length};
 
-
-pub fn screen_area_layer(_: &App) -> Container<appMessage, StyleType> {
-
+pub fn screen_area_layer<'a>() -> Container<'a, appMessage> {
     let area_selector = AreaSelector::new()
         .on_release_rect(|rect| {
             appMessage::AreaSelected(rect)
@@ -18,6 +14,7 @@ pub fn screen_area_layer(_: &App) -> Container<appMessage, StyleType> {
     )
         .width(Length::Fill)
         .height(Length::Fill)
-        .center_x().center_y()
+        .align_y(alignment::Vertical::Center)
+        .align_x(alignment::Horizontal::Center)
         .into()
 }

@@ -1,4 +1,4 @@
-use iced::widget::canvas::{Frame, Path, Stroke};
+use iced::widget::canvas::{Frame, Geometry, Path, Stroke};
 use iced::widget::{canvas, Canvas};
 use iced::{Element, Renderer};
 use iced_core::{mouse, Color, Length, Point, Rectangle, Size};
@@ -172,7 +172,7 @@ impl<'a, Message, Theme> canvas::Program<Message, Theme> for AreaSelector<'a, Me
         _theme: &Theme,
         bounds: Rectangle,
         _cursor: mouse::Cursor,
-    ) -> Vec<<Renderer as iced::widget::canvas::Renderer>::Geometry> {
+    ) -> Vec<Geometry<Renderer>> {
         let mut frame = Frame::new(renderer, bounds.size());
         if let (Some(start), Some(end)) = (state.start, state.end) {
             let rect = Path::rectangle(
@@ -198,7 +198,6 @@ impl<'a, Message, Theme> canvas::Program<Message, Theme> for AreaSelector<'a, Me
 
             frame.fill(&rect, Color::from_rgba(1.0, 1.0, 1.0, 0.3));
             frame.fill(&shadow_rect, Color::from_rgba(0.0, 0.0, 0.0, 0.2));
-
             frame.stroke(&rect, Stroke {
                 style: iced_graphics::geometry::Style::Solid(Color {
                     r: 1.0,
