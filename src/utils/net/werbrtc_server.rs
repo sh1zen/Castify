@@ -1,4 +1,4 @@
-use crate::gui::resource::CAST_SERVICE_PORT;
+use crate::assets::CAST_SERVICE_PORT;
 use crate::utils::net::webrtc_common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
 use async_tungstenite::tokio::{accept_async, TokioAdapter};
 use async_tungstenite::tungstenite::Message;

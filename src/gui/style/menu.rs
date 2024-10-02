@@ -1,4 +1,4 @@
-use crate::gui::resource::{BORDER_RADIUS, BORDER_WIDTH};
+use crate::assets::{BORDER_RADIUS, BORDER_WIDTH};
 use crate::gui::style::color::mix;
 use crate::gui::style::styles::csx::StyleType;
 use iced::overlay::menu::{Catalog, Style};
@@ -17,18 +17,17 @@ impl Catalog for StyleType {
     }
 
     fn style(&self, _class: &<Self as Catalog>::Class<'_>) -> Style {
-        let colors = self.get_palette();
-        let buttons_color = colors.generate_element_color();
+        let palette = self.get_palette();
         Style {
-            text_color: colors.text_body,
-            background: Background::Color(buttons_color),
+            text_color: palette.text,
+            background: Background::Color(palette.primary),
             border: Border {
                 width: BORDER_WIDTH,
                 radius: BORDER_RADIUS.into(),
-                color: colors.secondary,
+                color: palette.primary_darker,
             },
-            selected_text_color: colors.text_body,
-            selected_background: Background::Color(mix(buttons_color, colors.primary)),
+            selected_text_color: palette.text,
+            selected_background: Background::Color(palette.secondary),
         }
     }
 }

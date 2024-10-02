@@ -1,9 +1,10 @@
-use crate::gui::style::buttons::FilledButton;
+use crate::assets::FONT_FAMILY_BOLD;
 use crate::gui::common::icons::Icon;
-use crate::gui::common::messages::AppEvent as appMessage;
-use crate::gui::widget::{Column, Container, Row};
+use crate::gui::components::buttons::IconButton;
+use crate::gui::style::container::ContainerType;
+use crate::gui::widget::{horizontal_space, vertical_space, Container, Row, Text};
+use crate::windows::main::MainWindowEvent;
 use iced::{Alignment, Length};
-use iced_core::alignment;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum KeyTypes {
@@ -14,58 +15,64 @@ pub enum KeyTypes {
     None,
 }
 
-pub fn hotkeys<'a>() -> Container<'a, appMessage> {
-    let actions = Column::new()
-        .push(
-            Row::new()
-                .align_y(Alignment::Center).spacing(10)
-                .push(
-                    FilledButton::new("Pause")
-                        .icon(Icon::Pause)
-                        .build()
-                        .on_press(appMessage::HotkeysTypePage(KeyTypes::Pause))
-                )
-                .push(
-                    FilledButton::new("Record")
-                        .icon(Icon::Stop)
-                        .build()
-                        .on_press(appMessage::HotkeysTypePage(KeyTypes::Record))
-                ))
-        .push(
-            Row::new()
-                .align_y(Alignment::Center).spacing(10)
-                .push(
-                    FilledButton::new("Terminate")
-                        .icon(Icon::Stop)
-                        .build()
-                        .on_press(appMessage::HotkeysTypePage(KeyTypes::Close))
-                )
-                .push(
-                    FilledButton::new("Blank Screen")
-                        .icon(Icon::Banned)
-                        .build()
-                        .on_press(appMessage::HotkeysTypePage(KeyTypes::BlankScreen))
-                )
-        )
-        .width(Length::Fill)
-        .align_x(Alignment::Center)
-        .spacing(10);
+pub fn hotkeys<'a>() -> Container<'a, MainWindowEvent> {
+    let header = Container::new(
+        crate::row![
+            horizontal_space().width(Length::Fill),
+            Text::new("Customize Shortcuts").font(FONT_FAMILY_BOLD).size(18),
+            horizontal_space().width(Length::Fill),
+        ].align_y(Alignment::Center)
+    ).center(Length::Fill).height(80).class(ContainerType::Standard);
 
-    let content = Column::new()
-        .push(actions)
-        .push(
-            FilledButton::new("Home")
+    let hotkeys = Container::new(
+        crate::column![
+            Row::new()
+                .align_y(Alignment::Center).spacing(15)
+                .push(
+                    IconButton::new("Pause")
+                        .icon(Icon::Pause)
+                        .build().width(160)
+                        .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::Pause))
+                )
+                .push(
+                    IconButton::new("Record")
+                        .icon(Icon::Video)
+                        .build().width(160)
+                        .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::Record))
+                ),
+
+            Row::new()
+                .align_y(Alignment::Center).spacing(15)
+                .push(
+                    IconButton::new("Terminate")
+                        .icon(Icon::Stop)
+                        .build().width(160)
+                        .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::Close))
+                )
+                .push(
+                    IconButton::new("Blank Screen")
+                        .icon(Icon::Banned)
+                        .build().width(160)
+                        .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::BlankScreen))
+                )
+        ]
+            .width(Length::Fill)
+            .align_x(Alignment::Center)
+            .spacing(15)
+    ).center(Length::Fill).height(160).class(ContainerType::Standard);
+
+    let actions = Container::new(
+        crate::row![
+            horizontal_space().width(Length::Fill),
+            IconButton::new("Home")
                 .icon(Icon::Browser)
                 .build()
-                .on_press(appMessage::Home)
-        )
-        .width(Length::Fill)
-        .align_x(alignment::Horizontal::Center)
-        .spacing(40);
+                .on_press(MainWindowEvent::Home),
+            horizontal_space().width(Length::Fill),
+        ].align_y(Alignment::Center)
+    ).center(Length::Fill).height(80).class(ContainerType::Standard);
 
-    Container::new(content)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .align_x(alignment::Horizontal::Center)
-        .align_y(alignment::Vertical::Center)
+    let content = crate::column![header, hotkeys, vertical_space(), actions].spacing(10).padding(15);
+
+    Container::new(content).center(Length::Fill)
 }

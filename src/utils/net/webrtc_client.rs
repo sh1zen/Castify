@@ -1,6 +1,6 @@
 use crate::utils::net::webrtc_common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
 use async_tungstenite::tokio::connect_async;
-use async_tungstenite::tungstenite::Message;
+use async_tungstenite::tungstenite::{Error, Message};
 use async_tungstenite::WebSocketStream;
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
@@ -25,8 +25,14 @@ pub struct WebRTCClient {
 impl WebRTCClient {
     pub async fn new(signaling_server_url: &str) -> Arc<WebRTCClient> {
 
+        let mut conn = Err(Error::ConnectionClosed.into());
+
+        while conn.is_err() {
+            conn = connect_async(signaling_server_url).await;
+        }
+
         // Connect to the signaling server
-        let (ws_stream, _) = connect_async(signaling_server_url).await.unwrap();
+        let (ws_stream, _) = conn.unwrap();
 
         // Create the WebRTC API
         let api = create_webrtc_api();

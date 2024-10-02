@@ -1,17 +1,17 @@
 use crate::gui::style::button::ButtonType;
 use crate::gui::common::icons::Icon;
-use crate::gui::widget::{Button, Container, Row, Space, Text};
+use crate::gui::widget::{Button, Container, IcedParentExt, Row, Space, Text};
 use iced_core::alignment::{Horizontal, Vertical};
 use iced_core::{Length, Padding};
+use crate::assets::FONT_FAMILY_BOLD;
 
-
-pub struct FilledButton {
+pub struct IconButton {
     label: String,
     icon: Option<Icon>,
     button_type: ButtonType,
 }
 
-impl FilledButton {
+impl IconButton {
     pub fn new(label: &str) -> Self {
         Self {
             label: label.into(),
@@ -37,12 +37,12 @@ impl FilledButton {
                 Row::new()
                     .spacing(2)
                     .push(icon.to_text())
-                    .push(Space::with_width(Length::Fill))
-                    .push(Text::new(self.label.clone()).size(15))
+                    .push_if(self.label.len() > 0, || Space::with_width(Length::Fill))
+                    .push_if(self.label.len() > 0, || Text::new(self.label.clone()).size(15).font(FONT_FAMILY_BOLD))
                     .align_y(iced::Alignment::Center)
             )
         } else {
-            Container::new(Text::new(self.label.clone()))
+            Container::new(Text::new(self.label.clone()).font(FONT_FAMILY_BOLD))
         };
 
         Button::new(
@@ -57,7 +57,7 @@ impl FilledButton {
                 left: 22.0,
             })
             .height(40)
-            .width(120)
+            .width(130)
             .class(self.button_type)
     }
 }

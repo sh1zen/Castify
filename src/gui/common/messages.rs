@@ -1,41 +1,31 @@
-use crate::gui::components::screenArea::ScreenRect;
-use crate::gui::components::{caster, home, hotkeys, popup};
+use crate::gui::common::datastructure::ScreenRect;
+use crate::windows::WindowMessage;
 use iced::keyboard::{Key, Modifiers};
+use iced_core::window::Id;
 
 #[derive(Debug, Clone)]
-pub enum AppEvent {
-    /// homepage
-    Home,
-    /// the app mode caster / receiver
-    Mode(home::Message),
-    /// caster play pause
-    Caster(caster::Message),
-    /// A collector of all popups messages
-    PopupMessage(popup::Interaction),
-    /// close any popup
-    ClosePopup,
-    /// Connect to caster, passing caster ip as String
-    ConnectToCaster(String),
-    /// Save the capture
-    SaveCapture,
-    /// stop saving capture
-    SaveCaptureStop,
-    /// Ignore
-    Ignore,
-    /// blank the recording
-    BlankScreen,
+pub enum AppEvent
+{
+    /// Open Main Window
+    ShowMainWindow,
+    /// Close an app window
+    CloseWindow(Id),
+    /// Specified Window Event Message
+    WindowEvent(Id, WindowMessage),
     /// The app window size has been changed
     WindowResized(u32, u32),
+    /// Time tick update
+    TimeTick,
+    /// Ignore
+    Ignore,
     /// Quit the app
-    CloseRequested,
+    ExitApp,
     /// Open the supplied web page
     OpenWebPage(String),
+    /// blank the recording
+    BlankScreen,
     /// Connection Error
     ConnectionError,
-    /// Setup hotkeys
-    HotkeysPage,
-    /// handle hot keys request update
-    HotkeysTypePage(hotkeys::KeyTypes),
     /// update hot key
     HotkeysUpdate((Modifiers, Key)),
     /// hotkeys support

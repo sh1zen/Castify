@@ -1,13 +1,9 @@
-use crate::gui::resource::{APP_NAME, ICONS_BYTES, ICON_BYTES, RALEWAY_FONT_BYTES, TEXT_FONT_FAMILY_NAME};
-use crate::gui::common::flags::Flags;
-use iced::window;
-use iced_core::window::Position;
-use iced_core::{Font, Size};
+use crate::assets::{FONT_BASE_DATA, FONT_FAMILY_BASE, ICONS_BYTES};
+use crate::utils::tray_icon::tray_icon;
 use std::borrow::Cow;
 
 pub mod app;
 pub mod components;
-pub mod resource;
 pub mod style;
 pub mod common;
 pub mod video;
@@ -15,35 +11,39 @@ pub mod widget;
 
 use self::app::App;
 
-pub fn run(flags: Flags) {
-    let app = iced::application(APP_NAME, App::update, App::view)
-        .window(window::Settings {
-            size: Size::new(640f32, 380f32),
-            position: Position::Centered,
-            min_size: Some(Size::new(400f32, 300f32)),
-            visible: true,
-            resizable: true,
-            decorations: true,
-            transparent: true,
-            exit_on_close_request: true,
-            icon: Some(
-                window::icon::from_file_data(
-                    ICON_BYTES,
-                    None,
-                ).unwrap(),
-            ),
-            ..Default::default()
-        })
+#[macro_export]
+macro_rules! column {
+    () => (
+        $crate::gui::widget::Column::new()
+    );
+    ($($x:expr),+ $(,)?) => (
+        $crate::gui::widget::Column::with_children([$($crate::gui::widget::Element::from($x)),+])
+    );
+}
+
+#[macro_export]
+macro_rules! row {
+    () => (
+        $crate::gui::widget::Row::new()
+    );
+    ($($x:expr),+ $(,)?) => (
+        $crate::gui::widget::Row::with_children([$($crate::gui::widget::Element::from($x)),+])
+    );
+}
+
+pub fn run() {
+    let _tray_icon = tray_icon();
+
+    let app = iced::daemon(App::title, App::update, App::view)
         .style(App::style)
         .theme(App::theme)
         .antialiasing(true)
-        .centered()
         .font(Cow::Borrowed(ICONS_BYTES))
-        .font(Cow::Borrowed(RALEWAY_FONT_BYTES))
-        .default_font(Font::with_name(TEXT_FONT_FAMILY_NAME))
+        .font(Cow::Borrowed(FONT_BASE_DATA))
+        .default_font(FONT_FAMILY_BASE)
         .subscription(App::subscription);
 
-    if let Err(e) = app.run_with(move || App::new(flags)) {
+    if let Err(e) = app.run_with(App::new) {
         eprintln!("Failed to initialize GUI: {e:?}");
 
         if let Err(e) = native_dialog::MessageDialog::new()

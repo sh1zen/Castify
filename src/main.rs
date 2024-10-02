@@ -1,19 +1,17 @@
-#![cfg_attr(
-    not(debug_assertions),
-    windows_subsystem = "windows"
-)] // hide console window on Windows in release
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod gui;
 mod utils;
 mod workers;
 mod xmacro;
+mod assets;
+mod windows;
+mod config;
 
 use std::{panic, process};
-use crate::gui::common::flags::Flags;
 
-#[tokio::main]
-async fn main() {
-    gstreamer::init().expect("gstreamer init error.");
+fn main() {
+    let os_supported = gstreamer::init().is_ok();
 
     // kill the main thread as soon as a secondary thread panics
     let orig_hook = panic::take_hook();
@@ -21,7 +19,7 @@ async fn main() {
         workers::sos::get_instance().lock().unwrap().terminate();
         // invoke the default handler and exit the process
         orig_hook(panic_info);
-        process::exit(120);
+        process::exit(105);
     }));
 
     // gracefully close the app when receiving SIGINT, SIGTERM, or SIGHUP
@@ -30,9 +28,15 @@ async fn main() {
         process::exit(130);
     }).expect("Error setting Ctrl-C handler");
 
-    let flags = Flags {
-        os_supported: true,
-    };
+    if !os_supported {
+        if let Err(e) = native_dialog::MessageDialog::new()
+            .set_type(native_dialog::MessageType::Error)
+            .set_text("OS not yet supported.")
+            .show_alert()
+        {
+            eprintln!("Failed to display error dialog: {e:?}");
+        }
+    }
 
-    gui::run(flags);
+    gui::run();
 }

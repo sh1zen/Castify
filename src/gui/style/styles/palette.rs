@@ -1,47 +1,65 @@
-use std::hash::{Hash, Hasher};
-use iced_core::{Color, Font};
-use crate::gui::style::color::color_hash;
 use crate::gui::style::styles::csx::StyleType;
+use iced_core::{Color, Font};
+use std::hash::Hash;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Palette {
-    /// Main color of the GUI (background, hovered buttons, active tab)
+    /// main app color
+    pub background: Color,
+    /// Main color of the GUI (background)
     pub primary: Color,
-    /// as primary but darker
+    /// as primary but darker for elements
     pub primary_darker: Color,
-    /// Secondary color of the GUI (header, footer, buttons' borders)
+    /// Secondary color of the GUI
     pub secondary: Color,
     /// Color of alert
-    pub alert: Color,
-    /// Color notice content
-    pub highlight: Color,
-    /// Color of header and footer text
-    pub text_headers: Color,
-    /// Color of body and buttons text
-    pub text_body: Color,
-    /// the font used
+    pub danger: Color,
+    /// The action content color
+    pub action: Color,
+    /// Base text color
+    pub text: Color,
+    /// Inverted text color (light in dark mode, v.v.)
+    pub text_inv: Color,
+    /// Font used
     pub font: Font,
-    /// if is nightly
+    /// If is nightly
     pub is_nightly: bool,
+    /// If is nightly
+    pub is_transparent: bool,
 }
 
 impl Palette {
-    pub fn generate_element_color(mut self) -> Color {
-        let primary = self.primary;
-        self.is_nightly = primary.r + primary.g + primary.b <= 1.5;
+    pub fn active(&self, color: Color) -> Color {
         if self.is_nightly {
             Color {
-                r: f32::min(primary.r + 0.15, 1.0),
-                g: f32::min(primary.g + 0.15, 1.0),
-                b: f32::min(primary.b + 0.15, 1.0),
+                r: f32::min(color.r + 0.15, 1.0),
+                g: f32::min(color.g + 0.15, 1.0),
+                b: f32::min(color.b + 0.15, 1.0),
                 a: 1.0,
             }
         } else {
             Color {
-                r: f32::max(primary.r - 0.15, 0.0),
-                g: f32::max(primary.g - 0.15, 0.0),
-                b: f32::max(primary.b - 0.15, 0.0),
+                r: f32::max(color.r - 0.15, 0.0),
+                g: f32::max(color.g - 0.15, 0.0),
+                b: f32::max(color.b - 0.15, 0.0),
                 a: 1.0,
+            }
+        }
+    }
+    pub fn disabled(&self, color: Color) -> Color {
+        if self.is_nightly {
+            Color {
+                r: f32::min(color.r - 0.1, 1.0),
+                g: f32::min(color.g - 0.1, 1.0),
+                b: f32::min(color.b - 0.1, 1.0),
+                a: 0.6,
+            }
+        } else {
+            Color {
+                r: f32::max(color.r - 0.2, 0.0),
+                g: f32::max(color.g - 0.2, 0.0),
+                b: f32::max(color.b - 0.2, 0.0),
+                a: 0.6,
             }
         }
     }
@@ -49,33 +67,6 @@ impl Palette {
 
 impl Default for Palette {
     fn default() -> Self {
-        StyleType::get_palette(StyleType::Venus)
-    }
-}
-
-
-impl Hash for Palette {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        let Palette {
-            primary,
-            primary_darker,
-            secondary,
-            alert,
-            highlight,
-            text_headers,
-            text_body,
-            font,
-            is_nightly
-        } = self;
-
-        color_hash(*primary, state);
-        color_hash(*primary_darker, state);
-        color_hash(*secondary, state);
-        color_hash(*alert, state);
-        color_hash(*highlight, state);
-        color_hash(*text_headers, state);
-        color_hash(*text_body, state);
-        font.hash(state);
-        is_nightly.hash(state);
+        StyleType::get_palette(StyleType::DarkVenus)
     }
 }

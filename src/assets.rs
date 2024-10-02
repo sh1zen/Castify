@@ -27,16 +27,12 @@ pub const TARGET_OS: &str = "macos";
 pub const TARGET_OS: &str = "linux";
 
 #[cfg(target_os = "windows")]
-pub const ICON_BYTES: &[u8] = include_bytes!("../../resources/icons/96x96.png");
-#[cfg(target_os = "macos")]
-pub const ICON_BYTES: &[u8] = include_bytes!("../../resources/icons/icon.icns");
-#[cfg(target_os = "linux")]
-pub const ICON_BYTES: &[u8] = include_bytes!("../../resources/icons/96x96.png");
+pub const ICON_BYTES: &[u8] = include_bytes!("../resources/icons/96x96.png");
 
 
 //font to display icons
 pub const ICON_FONT_FAMILY_NAME: &str = "icons4screencaster";
-pub const ICONS_BYTES: &[u8] = include_bytes!("../../resources/icons4screencaster.ttf");
+pub const ICONS_BYTES: &[u8] = include_bytes!("../resources/icons4screencaster.ttf");
 pub const ICONS: Font = Font {
     family: Family::Name(ICON_FONT_FAMILY_NAME),
     weight: Weight::Normal,
@@ -45,13 +41,18 @@ pub const ICONS: Font = Font {
 };
 
 // font text base
-pub const TEXT_FONT_FAMILY_NAME: &str = "Raleway";
-pub const RALEWAY_FONT_BYTES: &[u8] =
-    include_bytes!("../../resources/Raleway-Bold.ttf");
+pub const FONT_BASE_DATA: &[u8] = include_bytes!("../resources/Raleway-VariableFont.ttf");
 
-pub const RALEWAY_FONT: Font = Font {
-    family: Family::Name(TEXT_FONT_FAMILY_NAME),
+pub const FONT_FAMILY_BASE: Font = Font {
+    family: Family::Name("Raleway"),
     weight: Weight::Normal,
+    stretch: Stretch::Normal,
+    style: Style::Normal,
+};
+
+pub const FONT_FAMILY_BOLD: Font = Font {
+    family: Family::Name("Raleway"),
+    weight: Weight::Bold,
     stretch: Stretch::Normal,
     style: Style::Normal,
 };
@@ -64,24 +65,3 @@ pub const FONT_SIZE_FOOTER: f32 = 11.0;
 pub const BORDER_WIDTH: f32 = 0.0;
 pub const BORDER_RADIUS: f32 = 8.0;
 pub const BORDER_ALPHA: f32 = 0.0;
-
-// button
-pub const BUTTON_ALPHA: f32 = 0.7;
-pub const H_BUTTON_ALPHA: f32 = 0.9;
-
-// utils
-pub(crate) fn open_link(web_page: &String) {
-    let url = web_page;
-    #[cfg(target_os = "windows")]
-    std::process::Command::new("explorer")
-        .arg(url)
-        .spawn()
-        .unwrap();
-    #[cfg(target_os = "macos")]
-    std::process::Command::new("open").arg(url).spawn().unwrap();
-    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
-    std::process::Command::new("xdg-open")
-        .arg(url)
-        .spawn()
-        .unwrap();
-}

@@ -1,5 +1,6 @@
-use crate::gui::style::styles::csx::StyleType;
 use crate::gui::common::messages::AppEvent;
+use crate::gui::style::color::mix;
+use crate::gui::style::styles::csx::StyleType;
 use crate::gui::widget::{Column, Text};
 use iced_core::Color;
 use iced_core::Font;
@@ -9,7 +10,6 @@ use iced_core::Font;
 pub enum TextType {
     #[default]
     Standard,
-    Secondary,
     Title,
     Subtitle,
     Danger,
@@ -40,41 +40,34 @@ impl iced_core::widget::text::Catalog for StyleType {
     }
 
     fn style(&self, class: &Self::Class<'_>) -> iced_core::widget::text::Style {
+        let palette = self.get_palette();
         iced_core::widget::text::Style {
-            color: match class {
-                TextType::Standard => None,
-                _ => Some(highlight(&self, class))
-            }
+            color: Some(match class {
+                TextType::Standard => palette.text,
+                TextType::Title => {
+                    let color = if palette.is_nightly { Color::WHITE } else { Color::BLACK };
+                    let (p1, c) = if palette.is_nightly { (0.4, 1.0) } else { (0.6, 0.7) };
+                    Color {
+                        r: c * (1.0 - p1) + color.r * p1,
+                        g: c * (1.0 - p1) + color.g * p1,
+                        b: c * (1.0 - p1) + color.b * p1,
+                        a: 1.0,
+                    }
+                }
+                TextType::Subtitle => {
+                    let color = if palette.is_nightly { Color::WHITE } else { Color::BLACK };
+                    let (p1, c) = if palette.is_nightly { (0.4, 0.8) } else { (0.6, 0.5) };
+                    Color {
+                        r: c * (1.0 - p1) + color.r * p1,
+                        g: c * (1.0 - p1) + color.g * p1,
+                        b: c * (1.0 - p1) + color.b * p1,
+                        a: 1.0,
+                    }
+                }
+                TextType::Danger => mix(palette.danger, palette.text),
+                TextType::White => Color::WHITE,
+            })
         }
     }
 }
 
-pub fn highlight(style: &StyleType, element: &TextType) -> Color {
-    let colors = style.get_palette();
-    let secondary = colors.secondary;
-    let is_nightly = style.get_palette().is_nightly;
-    match element {
-        TextType::Title => {
-            let (p1, c) = if is_nightly { (0.6, 1.0) } else { (0.9, 0.7) };
-            Color {
-                r: c * (1.0 - p1) + secondary.r * p1,
-                g: c * (1.0 - p1) + secondary.g * p1,
-                b: c * (1.0 - p1) + secondary.b * p1,
-                a: 1.0,
-            }
-        }
-        TextType::Subtitle => {
-            let (p1, c) = if is_nightly { (0.4, 1.0) } else { (0.6, 0.7) };
-            Color {
-                r: c * (1.0 - p1) + secondary.r * p1,
-                g: c * (1.0 - p1) + secondary.g * p1,
-                b: c * (1.0 - p1) + secondary.b * p1,
-                a: 1.0,
-            }
-        }
-        TextType::Secondary => colors.secondary,
-        TextType::Danger => Color::from_rgb(0.8, 0.15, 0.15),
-        TextType::Standard => colors.text_body,
-        TextType::White => colors.highlight,
-    }
-}

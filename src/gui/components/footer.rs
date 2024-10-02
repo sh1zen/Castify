@@ -1,16 +1,16 @@
-use crate::gui::resource::APP_NAME;
-use crate::gui::resource::APP_VERSION;
-use crate::gui::resource::FONT_SIZE_FOOTER;
+use crate::assets::APP_NAME;
+use crate::assets::APP_VERSION;
+use crate::assets::FONT_SIZE_FOOTER;
 use crate::gui::common::icons::Icon;
-use crate::gui::common::messages::AppEvent;
+use crate::gui::style::button::ButtonType;
+use crate::gui::style::container::ContainerType;
 use crate::gui::widget::{Button, Container, Row, Text};
+use crate::windows::main::MainWindowEvent;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::text::LineHeight;
 use iced::{Alignment, Length};
-use local_ip_address::local_ip;
-use crate::gui::style::button::ButtonType;
 
-pub fn footer<'a>() -> Container<'a, AppEvent> {
+pub fn footer<'a>() -> Container<'a, MainWindowEvent> {
     let made_by = Text::new("Made by:  A. Frolli  P. Bella  M. De Paola")
         .width(Length::Fill)
         .align_x(Horizontal::Right)
@@ -22,13 +22,8 @@ pub fn footer<'a>() -> Container<'a, AppEvent> {
         .width(Length::Fill)
         .spacing(5)
         .push(
-            Text::new(format!("{APP_NAME} {APP_VERSION}"))
-                .size(FONT_SIZE_FOOTER)
-        )
-        .push(match local_ip() {
-            Ok(ip) => Text::new(ip.to_string()).size(FONT_SIZE_FOOTER + 1.0),
-            Err(_) => Text::new(""),
-        });
+            Text::new(format!("{APP_NAME} {APP_VERSION}")).size(FONT_SIZE_FOOTER)
+        );
 
     let footer_row = Row::new()
         .padding([0, 10])
@@ -38,13 +33,13 @@ pub fn footer<'a>() -> Container<'a, AppEvent> {
         .push(made_by);
 
     Container::new(footer_row)
-        //.class(ContainerType::Standard)
+        .class(ContainerType::Footer)
         .height(30)
         .align_y(Vertical::Center)
         .padding(0)
 }
 
-fn get_button_github<'a>() -> Button<'a, AppEvent> {
+fn get_button_github<'a>() -> Button<'a, MainWindowEvent> {
     Button::new(
         Icon::GitHub.to_text()
             .size(15.0)
@@ -53,5 +48,5 @@ fn get_button_github<'a>() -> Button<'a, AppEvent> {
             .line_height(LineHeight::Relative(1.0)),
     )
         .class(ButtonType::Transparent)
-        .on_press(AppEvent::OpenWebPage("https://github.com/sh1zen/RustProject".parse().unwrap()))
+        .on_press(MainWindowEvent::OpenWebPage("https://github.com/sh1zen/RustProject".parse().unwrap()))
 }

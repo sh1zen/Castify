@@ -1,9 +1,9 @@
+use crate::assets::FONT_FAMILY_BOLD;
 use crate::gui::style::button::ButtonType;
 use crate::gui::widget::{Button, Container, Text};
 use iced::keyboard::{Key, Modifiers};
 use iced_core::{alignment, Padding};
 use std::default::Default;
-
 
 #[derive(Default)]
 pub struct Key4Board {
@@ -17,6 +17,10 @@ impl Key4Board {
             label,
             size,
         }
+    }
+
+    pub fn get_label(&self) -> String {
+        self.label.clone()
     }
 
     pub fn from_command(key: Modifiers) -> Key4Board {
@@ -44,7 +48,7 @@ impl Key4Board {
     pub fn build<'a, Message: 'a>(self) -> Button<'a, Message>
     {
         Button::new(
-            Container::new(Text::new(self.label.clone()))
+            Container::new(Text::new(self.label.clone()).font(FONT_FAMILY_BOLD))
                 .align_x(alignment::Horizontal::Center)
                 .align_y(alignment::Vertical::Center)
         )

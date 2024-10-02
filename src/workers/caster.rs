@@ -1,4 +1,4 @@
-use crate::gui::resource::{FRAME_RATE, USE_WEBRTC};
+use crate::assets::{FRAME_RATE, USE_WEBRTC};
 use crate::utils::gist::create_stream_pipeline;
 use crate::utils::net::WebRTCServer;
 use glib::prelude::ObjectExt;

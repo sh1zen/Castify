@@ -15,12 +15,17 @@ pub type Text<'a> = iced::advanced::widget::Text<'a, Theme, IcedRenderer>;
 pub type TextInput<'a, Message> = w::TextInput<'a, Message, Theme, IcedRenderer>;
 pub type Button<'a, Message> = w::Button<'a, Message, Theme, IcedRenderer>;
 pub type Stack<'a, Message> = w::Stack<'a, Message, Theme, IcedRenderer>;
+
 pub type PickList<'a, T, L, V, Message> = w::PickList<'a, T, L, V, Message, Theme, IcedRenderer>;
 pub type Scrollable<'a, Message> = w::Scrollable<'a, Message, Theme, IcedRenderer>;
+
+pub type Canvas<P, Message> = w::Canvas<P, Message, Theme, IcedRenderer>;
 
 
 use crate::gui::style::styles::csx::StyleType;
 pub use w::Space;
+pub use w::horizontal_space;
+pub use w::vertical_space;
 
 
 pub trait IcedParentExt<'a, Message> {

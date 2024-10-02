@@ -1,4 +1,4 @@
-use crate::gui::resource::USE_WEBRTC;
+use crate::assets::USE_WEBRTC;
 use crate::utils::gist::{create_rtp_save_pipeline, create_save_pipeline};
 use glib::prelude::*;
 use gstreamer::prelude::{ElementExt, GstBinExt};
@@ -14,7 +14,7 @@ pub struct SaveStream {
     pub(crate) is_saving: bool,
     is_available: bool,
     pipeline: Pipeline,
-    appsrc: Option<AppSrc>,
+    app_src: Option<AppSrc>,
     frame_i: u64,
 }
 
@@ -24,7 +24,7 @@ impl SaveStream {
             is_saving: false,
             is_available: false,
             pipeline: Default::default(),
-            appsrc: None,
+            app_src: None,
             frame_i: 0,
         }
     }
@@ -46,7 +46,7 @@ impl SaveStream {
                 );
                 pipeline.set_state(gst::State::Playing).expect("Failed start save_pipeline");
                 get_instance().lock().unwrap().pipeline = pipeline;
-                get_instance().lock().unwrap().appsrc = appsrc;
+                get_instance().lock().unwrap().app_src = appsrc;
                 get_instance().lock().unwrap().is_available = true;
             });
         }
@@ -54,7 +54,7 @@ impl SaveStream {
 
     pub fn send_frame(&mut self, buffer: gst::Buffer) {
         if self.is_available {
-            match &self.appsrc {
+            match &self.app_src {
                 Some(appsrc) => {
                     if let Err(_) = appsrc.push_buffer(buffer) {
                         self.stop()
@@ -68,7 +68,7 @@ impl SaveStream {
     pub fn stop(&mut self) {
         self.is_available = false;
 
-        match &self.appsrc {
+        match &self.app_src {
             Some(appsrc) => {
                 appsrc.end_of_stream().expect("Failed to send EOS");
                 // Check for pipeline state changes, errors, etc.
@@ -89,7 +89,7 @@ impl SaveStream {
             _ => {}
         }
 
-        self.appsrc = None;
+        self.app_src = None;
         self.pipeline = Pipeline::new();
         self.is_saving = false;
     }

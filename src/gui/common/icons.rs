@@ -1,4 +1,4 @@
-use crate::gui::resource::ICONS;
+use crate::assets::ICONS;
 use iced::widget::Text;
 use crate::gui::style::styles::csx::StyleType;
 

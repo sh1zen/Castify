@@ -3,10 +3,11 @@ name = "castify"
 version = "0.1.0"
 description = "A simple cross-platform screen caster tool"
 edition = "2021"
-authors = ["Andrea Frolli <dev.andrea.frolli@outlook.it>, Mario De Paola <>, Pietro Bella"]
+authors = ["Andrea Frolli <dev.andrea.frolli@outlook.it>, Pietro Bella, Mario De Paola"]
 documentation = ""
 homepage = ""
 keywords = ["screen", "capture", "cast", "stream", "castify"]
+build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,12 +17,13 @@ rdev = { version ="0.5.3", features = ["unstable_grab"]}
 tokio = { version = "1.40.0", features = ["full"] }
 chrono = "0.4.38"
 local-ip-address = "0.6.3"
-iced = { version = "0.13.1", features = ["image", "advanced", "wgpu", "lazy"] }
+iced = { version = "0.13.1", features = ["tokio", "advanced", "wgpu", "image"] }
 iced_aw = "0.11.0"
 iced_runtime = "0.13.2"
 iced_core = "0.13.2"
 iced_wgpu = "0.13.5"
 iced_graphics = "0.13.0"
+iced_anim = "0.1.2"
 socket2 = "0.5.7"
 ctrlc = "3.4.5"
 plotters = "0.3.7"
@@ -43,6 +45,13 @@ webrtc-ice = "0.11.0"
 async-tungstenite = { version = "0.28.0", features = ["tokio-runtime"] }
 futures-util = { version = "0.3.30" }
 native-dialog = "0.7.0"
+tray-icon = "0.19.0"
+
+[target.'cfg( target_os = "linux" )'.dependencies]
+gtk = "0.18.1"
+
+[target.'cfg( target_os = "windows" )'.build-dependencies]
+winresource = "0.1.17"
 
 [profile.dev]
 opt-level = 0
@@ -57,7 +66,7 @@ split-debuginfo = 'packed'
 [package.metadata.packager]
 product-name = "Castify"
 identifier = "app.castify.castify"
-authors = ["Andrea Frolli <dev.andrea.frolli@outlook.it>, Mario De Paola <>, Pietro Bella"]
+authors = ["Andrea Frolli <dev.andrea.frolli@outlook.it>, Mario De Paola <>, Pietro Bella <>"]
 publisher = "Castify"
 category = "Utility"
 copyright = "Copyright © 2024"

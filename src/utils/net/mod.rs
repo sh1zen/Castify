@@ -7,7 +7,7 @@ pub mod rtp;
 
 pub use self::webrtc_client::WebRTCClient;
 pub use self::werbrtc_server::WebRTCServer;
-use crate::gui::resource::CAST_SERVICE_PORT;
+use crate::assets::CAST_SERVICE_PORT;
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use std::net::SocketAddr;

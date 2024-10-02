@@ -1,4 +1,4 @@
-use crate::gui::resource::{FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, SAMPLING_RATE, TARGET_OS};
+use crate::assets::{FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, SAMPLING_RATE, TARGET_OS};
 use crate::workers;
 use chrono::Local;
 use gstreamer as gst;
