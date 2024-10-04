@@ -1,6 +1,6 @@
-use std::hash::{Hash, Hasher};
 use crate::assets::{APP_NAME, CAST_SERVICE_PORT, FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, USE_WEBRTC};
 use crate::config::{Config, Mode};
+use crate::gui::common::datastructure::ScreenRect;
 use crate::gui::common::messages::AppEvent;
 use crate::gui::components::caster::caster_page;
 use crate::gui::components::client::client_page;
@@ -17,9 +17,9 @@ use crate::workers;
 use crate::workers::caster::Caster;
 use gstreamer::Pipeline;
 use iced::{window::Id, Task};
+use std::hash::Hash;
 use std::net::SocketAddr;
 use std::str::FromStr;
-use crate::gui::common::datastructure::ScreenRect;
 
 #[derive(PartialEq, Eq)]
 pub enum Page {
@@ -41,7 +41,9 @@ pub enum MainWindowEvent {
     /// the app mode caster / receiver
     Mode(home::Message),
     /// caster play pause
-    Caster(caster::Message),
+    CasterToggleStreaming,
+    /// Set Caster monitor
+    CasterMonitor(u32),
     /// A collector of all popups messages
     PopupMessage(popup::Interaction),
     /// close any popup
@@ -61,7 +63,7 @@ pub enum MainWindowEvent {
     /// Request for area selection page
     AreaSelection,
     /// Messages for handling area selection, set to 0 to restore default screen size
-    AreaSelected(ScreenRect),
+    AreaSelectedFullScreen,
     /// Quit the app
     ExitApp,
     /// Open the supplied web page
@@ -86,12 +88,12 @@ impl GuiWindow for MainWindow {
         APP_NAME.into()
     }
 
-    fn update(&mut self, id: Id, message: MainWindowEvent, config: &mut Config) -> Task<AppEvent> {
+    fn update(&mut self, _id: Id, message: MainWindowEvent, config: &mut Config) -> Task<AppEvent> {
         match message {
             MainWindowEvent::Home => {
-                config.mode = None;
                 config.hotkey_map.updating = KeyTypes::None;
-                workers::caster::get_instance().lock().unwrap().close();
+                config.reset_mode();
+                println!("{:?}", config.mode);
                 self.popup.hide();
                 self.page = Page::Home;
                 Task::none()
@@ -109,14 +111,12 @@ impl GuiWindow for MainWindow {
                 }
                 Task::none()
             }
-            MainWindowEvent::Caster(mode) => {
-                match mode {
-                    caster::Message::Rec => {
-                        workers::caster::get_instance().lock().unwrap().cast();
-                    }
-                    caster::Message::Pause => {
-                        workers::caster::get_instance().lock().unwrap().pause();
-                    }
+            MainWindowEvent::CasterToggleStreaming => {
+                Task::done(AppEvent::CasterToggleStreaming)
+            }
+            MainWindowEvent::CasterMonitor(mon) => {
+                if let Some(Mode::Caster(caster)) = &mut config.mode {
+                    caster.change_monitor(mon);
                 }
                 Task::none()
             }
@@ -174,7 +174,7 @@ impl GuiWindow for MainWindow {
             }
             MainWindowEvent::OpenWebPage(s) => { Task::done(AppEvent::OpenWebPage(s)) }
             MainWindowEvent::AreaSelection => { Task::done(AppEvent::AreaSelection) }
-            MainWindowEvent::AreaSelected(x) => { Task::done(AppEvent::AreaSelected(x)) }
+            MainWindowEvent::AreaSelectedFullScreen => { Task::done(AppEvent::AreaSelected(ScreenRect::default())) }
             MainWindowEvent::ExitApp => { Task::done(AppEvent::ExitApp) }
             MainWindowEvent::DarkModeToggle => {
                 config.dark_mode = !config.dark_mode;

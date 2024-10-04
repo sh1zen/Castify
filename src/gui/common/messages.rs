@@ -26,12 +26,11 @@ pub enum AppEvent
     BlankScreen,
     /// Connection Error
     ConnectionError,
-    /// update hot key
-    HotkeysUpdate((Modifiers, Key)),
     /// hotkeys support
-    KeyPressed((Modifiers, Key)),
+    KeyPressed(Modifiers, Key),
     /// Request for area selection page
     AreaSelection,
     /// Messages for handling area selection, set to 0 to restore default screen size
     AreaSelected(ScreenRect),
+    CasterToggleStreaming,
 }

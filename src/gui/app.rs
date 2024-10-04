@@ -5,6 +5,7 @@ use crate::gui::components::hotkeys::KeyTypes;
 use crate::gui::style::styles::csx::StyleType;
 use crate::gui::widget::Element;
 use crate::gui::widget::IcedRenderer;
+use crate::utils::key_listener::global_key_listener;
 use crate::utils::open_link;
 use crate::utils::tray_icon::{tray_icon_listener, tray_menu_listener};
 use crate::windows::area_selector::ASWindow;
@@ -12,12 +13,13 @@ use crate::windows::main::MainWindow;
 use crate::windows::{GuiWindow, WindowManager};
 use crate::workers;
 use iced::application::Appearance;
-use iced::keyboard::Event;
 use iced::widget::horizontal_space;
-use iced::Event::{Keyboard, Window};
+use iced::Event::Window;
 use iced::{window, Subscription};
+use iced_core::keyboard::{Event, Key};
 use iced_core::window::settings::PlatformSpecific;
-use iced_core::window::{Id, Level, Mode, Position};
+use iced_core::window::{Id, Mode, Position};
+use iced_core::Event::Keyboard;
 use iced_core::Size;
 use iced_runtime::window::{change_mode, gain_focus};
 use iced_runtime::Task;
@@ -26,7 +28,6 @@ use std::time::Duration;
 
 pub struct App {
     pub config: Config,
-    transparent: bool,
     dark_mode: bool,
     windows: BTreeMap<Id, WindowManager>,
     main_window: Option<Id>,
@@ -37,7 +38,6 @@ impl App {
         (
             Self {
                 config: Config::default(),
-                transparent: false,
                 dark_mode: false,
                 windows: Default::default(),
                 main_window: None,
@@ -58,7 +58,7 @@ impl App {
                         visible: true,
                         resizable: true,
                         decorations: true,
-                        transparent: true,
+                        transparent: false,
                         icon: Some(
                             window::icon::from_file_data(
                                 ICON_BYTES,
@@ -110,7 +110,9 @@ impl App {
             }
             AppEvent::AreaSelected(rect) => {
                 // set the new area selected
-                workers::caster::get_instance().lock().unwrap().resize_rec_area(rect.x as i32, rect.y as i32, rect.width as u32, rect.height as u32);
+                if let Some(crate::config::Mode::Caster(caster)) = &mut self.config.mode {
+                    caster.resize_rec_area(rect);
+                }
                 Task::none()
             }
             AppEvent::CloseWindow(id) => {
@@ -127,6 +129,11 @@ impl App {
                 }
             }
             AppEvent::TimeTick => {
+                if let Some(crate::config::Mode::Caster(caster)) = &mut self.config.mode {
+                    if caster.is_streaming() {
+                        caster.streaming_time += 1;
+                    }
+                }
                 self.config.e_time = self.config.e_time + 1;
                 Task::none()
             }
@@ -139,38 +146,52 @@ impl App {
                 Task::none()
             }
             AppEvent::BlankScreen => {
-                workers::caster::get_instance().lock().unwrap().toggle_blank_screen();
-                Task::none()
-            }
-            AppEvent::KeyPressed(item) => {
-                if item == self.config.hotkey_map.pause {
-                    //let _ = self.update(AppEvent::Caster(caster::Message::Pause));
-                } else if item == self.config.hotkey_map.record {
-                    //let _ = self.update(AppEvent::Caster(caster::Message::Rec));
-                } else if item == self.config.hotkey_map.blank_screen {
-                    //let _ = self.update(AppEvent::BlankScreen);
-                } else if item == self.config.hotkey_map.end_session {
-                    let _ = self.update(AppEvent::ExitApp);
+                if let Some(crate::config::Mode::Caster(caster)) = &mut self.config.mode {
+                    caster.toggle_blank_screen();
                 }
                 Task::none()
             }
-            AppEvent::HotkeysUpdate((modifier, key)) => {
-                match self.config.hotkey_map.updating {
-                    KeyTypes::Pause => {
-                        self.config.hotkey_map.pause = (modifier, key)
-                    }
-                    KeyTypes::Record => {
-                        self.config.hotkey_map.record = (modifier, key)
-                    }
-                    KeyTypes::BlankScreen => {
-                        self.config.hotkey_map.blank_screen = (modifier, key)
-                    }
-                    KeyTypes::Close => {
-                        self.config.hotkey_map.end_session = (modifier, key)
-                    }
-                    _ => {}
+            AppEvent::CasterToggleStreaming => {
+                if let Some(crate::config::Mode::Caster(caster)) = &mut self.config.mode {
+                    caster.toggle_streaming();
                 }
                 Task::none()
+            }
+            AppEvent::KeyPressed(modifier, key) => {
+                if key == Key::Unidentified {
+                    return Task::none();
+                }
+
+                let item = (modifier, key);
+
+                println!("{:?}", item);
+
+                if self.config.hotkey_map.updating != KeyTypes::None {
+                    match self.config.hotkey_map.updating {
+                        KeyTypes::Pause => {
+                            self.config.hotkey_map.pause = item
+                        }
+                        KeyTypes::Record => {
+                            self.config.hotkey_map.record = item
+                        }
+                        KeyTypes::BlankScreen => {
+                            self.config.hotkey_map.blank_screen = item
+                        }
+                        KeyTypes::Close => {
+                            self.config.hotkey_map.end_session = item
+                        }
+                        _ => {}
+                    }
+                    Task::none()
+                } else {
+                    if item == self.config.hotkey_map.pause || item == self.config.hotkey_map.record {
+                        Task::done(AppEvent::CasterToggleStreaming)
+                    } else if item == self.config.hotkey_map.blank_screen {
+                        Task::done(AppEvent::BlankScreen)
+                    } else if item == self.config.hotkey_map.end_session {
+                        Task::done(AppEvent::ExitApp)
+                    } else { Task::none() }
+                }
             }
             AppEvent::ExitApp => {
                 workers::sos::get_instance().lock().unwrap().terminate();
@@ -208,37 +229,27 @@ impl App {
 
         let time_listener = iced::time::every(Duration::from_secs(1)).map(|_| AppEvent::TimeTick);
 
-        //let global_key_listener = Subscription::run(global_key_listener);
+        let global_key_listener = Subscription::run(global_key_listener);
 
         Subscription::batch([
             time_listener,
             window_events,
             tray_menu_listener,
             tray_icon_listener,
+            global_key_listener,
             self.keyboard_subscription(),
             self.window_subscription()
         ])
     }
 
     fn keyboard_subscription(&self) -> Subscription<AppEvent> {
-        //const NO_MODIFIER: Modifiers = Modifiers::empty();
-
         // used to update HotKeys
-        if self.config.hotkey_map.updating != KeyTypes::None {
-            iced::event::listen_with(|event, _, _| match event {
-                Keyboard(Event::KeyPressed { key, modifiers, .. }) => {
-                    Some(AppEvent::HotkeysUpdate((modifiers, key)))
-                }
-                _ => None,
-            })
-        } else {
-            iced::event::listen_with(|event, _status, _id| match event {
-                Keyboard(Event::KeyPressed { key, modifiers, .. }) => {
-                    Some(AppEvent::KeyPressed((modifiers, key)))
-                }
-                _ => None,
-            })
-        }
+        iced::event::listen_with(|event, _status, _id| match event {
+            Keyboard(Event::KeyPressed { key, modifiers, .. }) => {
+                Some(AppEvent::KeyPressed(modifiers, key))
+            }
+            _ => None,
+        })
     }
 
     fn window_subscription(&self) -> Subscription<AppEvent> {

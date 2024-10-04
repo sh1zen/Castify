@@ -24,10 +24,14 @@ impl Key4Board {
     }
 
     pub fn from_command(key: Modifiers) -> Key4Board {
-        let label = format!("{:?}", key)
-            .trim_start_matches("Modifiers(")
-            .trim_end_matches(')')
-            .to_string();
+        let label = if key == Modifiers::empty() {
+            String::new()
+        } else {
+            format!("{:?}", key)
+                .trim_start_matches("Modifiers(")
+                .trim_end_matches(')')
+                .to_string()
+        };
         Key4Board::new(label, 3)
     }
 

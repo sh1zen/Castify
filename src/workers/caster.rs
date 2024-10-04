@@ -1,16 +1,16 @@
 use crate::assets::{FRAME_RATE, USE_WEBRTC};
+use crate::gui::common::datastructure::ScreenRect;
 use crate::utils::gist::create_stream_pipeline;
 use crate::utils::net::WebRTCServer;
+use crate::workers::WorkerClose;
 use glib::prelude::ObjectExt;
 use gstreamer::prelude::{ElementExt, ElementExtManual, GObjectExtManualGst, GstBinExt};
 use gstreamer::Pipeline;
 use gstreamer_app::gst;
-use once_cell::sync::Lazy;
 use screen_info::DisplayInfo;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::sync::Mutex;
 
 #[derive(Debug, Clone)]
 pub struct XMonitor {
@@ -27,12 +27,24 @@ unsafe impl Send for XMonitor {}
 #[derive(Debug, Clone)]
 pub struct Caster {
     init: bool,
+    pub streaming_time: u64,
     pipeline: Pipeline,
-    pub streaming: bool,
+    streaming: bool,
     blank_screen: bool,
     monitor: u32,
     monitors: HashMap<u32, XMonitor>,
     running: Arc<AtomicBool>,
+}
+
+impl WorkerClose for Caster {
+    fn close(&mut self) {
+        self.running.store(false, Ordering::Relaxed);
+        if self.init {
+            self.pause();
+            let _ = self.pipeline.set_state(gst::State::Null).is_err();
+        }
+        self.init = false;
+    }
 }
 
 
@@ -41,6 +53,7 @@ impl Caster {
         let (monitors, main) = Self::setup_monitors();
         Self {
             init: false,
+            streaming_time: 0,
             pipeline: Default::default(),
             streaming: false,
             monitors,
@@ -50,7 +63,7 @@ impl Caster {
         }
     }
 
-    pub fn resize_rec_area(&mut self, x: i32, y: i32, width: u32, height: u32) -> bool {
+    pub fn resize_rec_area(&mut self, rect: ScreenRect) -> bool {
         self.lazy_init();
 
         let state = self.pipeline.current_state();
@@ -59,26 +72,29 @@ impl Caster {
             return false;
         }
 
+        let start_pos_x = rect.x as i32;
+        let start_pos_y = rect.y as i32;
+
         let mon = self.monitors.get_mut(&self.monitor).unwrap();
 
-        let right = if width > 0 {
-            mon.width - x as u32 - width
+        let right = if rect.width > 0.0 {
+            mon.width as i32 - start_pos_x - rect.width as i32
         } else {
             0
         };
 
-        let bottom = if height > 0 {
-            mon.height - y as u32 - height
+        let bottom = if rect.height > 0.0 {
+            mon.height as i32 - start_pos_y - rect.height as i32
         } else {
             0
         };
 
         let videobox = self.pipeline.by_name("videobox").unwrap();
 
-        videobox.set_property("left", x);
-        videobox.set_property("top", y);
-        videobox.set_property("right", right as i32);
-        videobox.set_property("bottom", bottom as i32);
+        videobox.set_property("left", start_pos_x);
+        videobox.set_property("top", start_pos_y);
+        videobox.set_property("right", right);
+        videobox.set_property("bottom", bottom);
 
         self.pipeline.set_state(state).is_err()
     }
@@ -138,15 +154,6 @@ impl Caster {
         self.pipeline.set_state(gst::State::Paused).is_err()
     }
 
-    pub fn close(&mut self) {
-        self.running.store(false, Ordering::Relaxed);
-        if self.init {
-            self.pause();
-            let _ = self.pipeline.set_state(gst::State::Null).is_err();
-        }
-        self.init = false;
-    }
-
     pub fn toggle_blank_screen(&mut self) -> bool {
         let state = self.pipeline.current_state();
 
@@ -177,6 +184,13 @@ impl Caster {
         self.pipeline.set_state(state).is_err()
     }
 
+    pub fn toggle_streaming(&mut self) {
+        if self.streaming {
+            self.pause();
+        } else {
+            self.cast();
+        }
+    }
     pub fn has_monitor(&self, id: u32) -> bool {
         self.monitors.contains_key(&id)
     }
@@ -189,6 +203,10 @@ impl Caster {
         }
 
         monitors
+    }
+
+    pub fn is_streaming(&self) -> bool {
+        self.streaming
     }
 
     fn setup_monitors() -> (HashMap<u32, XMonitor>, u32) {
@@ -214,10 +232,4 @@ impl Caster {
 
         (monitors, main)
     }
-}
-
-static INSTANCE: Lazy<Arc<Mutex<Caster>>> = Lazy::new(|| Arc::new(Mutex::new(Caster::new())));
-
-pub(crate) fn get_instance() -> Arc<Mutex<Caster>> {
-    INSTANCE.clone()
 }

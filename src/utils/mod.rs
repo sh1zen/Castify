@@ -3,6 +3,7 @@ use iced_core::Point;
 pub mod gist;
 pub mod net;
 pub mod tray_icon;
+pub mod key_listener;
 
 pub fn get_string_after(s: String, c: char) -> String {
     let index = s.find(c);

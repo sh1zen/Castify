@@ -41,7 +41,7 @@ impl GuiWindow for ASWindow {
         String::from(APP_NAME) + "::AreaSelection"
     }
 
-    fn update(&mut self, id: Id, message: ASWindowEvent, config: &mut Config) -> Task<AppEvent> {
+    fn update(&mut self, id: Id, message: ASWindowEvent, _config: &mut Config) -> Task<AppEvent> {
         match message {
             ASWindowEvent::AreaSelected(area) => {
                 self.invalid = false;
@@ -62,10 +62,14 @@ impl GuiWindow for ASWindow {
                 Task::done(AppEvent::CloseWindow(id))
             }
             ASWindowEvent::ExitValid => {
-                if self.invalid && self.area.is_some() {
-                    //config.
+                if !self.invalid && self.area.is_some() {
+                    Task::batch(vec![
+                        Task::done(AppEvent::AreaSelected(self.area.take().unwrap())),
+                        Task::done(AppEvent::CloseWindow(id))
+                    ])
+                } else {
+                    Task::done(AppEvent::CloseWindow(id))
                 }
-                Task::done(AppEvent::CloseWindow(id))
             }
         }
     }
