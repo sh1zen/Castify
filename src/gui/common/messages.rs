@@ -13,7 +13,7 @@ pub enum AppEvent
     /// Specified Window Event Message
     WindowEvent(Id, WindowMessage),
     /// The app window size has been changed
-    WindowResized(u32, u32),
+    WindowResized(Id, u32, u32),
     /// Time tick update
     TimeTick,
     /// Ignore
@@ -26,11 +26,12 @@ pub enum AppEvent
     BlankScreen,
     /// Connection Error
     ConnectionError,
-    /// hotkeys support
+    /// Hotkeys support
     KeyPressed(Modifiers, Key),
     /// Request for area selection page
     AreaSelection,
     /// Messages for handling area selection, set to 0 to restore default screen size
     AreaSelected(ScreenRect),
+    /// Handle Caster Rec/Pause actions
     CasterToggleStreaming,
 }

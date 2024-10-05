@@ -1,6 +1,6 @@
 use crate::assets::ICONS;
 use iced::widget::Text;
-use crate::gui::style::styles::csx::StyleType;
+use crate::gui::style::theme::csx::StyleType;
 
 #[allow(dead_code)]
 pub enum Icon {

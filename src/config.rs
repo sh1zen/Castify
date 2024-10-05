@@ -45,7 +45,6 @@ impl Default for HotkeyMap {
 pub struct Config {
     pub(crate) hotkey_map: HotkeyMap,
     pub(crate) window_size: Size,
-    pub dark_mode: bool,
     pub e_time: u64,
     pub mode: Option<Mode>,
 }
@@ -55,7 +54,6 @@ impl Default for Config {
         Config {
             hotkey_map: Default::default(),
             window_size: Size { width: 660f32, height: 440f32 },
-            dark_mode: false,
             e_time: 0,
             mode: None,
         }

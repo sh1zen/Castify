@@ -1,11 +1,11 @@
 use crate::assets::{APP_NAME, FONT_FAMILY_BOLD};
 use crate::config::Config;
 use crate::gui::common::icons::Icon;
-use crate::gui::style::button::ButtonType;
 use crate::gui::components::buttons::{IconButton, Key4Board};
+use crate::gui::style::button::ButtonType;
 use crate::gui::style::container::ContainerType;
 use crate::gui::widget::{horizontal_space, vertical_space, Container, Row, Text};
-use crate::windows::main::MainWindowEvent;
+use crate::windows::main::{MainWindow, MainWindowEvent};
 use iced::{Alignment, Length};
 use iced_core::alignment;
 use iced_core::keyboard::{Key, Modifiers};
@@ -16,7 +16,7 @@ pub enum Message {
     ButtonCaster,
     ButtonReceiver,
 }
-pub fn initial_page<'a>(config: &Config) -> Container<'a, MainWindowEvent> {
+pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Container<'a, MainWindowEvent> {
     let header = crate::row![
             Text::new(APP_NAME).size(40).font(FONT_FAMILY_BOLD),
             horizontal_space(),
@@ -60,7 +60,9 @@ pub fn initial_page<'a>(config: &Config) -> Container<'a, MainWindowEvent> {
                 crate::row![
                     Text::new("App Theme").align_x(alignment::Horizontal::Left).size(20).font(FONT_FAMILY_BOLD),
                     horizontal_space().width(Length::Fill),
-                    IconButton::new(if config.dark_mode {"Light"} else {"Dark"}).build().on_press(MainWindowEvent::DarkModeToggle),
+                    IconButton::new(if main_window.theme.target().get_palette().is_nightly() {"Dark"} else {"Light"}).build().on_press(
+                    MainWindowEvent::ThemeUpdate(main_window.theme.target().toggle().into())
+                ),
                 ]
                 .align_y(Alignment::Center)
                 .width(Length::Fill)

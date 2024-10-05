@@ -9,7 +9,7 @@ use crate::gui::components::home::initial_page;
 use crate::gui::components::hotkeys::{hotkeys, KeyTypes};
 use crate::gui::components::popup::{show_popup, Popup, PopupMsg, PopupType};
 use crate::gui::components::{caster, home, popup};
-use crate::gui::style::styles::csx::StyleType;
+use crate::gui::style::theme::csx::StyleType;
 use crate::gui::video::Video;
 use crate::gui::widget::{Column, Container, Element, IcedRenderer};
 use crate::windows::GuiWindow;
@@ -20,6 +20,7 @@ use iced::{window::Id, Task};
 use std::hash::Hash;
 use std::net::SocketAddr;
 use std::str::FromStr;
+use iced_anim::{Animation, Spring, SpringEvent};
 
 #[derive(PartialEq, Eq)]
 pub enum Page {
@@ -30,6 +31,7 @@ pub enum Page {
 }
 
 pub struct MainWindow {
+    pub theme: Spring<StyleType>,
     page: Page,
     popup: Popup,
     pub(crate) video: Video,
@@ -68,8 +70,8 @@ pub enum MainWindowEvent {
     ExitApp,
     /// Open the supplied web page
     OpenWebPage(String),
-    /// Toggle Dark Mode
-    DarkModeToggle,
+    /// Handle animated style change
+    ThemeUpdate(SpringEvent<StyleType>),
 }
 
 impl GuiWindow for MainWindow {
@@ -78,6 +80,7 @@ impl GuiWindow for MainWindow {
     fn new() -> Self {
         Self {
             // make as unique initializer using same as workers
+            theme: Spring::new(StyleType::default()),
             page: Page::Home,
             popup: Popup::new(),
             video: Video::new(),
@@ -176,10 +179,7 @@ impl GuiWindow for MainWindow {
             MainWindowEvent::AreaSelection => { Task::done(AppEvent::AreaSelection) }
             MainWindowEvent::AreaSelectedFullScreen => { Task::done(AppEvent::AreaSelected(ScreenRect::default())) }
             MainWindowEvent::ExitApp => { Task::done(AppEvent::ExitApp) }
-            MainWindowEvent::DarkModeToggle => {
-                config.dark_mode = !config.dark_mode;
-                Task::none()
-            }
+            MainWindowEvent::ThemeUpdate(event) => self.theme.update(event).into(),
             MainWindowEvent::Ignore => {
                 Task::none()
             }
@@ -189,7 +189,7 @@ impl GuiWindow for MainWindow {
     fn view(&self, config: &Config) -> Element<MainWindowEvent, StyleType, IcedRenderer> {
         let body = match self.page {
             Page::Home => {
-                initial_page(config)
+                initial_page(&self, config)
             }
             Page::Caster => {
                 caster_page(config)
@@ -210,7 +210,13 @@ impl GuiWindow for MainWindow {
             content = Column::new().push(show_popup(&self.popup, config, Container::new(content)));
         }
 
-        content.into()
+        Animation::new(&self.theme, content)
+            .on_update(MainWindowEvent::ThemeUpdate)
+            .into()
+    }
+
+    fn theme(&self) -> StyleType {
+        self.theme.value().clone()
     }
 }
 

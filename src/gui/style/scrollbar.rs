@@ -1,6 +1,6 @@
 use crate::assets::BORDER_RADIUS;
-use crate::gui::style::color::mix;
-use crate::gui::style::styles::csx::StyleType;
+use crate::gui::style::theme::color::mix;
+use crate::gui::style::theme::csx::StyleType;
 use iced::widget::scrollable::Scroller;
 use iced::widget::scrollable::{Catalog, Rail, Status, Style};
 use iced::{Background, Border, Color};

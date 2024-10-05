@@ -1,4 +1,4 @@
-use crate::gui::style::styles::csx::StyleType;
+use crate::gui::style::theme::csx::StyleType;
 use iced::widget::container::{Catalog, Style};
 use iced_core::{Background, Border, Color, Shadow, Vector};
 

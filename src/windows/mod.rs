@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::gui::common::messages::AppEvent;
-use crate::gui::style::styles::csx::StyleType;
-use crate::gui::widget::{Element, IcedRenderer, Space};
+use crate::gui::style::theme::csx::StyleType;
+use crate::gui::widget::{Element, IcedRenderer};
 use crate::windows::area_selector::{ASWindow, ASWindowEvent};
 use crate::windows::main::{MainWindow, MainWindowEvent};
 use iced_core::window::Id;
@@ -13,7 +13,6 @@ pub mod area_selector;
 pub enum WindowManager {
     Main(MainWindow),
     AreaSelector(ASWindow),
-    Undefined,
 }
 
 #[derive(Clone, Debug)]
@@ -28,6 +27,7 @@ pub trait GuiWindow {
     fn title(&self) -> String;
     fn update(&mut self, id: Id, message: Self::Message, config: &mut Config) -> Task<AppEvent>;
     fn view(&self, config: &Config) -> Element<Self::Message, StyleType, IcedRenderer>;
+    fn theme(&self) -> StyleType;
 }
 
 impl WindowManager {
@@ -35,7 +35,6 @@ impl WindowManager {
         match self {
             Self::Main(window) => window.title(),
             Self::AreaSelector(window) => window.title(),
-            Self::Undefined => String::new()
         }
     }
 
@@ -53,7 +52,6 @@ impl WindowManager {
                 };
                 window.update(id, message, config)
             }
-            Self::Undefined => Task::none()
         }
     }
 
@@ -61,7 +59,13 @@ impl WindowManager {
         match self {
             Self::Main(window) => window.view(config).map(move |message| WindowMessage::Main(message)),
             Self::AreaSelector(window) => window.view(config).map(move |message| WindowMessage::AreaSelector(message)),
-            Self::Undefined => Element::new(Space::new(0,0))
+        }
+    }
+
+    pub(crate) fn theme(&self) -> StyleType {
+        match self {
+            Self::Main(window) => window.theme(),
+            Self::AreaSelector(window) => window.theme(),
         }
     }
 }

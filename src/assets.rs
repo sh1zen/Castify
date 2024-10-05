@@ -61,7 +61,7 @@ pub const FONT_FAMILY_BOLD: Font = Font {
 pub const FONT_SIZE_BODY: f32 = 14.0;
 pub const FONT_SIZE_FOOTER: f32 = 11.0;
 
-// border styles
+// border theme
 pub const BORDER_WIDTH: f32 = 0.0;
 pub const BORDER_RADIUS: f32 = 8.0;
 pub const BORDER_ALPHA: f32 = 0.0;

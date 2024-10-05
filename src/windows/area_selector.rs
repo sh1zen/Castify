@@ -4,7 +4,7 @@ use crate::gui::common::datastructure::ScreenRect;
 use crate::gui::common::messages::AppEvent;
 use crate::gui::components::AreaSelector;
 use crate::gui::style::container::ContainerType;
-use crate::gui::style::styles::csx::StyleType;
+use crate::gui::style::theme::csx::StyleType;
 use crate::gui::widget::{horizontal_space, vertical_space, Canvas, Column, Container, Element, IcedRenderer, Row, Stack, Text};
 use crate::windows::GuiWindow;
 use iced_core::window::Id;
@@ -122,5 +122,9 @@ impl GuiWindow for ASWindow {
             .height(Fill)
             .width(Fill)
             .into()
+    }
+
+    fn theme(&self) -> StyleType {
+        StyleType::SemiTransparent
     }
 }

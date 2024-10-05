@@ -1,5 +1,5 @@
 use crate::assets::{BORDER_RADIUS, BORDER_WIDTH};
-use crate::gui::style::styles::csx::StyleType;
+use crate::gui::style::theme::csx::StyleType;
 use iced::widget::pick_list::{Catalog, Status, Style};
 use iced_core::{Background, Border, Color};
 

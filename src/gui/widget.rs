@@ -1,6 +1,6 @@
 use iced::widget as w;
 
-use crate::gui::style::styles::csx::StyleType as Theme;
+use crate::gui::style::theme::csx::StyleType as Theme;
 
 pub type IcedRenderer = iced::Renderer;
 
@@ -22,7 +22,7 @@ pub type Scrollable<'a, Message> = w::Scrollable<'a, Message, Theme, IcedRendere
 pub type Canvas<P, Message> = w::Canvas<P, Message, Theme, IcedRenderer>;
 
 
-use crate::gui::style::styles::csx::StyleType;
+use crate::gui::style::theme::csx::StyleType;
 pub use w::Space;
 pub use w::horizontal_space;
 pub use w::vertical_space;

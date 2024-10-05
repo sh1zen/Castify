@@ -2,7 +2,7 @@ use crate::assets::ICON_BYTES;
 use crate::config::Config;
 use crate::gui::common::messages::AppEvent;
 use crate::gui::components::hotkeys::KeyTypes;
-use crate::gui::style::styles::csx::StyleType;
+use crate::gui::style::theme::csx::StyleType;
 use crate::gui::widget::Element;
 use crate::gui::widget::IcedRenderer;
 use crate::utils::key_listener::global_key_listener;
@@ -79,6 +79,7 @@ impl App {
                         exit_on_close_request: false,
                         ..Default::default()
                     });
+                    self.main_window = Some(id);
                     self.windows.insert(id, WindowManager::Main(MainWindow::new()));
                     open_task.discard().chain(gain_focus(id))
                 } else {
@@ -137,8 +138,10 @@ impl App {
                 self.config.e_time = self.config.e_time + 1;
                 Task::none()
             }
-            AppEvent::WindowResized(width, height) => {
-                self.config.window_size = Size { width: width as f32, height: height as f32 };
+            AppEvent::WindowResized(id, width, height) => {
+                if Some(id) == self.main_window {
+                    self.config.window_size = Size { width: width as f32, height: height as f32 };
+                }
                 Task::none()
             }
             AppEvent::OpenWebPage(web_page) => {
@@ -163,8 +166,6 @@ impl App {
                 }
 
                 let item = (modifier, key);
-
-                println!("{:?}", item);
 
                 if self.config.hotkey_map.updating != KeyTypes::None {
                     match self.config.hotkey_map.updating {
@@ -221,9 +222,21 @@ impl App {
         }
     }
 
-    pub(crate) fn subscription(&self) -> Subscription<AppEvent> {
-        let window_events = window::close_events().map(|id| AppEvent::CloseWindow(id));
+    pub fn theme(&self, id: Id) -> StyleType {
+        match self.windows.get(&id) {
+            Some(window_handler) => window_handler.theme(),
+            None => StyleType::default(),
+        }
+    }
 
+    pub fn style(&self, theme: &StyleType) -> Appearance {
+        Appearance {
+            background_color: theme.get_palette().background,
+            text_color: theme.get_palette().text,
+        }
+    }
+
+    pub fn subscription(&self) -> Subscription<AppEvent> {
         let tray_menu_listener = Subscription::run(tray_menu_listener);
         let tray_icon_listener = Subscription::run(tray_icon_listener);
 
@@ -233,7 +246,6 @@ impl App {
 
         Subscription::batch([
             time_listener,
-            window_events,
             tray_menu_listener,
             tray_icon_listener,
             global_key_listener,
@@ -243,7 +255,6 @@ impl App {
     }
 
     fn keyboard_subscription(&self) -> Subscription<AppEvent> {
-        // used to update HotKeys
         iced::event::listen_with(|event, _status, _id| match event {
             Keyboard(Event::KeyPressed { key, modifiers, .. }) => {
                 Some(AppEvent::KeyPressed(modifiers, key))
@@ -258,28 +269,9 @@ impl App {
                 Some(AppEvent::CloseWindow(id))
             }
             Window(window::Event::Resized(size)) => {
-                Some(AppEvent::WindowResized(size.width as u32, size.height as u32))
+                Some(AppEvent::WindowResized(id, size.width as u32, size.height as u32))
             }
             _ => None,
         })
-    }
-
-    pub fn style(&self, theme: &StyleType) -> Appearance {
-        Appearance {
-            background_color: theme.get_palette().background,
-            text_color: theme.get_palette().text,
-        }
-    }
-
-    pub fn theme(&self, id: Id) -> StyleType {
-        if let WindowManager::AreaSelector(_) = self.windows.get(&id).unwrap_or(&WindowManager::Undefined) {
-            StyleType::SemiTransparent
-        } else {
-            if self.config.dark_mode {
-                StyleType::DarkVenus
-            } else {
-                StyleType::LightVenus
-            }
-        }
     }
 }

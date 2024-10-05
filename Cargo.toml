@@ -23,7 +23,7 @@ iced_runtime = "0.13.2"
 iced_core = "0.13.2"
 iced_wgpu = "0.13.5"
 iced_graphics = "0.13.0"
-iced_anim = "0.1.2"
+iced_anim = { version = "0.1.2", features = ["derive", "serde"] }
 socket2 = "0.5.7"
 ctrlc = "3.4.5"
 plotters = "0.3.7"
