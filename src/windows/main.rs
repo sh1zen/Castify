@@ -72,6 +72,7 @@ pub enum MainWindowEvent {
     OpenWebPage(String),
     /// Handle animated style change
     ThemeUpdate(SpringEvent<StyleType>),
+    ShowAnnotationWindow,
 }
 
 impl GuiWindow for MainWindow {
@@ -175,8 +176,9 @@ impl GuiWindow for MainWindow {
                 workers::save_stream::get_instance().lock().unwrap().stop();
                 Task::none()
             }
+            MainWindowEvent::ShowAnnotationWindow => { Task::done(AppEvent::OpenAnnotationWindow)}
             MainWindowEvent::OpenWebPage(s) => { Task::done(AppEvent::OpenWebPage(s)) }
-            MainWindowEvent::AreaSelection => { Task::done(AppEvent::AreaSelection) }
+            MainWindowEvent::AreaSelection => { Task::done(AppEvent::OpenAreaSelectionWindow) }
             MainWindowEvent::AreaSelectedFullScreen => { Task::done(AppEvent::AreaSelected(ScreenRect::default())) }
             MainWindowEvent::ExitApp => { Task::done(AppEvent::ExitApp) }
             MainWindowEvent::ThemeUpdate(event) => self.theme.update(event).into(),
@@ -186,7 +188,7 @@ impl GuiWindow for MainWindow {
         }
     }
 
-    fn view(&self, config: &Config) -> Element<MainWindowEvent, StyleType, IcedRenderer> {
+    fn view(&self, config: &Config) -> Element<MainWindowEvent> {
         let body = match self.page {
             Page::Home => {
                 initial_page(&self, config)

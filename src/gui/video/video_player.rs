@@ -1,13 +1,11 @@
 use crate::gui::video::pipeline::VideoPrimitive;
 use crate::gui::video::Video;
 use gstreamer as gst;
-use iced::{
-    advanced::{self, graphics::core::event::Status, layout, widget, Widget},
-};
+use iced::{advanced::{self, graphics::core::event::Status, layout, widget, Widget}, Element};
 use iced_wgpu::primitive::Renderer as PrimitiveRenderer;
 use std::{marker::PhantomData, sync::atomic::Ordering};
 use std::{sync::Arc, time::Duration};
-use crate::gui::widget::Element;
+
 
 /// Video player widget which displays the current frame of a [`Video`](crate::Video).
 pub struct VideoPlayer<'a, Message, Theme, Renderer>

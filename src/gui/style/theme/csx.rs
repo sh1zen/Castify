@@ -12,6 +12,7 @@ pub enum StyleType {
     SemiTransparent,
     #[default]
     LightVenus,
+    Transparent,
     #[serde(skip)]
     Custom(Palette),
 }
@@ -51,6 +52,16 @@ impl StyleType {
                 primary_darker: rgba8!(180.0, 180.0, 180.0, 1.0),
                 secondary: rgba8!(160.0, 160.0, 160.0, 1.0),
                 action: rgba8!(220.0, 140.0, 80.0, 1.0),
+                danger: rgba8!(225.0, 80.0, 80.0, 1.0),
+                text: Color::BLACK,
+                text_inv: Color::WHITE,
+            },
+            StyleType::Transparent => Palette {
+                background: rgba8!(0.0, 0.0, 0.0, 0.0),
+                primary: rgba8!(210.0, 210.0, 210.0, 1.0),
+                primary_darker: rgba8!(180.0, 180.0, 180.0, 1.0),
+                secondary: rgba8!(160.0, 160.0, 160.0, 1.0),
+                action: rgba8!(220.0, 120.0, 20.0, 1.0),
                 danger: rgba8!(225.0, 80.0, 80.0, 1.0),
                 text: Color::BLACK,
                 text_inv: Color::WHITE,

@@ -4,14 +4,14 @@ use crate::gui::common::icons::Icon;
 use crate::gui::components::buttons::IconButton;
 use crate::gui::style::button::ButtonType;
 use crate::gui::style::container::ContainerType;
-use crate::gui::widget::{horizontal_space, vertical_space, Column, Container, PickList, Text};
+use crate::gui::widget::{horizontal_space, vertical_space, Column, Container, Element, PickList, Text};
 use crate::row;
 use crate::utils::{format_seconds, get_string_after};
 use crate::windows::main::MainWindowEvent;
 use iced::alignment::{Horizontal, Vertical};
-use iced::Length;
+use iced::{Length};
 
-pub fn caster_page<'a>(config: &Config) -> Container<'a, MainWindowEvent> {
+pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
     let mut is_streaming = false;
 
     let mut content = Column::new().spacing(10).padding(15);
@@ -23,6 +23,15 @@ pub fn caster_page<'a>(config: &Config) -> Container<'a, MainWindowEvent> {
                 .push(
                     Container::new(
                         row![Text::new(format_seconds(caster.streaming_time).to_string()).font(FONT_FAMILY_BOLD)]
+                    ).width(Length::Fill).height(Length::Fill)
+                        .align_x(Horizontal::Center)
+                        .align_y(Vertical::Center).height(80).class(ContainerType::Standard)
+                )
+                .push(
+                    Container::new(
+                        row![
+                            IconButton::new(Some(String::from("Annotations"))).icon(Icon::Image).build().width(180).on_press(MainWindowEvent::ShowAnnotationWindow)
+                        ]
                     ).width(Length::Fill).height(Length::Fill)
                         .align_x(Horizontal::Center)
                         .align_y(Vertical::Center).height(80).class(ContainerType::Standard)
@@ -39,12 +48,12 @@ pub fn caster_page<'a>(config: &Config) -> Container<'a, MainWindowEvent> {
             .push(
                 Container::new(
                     row![
-                        IconButton::new("Full Screen")
+                        IconButton::new(Some(String::from("Full Screen")))
                         .icon(Icon::Screen)
                         .build()
                         .on_press(MainWindowEvent::AreaSelectedFullScreen),
                         horizontal_space().width(10),
-                        IconButton::new("Select Area")
+                        IconButton::new(Some(String::from("Select Area")))
                             .icon(Icon::Area)
                             .build()
                             .on_press(MainWindowEvent::AreaSelection)
@@ -54,7 +63,7 @@ pub fn caster_page<'a>(config: &Config) -> Container<'a, MainWindowEvent> {
             .push(
                 Container::new(
                     row![
-                        IconButton::new("Home")
+                        IconButton::new(Some(String::from("Home")))
                         .icon(Icon::Browser)
                         .build()
                         .on_press(MainWindowEvent::Home)
@@ -69,13 +78,13 @@ pub fn caster_page<'a>(config: &Config) -> Container<'a, MainWindowEvent> {
         .push(
             Container::new(
                 if is_streaming {
-                    IconButton::new("")
+                    IconButton::new(None)
                         .icon(Icon::Pause)
                         .style(ButtonType::Rounded)
                         .build().width(80).height(80)
                         .on_press(MainWindowEvent::CasterToggleStreaming)
                 } else {
-                    IconButton::new("")
+                    IconButton::new(None)
                         .icon(Icon::Video)
                         .style(ButtonType::Rounded)
                         .build().width(80).height(80)
@@ -92,6 +101,7 @@ pub fn caster_page<'a>(config: &Config) -> Container<'a, MainWindowEvent> {
         .height(Length::Fill)
         .align_x(Horizontal::Center)
         .align_y(Vertical::Top)
+        .into()
 }
 
 fn monitor_name(id: u32) -> String {

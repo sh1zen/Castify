@@ -28,8 +28,7 @@ pub fn tray_icon() -> TrayIcon {
         &MenuItem::with_id("open", "Open", true, None),
         &PredefinedMenuItem::separator(),
         &MenuItem::with_id("exit", "Exit", true, None),
-    ])
-        .unwrap();
+    ]).expect("Tray icon set up failed.");
 
     TrayIcon::new(TrayIconAttributes {
         tooltip: Some(APP_NAME.to_string()),
@@ -54,7 +53,7 @@ pub fn tray_icon_listener() -> impl Stream<Item=AppEvent> {
 
         loop {
             if let Some(TrayIconEvent::DoubleClick { button: Left, .. }) = reciever.recv().await {
-                output.send(AppEvent::ShowMainWindow).await.unwrap();
+                output.send(AppEvent::OpenMainWindow).await.unwrap();
             }
         }
     })
@@ -73,7 +72,7 @@ pub fn tray_menu_listener() -> impl Stream<Item=AppEvent> {
         loop {
             if let Some(MenuEvent { id: MenuId(id) }) = reciever.recv().await {
                 let event = match id.as_str() {
-                    "open" => AppEvent::ShowMainWindow,
+                    "open" => AppEvent::OpenMainWindow,
                     "exit" => AppEvent::ExitApp,
                     _ => AppEvent::Ignore,
                 };

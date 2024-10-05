@@ -6,17 +6,25 @@ use iced_core::{Length, Padding};
 use crate::assets::FONT_FAMILY_BOLD;
 
 pub struct IconButton {
-    label: String,
+    label: Option<String>,
     icon: Option<Icon>,
     button_type: ButtonType,
+    dim: Dimensions
+}
+
+pub enum Dimensions {
+    Small,
+    Medium,
+    Large,
 }
 
 impl IconButton {
-    pub fn new(label: &str) -> Self {
+    pub fn new(label: Option<String>) -> Self {
         Self {
-            label: label.into(),
+            label,
             icon: None,
             button_type: ButtonType::Standard,
+            dim: Dimensions::Medium,
         }
     }
 
@@ -37,12 +45,12 @@ impl IconButton {
                 Row::new()
                     .spacing(2)
                     .push(icon.to_text())
-                    .push_if(self.label.len() > 0, || Space::with_width(Length::Fill))
-                    .push_if(self.label.len() > 0, || Text::new(self.label.clone()).size(15).font(FONT_FAMILY_BOLD))
+                    .push_if(self.label.is_some(), || Space::with_width(Length::Fill))
+                    .push_if(self.label.is_some(), || Text::new(self.label.unwrap().clone()).size(15).font(FONT_FAMILY_BOLD))
                     .align_y(iced::Alignment::Center)
             )
         } else {
-            Container::new(Text::new(self.label.clone()).font(FONT_FAMILY_BOLD))
+            Container::new(Text::new(self.label.unwrap_or("".parse().unwrap()).clone()).font(FONT_FAMILY_BOLD))
         };
 
         Button::new(
@@ -57,7 +65,16 @@ impl IconButton {
                 left: 22.0,
             })
             .height(40)
-            .width(130)
+            .width(match self.dim {
+                Dimensions::Small => 80,
+                Dimensions::Medium => 130,
+                Dimensions::Large => 160,
+            })
             .class(self.button_type)
+    }
+
+    pub fn dim(mut self, dim: Dimensions) -> Self {
+        self.dim = dim;
+        self
     }
 }

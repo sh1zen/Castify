@@ -7,7 +7,9 @@ use iced_core::window::Id;
 pub enum AppEvent
 {
     /// Open Main Window
-    ShowMainWindow,
+    OpenMainWindow,
+    /// Open Annotation Window
+    OpenAnnotationWindow,
     /// Close an app window
     CloseWindow(Id),
     /// Specified Window Event Message
@@ -29,7 +31,7 @@ pub enum AppEvent
     /// Hotkeys support
     KeyPressed(Modifiers, Key),
     /// Request for area selection page
-    AreaSelection,
+    OpenAreaSelectionWindow,
     /// Messages for handling area selection, set to 0 to restore default screen size
     AreaSelected(ScreenRect),
     /// Handle Caster Rec/Pause actions

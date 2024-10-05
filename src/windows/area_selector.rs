@@ -5,7 +5,7 @@ use crate::gui::common::messages::AppEvent;
 use crate::gui::components::AreaSelector;
 use crate::gui::style::container::ContainerType;
 use crate::gui::style::theme::csx::StyleType;
-use crate::gui::widget::{horizontal_space, vertical_space, Canvas, Column, Container, Element, IcedRenderer, Row, Stack, Text};
+use crate::gui::widget::{horizontal_space, vertical_space, Canvas, Column, Container, Element, Row, Stack, Text};
 use crate::windows::GuiWindow;
 use iced_core::window::Id;
 use iced_core::Alignment::Center;
@@ -41,7 +41,7 @@ impl GuiWindow for ASWindow {
         String::from(APP_NAME) + "::AreaSelection"
     }
 
-    fn update(&mut self, id: Id, message: ASWindowEvent, _config: &mut Config) -> Task<AppEvent> {
+    fn update(&mut self, id: Id, message: Self::Message, _config: &mut Config) -> Task<AppEvent> {
         match message {
             ASWindowEvent::AreaSelected(area) => {
                 self.invalid = false;
@@ -74,8 +74,9 @@ impl GuiWindow for ASWindow {
         }
     }
 
-    fn view(&self, _config: &Config) -> Element<ASWindowEvent, StyleType, IcedRenderer> {
+    fn view(&self, _config: &Config) -> Element<Self::Message> {
         let text_hint = if self.invalid {
+
             "Invalid selection"
         } else if let Some(_) = self.area {
             "Enter to Confirm | Click to Reset"

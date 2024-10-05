@@ -2,7 +2,7 @@ use crate::assets::FONT_FAMILY_BOLD;
 use crate::gui::common::icons::Icon;
 use crate::gui::components::buttons::IconButton;
 use crate::gui::style::container::ContainerType;
-use crate::gui::widget::{horizontal_space, vertical_space, Container, Row, Text};
+use crate::gui::widget::{horizontal_space, vertical_space, Container, Element, Row, Text};
 use crate::windows::main::MainWindowEvent;
 use iced::{Alignment, Length};
 
@@ -15,7 +15,7 @@ pub enum KeyTypes {
     None,
 }
 
-pub fn hotkeys<'a>() -> Container<'a, MainWindowEvent> {
+pub fn hotkeys<'a>() -> Element<'a, MainWindowEvent> {
     let header = Container::new(
         crate::row![
             horizontal_space().width(Length::Fill),
@@ -29,13 +29,13 @@ pub fn hotkeys<'a>() -> Container<'a, MainWindowEvent> {
             Row::new()
                 .align_y(Alignment::Center).spacing(15)
                 .push(
-                    IconButton::new("Pause")
+                    IconButton::new(Some(String::from("Pause")))
                         .icon(Icon::Pause)
                         .build().width(160)
                         .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::Pause))
                 )
                 .push(
-                    IconButton::new("Record")
+                    IconButton::new(Some(String::from("Record")))
                         .icon(Icon::Video)
                         .build().width(160)
                         .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::Record))
@@ -44,13 +44,13 @@ pub fn hotkeys<'a>() -> Container<'a, MainWindowEvent> {
             Row::new()
                 .align_y(Alignment::Center).spacing(15)
                 .push(
-                    IconButton::new("Terminate")
+                    IconButton::new(Some(String::from("Terminate")))
                         .icon(Icon::Stop)
                         .build().width(160)
                         .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::Close))
                 )
                 .push(
-                    IconButton::new("Blank Screen")
+                    IconButton::new(Some(String::from("Blank Screen")))
                         .icon(Icon::Banned)
                         .build().width(160)
                         .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::BlankScreen))
@@ -64,7 +64,7 @@ pub fn hotkeys<'a>() -> Container<'a, MainWindowEvent> {
     let actions = Container::new(
         crate::row![
             horizontal_space().width(Length::Fill),
-            IconButton::new("Home")
+            IconButton::new(Some(String::from("Home")))
                 .icon(Icon::Browser)
                 .build()
                 .on_press(MainWindowEvent::Home),
@@ -74,5 +74,5 @@ pub fn hotkeys<'a>() -> Container<'a, MainWindowEvent> {
 
     let content = crate::column![header, hotkeys, vertical_space(), actions].spacing(10).padding(15);
 
-    Container::new(content).center(Length::Fill)
+    Container::new(content).center(Length::Fill).into()
 }

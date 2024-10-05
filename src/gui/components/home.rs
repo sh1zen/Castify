@@ -4,7 +4,7 @@ use crate::gui::common::icons::Icon;
 use crate::gui::components::buttons::{IconButton, Key4Board};
 use crate::gui::style::button::ButtonType;
 use crate::gui::style::container::ContainerType;
-use crate::gui::widget::{horizontal_space, vertical_space, Container, Row, Text};
+use crate::gui::widget::{horizontal_space, vertical_space, Container, Row, Text, Element};
 use crate::windows::main::{MainWindow, MainWindowEvent};
 use iced::{Alignment, Length};
 use iced_core::alignment;
@@ -16,11 +16,11 @@ pub enum Message {
     ButtonCaster,
     ButtonReceiver,
 }
-pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Container<'a, MainWindowEvent> {
+pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a, MainWindowEvent> {
     let header = crate::row![
             Text::new(APP_NAME).size(40).font(FONT_FAMILY_BOLD),
             horizontal_space(),
-            IconButton::new("Exit").style(ButtonType::Danger).build()
+            IconButton::new(Some(String::from("Exit"))).style(ButtonType::Danger).build()
                 .on_press(MainWindowEvent::ExitApp)
                 .height(40)
                 .width(80),
@@ -31,19 +31,19 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Container<
             Container::new(
                 crate::row![
                     horizontal_space(),
-                    IconButton::new("Hotkeys")
+                    IconButton::new(Some(String::from("Hotkeys")))
                         .icon(Icon::Settings)
                         .style(ButtonType::Standard)
                         .build()
                         .on_press(MainWindowEvent::HotkeysPage),
                     horizontal_space().width(10),
-                    IconButton::new("Receiver")
+                    IconButton::new(Some(String::from("Receiver")))
                         .icon(Icon::Connection)
                         .style(ButtonType::Standard)
                         .build()
                         .on_press(MainWindowEvent::Mode(Message::ButtonReceiver)),
                     horizontal_space().width(10),
-                    IconButton::new("Caster")
+                    IconButton::new(Some(String::from("Caster")))
                         .icon(Icon::Cast)
                         .style(ButtonType::Standard)
                         .build()
@@ -60,7 +60,7 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Container<
                 crate::row![
                     Text::new("App Theme").align_x(alignment::Horizontal::Left).size(20).font(FONT_FAMILY_BOLD),
                     horizontal_space().width(Length::Fill),
-                    IconButton::new(if main_window.theme.target().get_palette().is_nightly() {"Dark"} else {"Light"}).build().on_press(
+                    IconButton::new(Some(String::from(if main_window.theme.target().get_palette().is_nightly() {"Dark"} else {"Light"}))).build().on_press(
                     MainWindowEvent::ThemeUpdate(main_window.theme.target().toggle().into())
                 ),
                 ]
@@ -108,6 +108,7 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Container<
     Container::new(content)
         .center(Length::Fill)
         .align_y(alignment::Vertical::Top)
+        .into()
 }
 
 fn shortcuts<Message: 'static>(key_bind: (Modifiers, Key), str: &'static str) -> Row<'static, Message> {

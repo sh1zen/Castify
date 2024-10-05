@@ -4,10 +4,10 @@ use crate::gui::common::messages::AppEvent;
 use crate::gui::components::hotkeys::KeyTypes;
 use crate::gui::style::theme::csx::StyleType;
 use crate::gui::widget::Element;
-use crate::gui::widget::IcedRenderer;
 use crate::utils::key_listener::global_key_listener;
 use crate::utils::open_link;
 use crate::utils::tray_icon::{tray_icon_listener, tray_menu_listener};
+use crate::windows::annotation::AnnotationWindow;
 use crate::windows::area_selector::ASWindow;
 use crate::windows::main::MainWindow;
 use crate::windows::{GuiWindow, WindowManager};
@@ -18,10 +18,9 @@ use iced::Event::Window;
 use iced::{window, Subscription};
 use iced_core::keyboard::{Event, Key};
 use iced_core::window::settings::PlatformSpecific;
-use iced_core::window::{Id, Mode, Position};
+use iced_core::window::{Id, Level, Mode, Position};
 use iced_core::Event::Keyboard;
 use iced_core::Size;
-use iced_runtime::window::{change_mode, gain_focus};
 use iced_runtime::Task;
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -42,13 +41,13 @@ impl App {
                 windows: Default::default(),
                 main_window: None,
             },
-            Task::done(AppEvent::ShowMainWindow),
+            Task::done(AppEvent::OpenMainWindow),
         )
     }
 
     pub(crate) fn update(&mut self, message: AppEvent) -> Task<AppEvent> {
         match message {
-            AppEvent::ShowMainWindow => {
+            AppEvent::OpenMainWindow => {
                 if self.main_window.is_none() {
                     let (id, open_task) = window::open(window::Settings {
                         size: self.config.window_size,
@@ -81,12 +80,36 @@ impl App {
                     });
                     self.main_window = Some(id);
                     self.windows.insert(id, WindowManager::Main(MainWindow::new()));
-                    open_task.discard().chain(gain_focus(id))
+                    open_task.discard().chain(window::gain_focus(id))
                 } else {
-                    gain_focus(self.main_window.unwrap())
+                    window::gain_focus(self.main_window.unwrap())
                 }
             }
-            AppEvent::AreaSelection => {
+            AppEvent::OpenAreaSelectionWindow => {
+                if self.windows.len() <= 1 {
+                    let (id, open_task) = window::open(window::Settings {
+                        transparent: true,
+                        decorations: false,
+                        resizable: false,
+                        #[cfg(target_os = "windows")]
+                        platform_specific: PlatformSpecific {
+                            drag_and_drop: false,
+                            skip_taskbar: true,
+                            undecorated_shadow: false,
+                        },
+                        level: Level::AlwaysOnTop,
+                        ..Default::default()
+                    });
+                    self.windows.insert(id, WindowManager::AreaSelector(ASWindow::new()));
+                    open_task
+                        .discard()
+                        .chain(window::gain_focus(id))
+                        .chain(window::change_mode(id, Mode::Fullscreen))
+                } else {
+                    Task::none()
+                }
+            }
+            AppEvent::OpenAnnotationWindow => {
                 if self.windows.len() <= 1 {
                     let (id, open_task) = window::open(window::Settings {
                         transparent: true,
@@ -100,11 +123,12 @@ impl App {
                         },
                         ..Default::default()
                     });
-                    self.windows.insert(id, WindowManager::AreaSelector(ASWindow::new()));
+                    self.windows.insert(id, WindowManager::Annotation(AnnotationWindow::new()));
                     open_task
                         .discard()
-                        .chain(gain_focus(id))
-                        .chain(change_mode(id, Mode::Fullscreen))
+                        .chain(window::gain_focus(id))
+                        .chain(window::change_mode(id, Mode::Fullscreen))
+                        .chain(window::enable_mouse_passthrough(id))
                 } else {
                     Task::none()
                 }
@@ -208,7 +232,7 @@ impl App {
         }
     }
 
-    pub(crate) fn view(&self, id: Id) -> Element<AppEvent, StyleType, IcedRenderer> {
+    pub(crate) fn view(&self, id: Id) -> Element<AppEvent> {
         match self.windows.get(&id) {
             Some(window_handler) => window_handler.view(&self.config).map(move |message| AppEvent::WindowEvent(id, message)),
             None => horizontal_space().into(),

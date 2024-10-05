@@ -39,7 +39,7 @@ pub(crate) fn find_caster() -> Option<SocketAddr> {
     addr
 }
 
-pub(crate) fn caster_discover_service() {
+pub(crate) fn caster_discover_service() -> ServiceDaemon {
     let mdns = ServiceDaemon::new().expect("Failed to create daemon");
     let ip = local_ip().expect("No internet connection");
     let host_name = String::from(ip.to_string()) + ".local.";
@@ -57,4 +57,6 @@ pub(crate) fn caster_discover_service() {
     mdns.register(my_service).expect("Failed to register our service");
 
     println!("Caster running and registered on mDNS");
+
+    mdns
 }

@@ -127,7 +127,7 @@ fn hotkey_update<'a>(popup: &Popup, config: &Config) -> Container<'a, MainWindow
         _ => { (Modifiers::empty(), Key::Unidentified) }
     };
 
-    let ok_button = IconButton::new("Ok").build().on_press(MainWindowEvent::ClosePopup);
+    let ok_button = IconButton::new(Some(String::from("Ok"))).build().on_press(MainWindowEvent::ClosePopup);
 
     let content = popup_base(None)
         .push(
@@ -168,7 +168,7 @@ fn ip_popup<'a>(popup: &Popup) -> Container<'a, MainWindowEvent> {
         .padding([8, 12])
         .id(iced::widget::text_input::Id::new("ip_text_input"));
 
-    let mut button = IconButton::new("Connect").build();
+    let mut button = IconButton::new(Some(String::from("Connect"))).build();
 
     if !entered_ip.is_empty() {
         button = button.on_press(MainWindowEvent::ConnectToCaster(entered_ip.clone()));
@@ -179,9 +179,9 @@ fn ip_popup<'a>(popup: &Popup) -> Container<'a, MainWindowEvent> {
         .push(
             Row::new().spacing(12)
                 .push(button)
-                .push(IconButton::new("Auto").build().on_press(MainWindowEvent::ConnectToCaster("auto".parse().unwrap())))
+                .push(IconButton::new(Some(String::from("Auto"))).build().on_press(MainWindowEvent::ConnectToCaster("auto".parse().unwrap())))
                 .push(
-                    IconButton::new("Home")
+                    IconButton::new(Some(String::from("Home")))
                         .icon(Icon::Browser)
                         .build()
                         .on_press(MainWindowEvent::Home)

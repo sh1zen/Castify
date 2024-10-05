@@ -2,32 +2,32 @@ use crate::gui::common::icons::Icon;
 use crate::gui::components::buttons::IconButton;
 use crate::gui::style::container::ContainerType;
 use crate::gui::video::{Video, VideoPlayer};
-use crate::gui::widget::{Column, Container, Row};
+use crate::gui::widget::{Column, Container, Element, Row};
 use crate::windows::main::MainWindowEvent;
 use crate::workers;
 use iced::{Alignment, Length};
 use iced_core::{alignment, Padding};
 
-pub fn client_page<'a, 'b>(video: &'b Video) -> Container<'a, MainWindowEvent>
+pub fn client_page<'a, 'b>(video: &'b Video) -> Element<'a, MainWindowEvent>
 where 'b: 'a
 {
     let actions = Row::new()
         .align_y(Alignment::Center).spacing(10)
         .push(
             if workers::save_stream::get_instance().lock().unwrap().is_saving {
-                IconButton::new("Stop")
+                IconButton::new(Some(String::from("Stop")))
                     .icon(Icon::Save)
                     .build()
                     .on_press(MainWindowEvent::SaveCaptureStop)
             } else {
-                IconButton::new("Save")
+                IconButton::new(Some(String::from("Save")))
                     .icon(Icon::Download)
                     .build()
                     .on_press(MainWindowEvent::SaveCapture)
             }
         )
         .push(
-            IconButton::new("Exit")
+            IconButton::new(Some(String::from("Exit")))
                 .icon(Icon::Stop)
                 .build()
                 .on_press(MainWindowEvent::ExitApp)
@@ -57,4 +57,5 @@ where 'b: 'a
             bottom: 10.0,
             left: 0.0,
         })
+        .into()
 }

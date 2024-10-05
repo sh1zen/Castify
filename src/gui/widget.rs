@@ -4,7 +4,7 @@ use crate::gui::style::theme::csx::StyleType as Theme;
 
 pub type IcedRenderer = iced::Renderer;
 
-pub type Element<'a, Message, Theme, Renderer> = iced::Element<'a, Message, Theme, Renderer>;
+pub type Element<'a, Message> = iced::Element<'a, Message, Theme, IcedRenderer>;
 
 
 pub type Container<'a, Message> = w::Container<'a, Message, Theme, IcedRenderer>;
@@ -22,22 +22,21 @@ pub type Scrollable<'a, Message> = w::Scrollable<'a, Message, Theme, IcedRendere
 pub type Canvas<P, Message> = w::Canvas<P, Message, Theme, IcedRenderer>;
 
 
-use crate::gui::style::theme::csx::StyleType;
-pub use w::Space;
 pub use w::horizontal_space;
 pub use w::vertical_space;
+pub use w::Space;
 
 
 pub trait IcedParentExt<'a, Message> {
     fn push_if<E>(self, condition: bool, element: impl FnOnce() -> E) -> Self
     where
-        E: Into<Element<'a, Message, StyleType, IcedRenderer>>;
+        E: Into<Element<'a, Message>>;
 }
 
 impl<'a, Message> IcedParentExt<'a, Message> for Column<'a, Message> {
     fn push_if<E>(self, condition: bool, element: impl FnOnce() -> E) -> Self
     where
-        E: Into<Element<'a, Message, Theme, IcedRenderer>>,
+        E: Into<Element<'a, Message>>,
     {
         if condition {
             self.push(element().into())
@@ -50,7 +49,7 @@ impl<'a, Message> IcedParentExt<'a, Message> for Column<'a, Message> {
 impl<'a, Message> IcedParentExt<'a, Message> for Row<'a, Message> {
     fn push_if<E>(self, condition: bool, element: impl FnOnce() -> E) -> Self
     where
-        E: Into<Element<'a, Message, Theme, IcedRenderer>>,
+        E: Into<Element<'a, Message>>,
     {
         if condition {
             self.push(element().into())
