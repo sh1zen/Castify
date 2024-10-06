@@ -1,4 +1,5 @@
-use crate::utils::net::webrtc_common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
+use crate::utils::net::webrtc::webrtc_common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
+use crate::workers;
 use async_tungstenite::tokio::connect_async;
 use async_tungstenite::tungstenite::{Error, Message};
 use async_tungstenite::WebSocketStream;
@@ -14,7 +15,6 @@ use webrtc::rtp_transceiver::rtp_codec::RTPCodecType;
 use webrtc::rtp_transceiver::rtp_receiver::RTCRtpReceiver;
 use webrtc::rtp_transceiver::RTCRtpTransceiver;
 use webrtc::track::track_remote::TrackRemote;
-use crate::workers;
 
 #[derive(Clone)]
 pub struct WebRTCClient {
@@ -24,7 +24,6 @@ pub struct WebRTCClient {
 
 impl WebRTCClient {
     pub async fn new(signaling_server_url: &str) -> Arc<WebRTCClient> {
-
         let mut conn = Err(Error::ConnectionClosed.into());
 
         while conn.is_err() {
@@ -38,7 +37,7 @@ impl WebRTCClient {
         let api = create_webrtc_api();
 
         let client = Arc::new(WebRTCClient {
-            connection: create_peer_connection(&api).await,
+            connection: create_peer_connection(&api).await.unwrap(),
             ws_stream: Arc::new(Mutex::new(ws_stream)),
         });
 
@@ -54,7 +53,6 @@ impl WebRTCClient {
             while let Ok((x, _)) = rtp_sender.read(&mut rtcp_buf).await {
                 println!("info:::: {:?}", x);
             }
-            Result::<(), ()>::Ok(())
         });
 
         // Set the handler for Peer connection state
@@ -130,7 +128,7 @@ impl WebRTCClient {
         let tx = Arc::new(Mutex::new(tx));
         let connection = Arc::clone(&self.connection);
 
-        let self_c= self.clone();
+        let self_c = self.clone();
 
         // Set up the event handler for incoming tracks
         connection.on_track(Box::new(move |track: Arc<TrackRemote>, _receiver: Arc<RTCRtpReceiver>, _transceiver: Arc<RTCRtpTransceiver>| {
@@ -142,7 +140,7 @@ impl WebRTCClient {
                 let self_c = self_c.clone();
                 async move {
                     while let Ok((packet, _)) = track.read_rtp().await {
-                        if workers::sos::get_instance().lock().unwrap().is_closing(){
+                        if workers::sos::get_instance().lock().unwrap().is_closing() {
                             break;
                         }
                         match tx.lock().await.send(packet).await {

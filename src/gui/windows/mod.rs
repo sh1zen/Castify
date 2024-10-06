@@ -2,9 +2,9 @@ use crate::config::Config;
 use crate::gui::common::messages::AppEvent;
 use crate::gui::style::theme::csx::StyleType;
 use crate::gui::widget::Element;
-use crate::windows::annotation::{AnnotationWindow, AnnotationWindowEvent};
-use crate::windows::area_selector::{ASWindow, ASWindowEvent};
-use crate::windows::main::{MainWindow, MainWindowEvent};
+use crate::gui::windows::annotation::{AnnotationWindow, AnnotationWindowEvent};
+use crate::gui::windows::area_selector::{ASWindow, ASWindowEvent};
+use crate::gui::windows::main::{MainWindow, MainWindowEvent};
 use iced_core::window::Id;
 use iced_runtime::Task;
 

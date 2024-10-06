@@ -3,7 +3,7 @@ use crate::gui::common::icons::Icon;
 use crate::gui::components::buttons::IconButton;
 use crate::gui::style::container::ContainerType;
 use crate::gui::widget::{horizontal_space, vertical_space, Container, Element, Row, Text};
-use crate::windows::main::MainWindowEvent;
+use crate::gui::windows::main::MainWindowEvent;
 use iced::{Alignment, Length};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]

@@ -1,5 +1,4 @@
 use crate::assets::{BORDER_RADIUS, BORDER_WIDTH};
-use crate::gui::style::theme::color::mix;
 use crate::gui::style::theme::csx::StyleType;
 use iced::overlay::menu::{Catalog, Style};
 use iced_core::{Background, Border};

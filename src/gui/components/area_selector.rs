@@ -29,7 +29,7 @@ pub struct AreaSelector<'a, Message, Theme>
     theme: Option<Theme>,
 }
 
-
+#[allow(dead_code)]
 impl<'a, Message, Theme> AreaSelector<'a, Message, Theme>
 {
     pub fn new() -> Self {

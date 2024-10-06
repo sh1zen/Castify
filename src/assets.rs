@@ -1,5 +1,5 @@
-use iced_core::Font;
 use iced_core::font::{Family, Stretch, Style, Weight};
+use iced_core::Font;
 
 pub const USE_WEBRTC: bool = true;
 
@@ -17,7 +17,6 @@ pub const CAST_SERVICE_PORT: u16 = 31413;
 // app name
 pub const APP_VERSION: &str = "1.0.0";
 pub const APP_NAME: &str = "Castify";
-pub const APP_NAME_ID: &str = "castify";
 
 #[cfg(target_os = "windows")]
 pub const TARGET_OS: &str = "windows";
@@ -57,11 +56,7 @@ pub const FONT_FAMILY_BOLD: Font = Font {
     style: Style::Normal,
 };
 
-// font style
-pub const FONT_SIZE_BODY: f32 = 14.0;
-pub const FONT_SIZE_FOOTER: f32 = 11.0;
 
 // border theme
 pub const BORDER_WIDTH: f32 = 0.0;
 pub const BORDER_RADIUS: f32 = 8.0;
-pub const BORDER_ALPHA: f32 = 0.0;

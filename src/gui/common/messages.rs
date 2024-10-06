@@ -1,5 +1,5 @@
 use crate::gui::common::datastructure::ScreenRect;
-use crate::windows::WindowMessage;
+use crate::gui::windows::WindowMessage;
 use iced::keyboard::{Key, Modifiers};
 use iced_core::window::Id;
 

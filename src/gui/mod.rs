@@ -8,6 +8,7 @@ pub mod style;
 pub mod common;
 pub mod video;
 pub mod widget;
+mod windows;
 
 use self::app::App;
 

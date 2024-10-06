@@ -1,16 +1,16 @@
 use crate::assets::{FRAME_RATE, USE_WEBRTC};
 use crate::gui::common::datastructure::ScreenRect;
 use crate::utils::gist::create_stream_pipeline;
-use crate::utils::net::WebRTCServer;
 use crate::workers::WorkerClose;
 use glib::prelude::ObjectExt;
 use gstreamer::prelude::{ElementExt, ElementExtManual, GObjectExtManualGst, GstBinExt};
 use gstreamer::Pipeline;
 use gstreamer_app::gst;
-use screen_info::DisplayInfo;
+use display_info::DisplayInfo;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use crate::utils::net::webrtc::WebRTCServer;
 
 #[derive(Debug, Clone)]
 pub struct XMonitor {
@@ -19,7 +19,7 @@ pub struct XMonitor {
     width: u32,
     height: u32,
     primary: bool,
-    name: String,
+    device_identifier: String,
 }
 
 unsafe impl Send for XMonitor {}
@@ -131,13 +131,14 @@ impl Caster {
             let (tx_processed, rx_processed) = tokio::sync::mpsc::channel(FRAME_RATE as usize);
 
             // process screens
-            self.pipeline = create_stream_pipeline(&(self.monitors.get(&self.monitor).unwrap().name), tx_processed, false).unwrap();
+            self.pipeline = create_stream_pipeline(&(self.monitors.get(&self.monitor).unwrap().device_identifier), tx_processed, false).unwrap();
 
             let running = Arc::clone(&self.running);
 
             tokio::spawn(async move {
+                //crate::utils::net::common::port_forwarding().expect("Failed to setup port forwarding.");
                 // used for auto caster discovery
-                crate::utils::net::caster_discover_service();
+                crate::utils::net::common::caster_discover_service();
 
                 if USE_WEBRTC {
                     let calla = WebRTCServer::new();
@@ -221,7 +222,12 @@ impl Caster {
                     height: display.height,
                     width: display.width,
                     primary: display.is_primary,
-                    name: display.raw_handle.0.to_string(),
+                    #[cfg(target_os = "windows")]
+                    device_identifier: display.raw_handle.0.to_string(),
+                    #[cfg(target_os = "macos")]
+                    device_identifier: display.raw_handle.id.to_string(),
+                    #[cfg(target_os = "linux")]
+                    device_identifier: display.name.to_string(),
                 });
 
                 if display.is_primary {

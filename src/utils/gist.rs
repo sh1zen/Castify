@@ -1,34 +1,34 @@
 use crate::assets::{FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, SAMPLING_RATE, TARGET_OS};
-use crate::workers;
 use chrono::Local;
 use gstreamer as gst;
 use gstreamer::prelude::*;
 use gstreamer::{Buffer, Element, ElementFactory, Fraction, Pipeline};
 use gstreamer_rtp::RTPBuffer;
+use std::error::Error;
 use tokio::sync::mpsc::error::TrySendError;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{Receiver, Sender};
 use webrtc::rtp::packet::Packet;
 use webrtc::util::Marshal;
 
-pub fn create_stream_pipeline(monitor: &str, tx_processed: tokio::sync::mpsc::Sender<Buffer>, use_rtp: bool) -> Result<Pipeline, glib::Error> {
+pub fn create_stream_pipeline(monitor: &str, tx_processed: Sender<Buffer>, use_rtp: bool) -> Result<Pipeline, glib::Error> {
     let pipeline = Pipeline::new();
 
     let src = match TARGET_OS {
         "windows" => {
             ElementFactory::make("d3d11screencapturesrc")
-                .property("show-cursor", true)
                 .property_from_str("monitor-handle", monitor)
-                .property("do-timestamp", true)
+                .property("show-cursor", true)
         }
         "macos" => {
             ElementFactory::make("avfvideosrc")
+                .property_from_str("device-index", monitor)
                 .property("capture-screen", true)
                 .property("capture-screen-cursor", true)
-                .property_from_str("device-name", monitor)
         }
         "linux" => {
             ElementFactory::make("ximagesrc")
-                .property_from_str("device-name", monitor)
+                .property_from_str("display-name", monitor)
+                .property("use-damage", false)
                 .property("show-pointer", true)
         }
         _ => {
@@ -153,7 +153,7 @@ pub fn create_stream_pipeline(monitor: &str, tx_processed: tokio::sync::mpsc::Se
     Ok(pipeline)
 }
 
-pub fn create_view_pipeline(mut rx: Receiver<Buffer>) -> Result<Pipeline, glib::Error> {
+pub fn create_view_pipeline(mut rx: Receiver<Buffer>, saver: Sender<Buffer>) -> Result<Pipeline, Box<dyn Error>> {
     let pipeline = Pipeline::new();
 
     let src = ElementFactory::make("appsrc")
@@ -172,17 +172,17 @@ pub fn create_view_pipeline(mut rx: Receiver<Buffer>) -> Result<Pipeline, glib::
                       .field("framerate", &gst::Fraction::new(SAMPLING_RATE, 1))
                       .build(),
         )
-        .build().unwrap();
+        .build()?;
 
     let h264parse = ElementFactory::make("h264parse")
         .property("disable-passthrough", true)
         .property("config-interval", -1)
-        .build().unwrap();
+        .build()?;
 
     let avdec_h264 = ElementFactory::make("avdec_h264")
-        .build().unwrap();
+        .build()?;
     let videoconvert = ElementFactory::make("videoconvert")
-        .build().unwrap();
+        .build()?;
     let capsfilter = ElementFactory::make("capsfilter")
         .property("caps",
                   &gst::Caps::builder("video/x-raw")
@@ -190,7 +190,7 @@ pub fn create_view_pipeline(mut rx: Receiver<Buffer>) -> Result<Pipeline, glib::
                       .field("pixel-aspect-ratio", Fraction::new(1, 1))
                       .build(),
         )
-        .build().unwrap();
+        .build()?;
 
     let sink = ElementFactory::make("appsink")
         .name("appsink")
@@ -205,25 +205,25 @@ pub fn create_view_pipeline(mut rx: Receiver<Buffer>) -> Result<Pipeline, glib::
                       .field("framerate", &gst::Fraction::new(SAMPLING_RATE, 1))
                       .build(),
         )
-        .build().unwrap();
+        .build()?;
 
     let video_queue1 = ElementFactory::make("queue")
         .property_from_str("leaky", "no")
-        .build().unwrap();
+        .build()?;
     let video_queue2 = ElementFactory::make("queue")
         .property_from_str("leaky", "no")
-        .build().unwrap();
+        .build()?;
 
     let video_elements = [&src, &video_queue1, &h264parse, &avdec_h264, &video_queue2, &videoconvert, &capsfilter, &sink];
 
     // Add elements to pipeline
-    pipeline.add_many(&video_elements[..]).unwrap();
+    pipeline.add_many(&video_elements[..])?;
 
     // Link elements
     Element::link_many(&video_elements[..]).expect("Failed to link elements");
 
     for e in video_elements {
-        e.sync_state_with_parent().unwrap();
+        e.sync_state_with_parent()?;
     }
 
     let appsrc = src
@@ -234,9 +234,8 @@ pub fn create_view_pipeline(mut rx: Receiver<Buffer>) -> Result<Pipeline, glib::
             .need_data(move |appsrc, _| {
                 match rx.blocking_recv() {
                     Some(buffer) => {
-                        if workers::save_stream::get_instance().lock().unwrap().is_saving {
-                            workers::save_stream::get_instance().lock().unwrap().send_frame(buffer.clone());
-                        }
+                        saver.try_send(buffer.clone()).unwrap_or_default();
+
                         if let Err(error) = appsrc.push_buffer(buffer) {
                             eprintln!("Error pushing buffer to appsrc: {:?}", error);
                         }
@@ -302,7 +301,7 @@ pub fn create_save_pipeline() -> Result<Pipeline, glib::Error> {
     Ok(pipeline)
 }
 
-pub fn create_rtp_view_pipeline(mut rx_processed: Receiver<Packet>) -> Result<Pipeline, glib::Error> {
+pub fn create_rtp_view_pipeline(mut rx_processed: Receiver<Packet>, saver: Sender<Buffer>) -> Result<Pipeline, Box<dyn Error>> {
     let pipeline = Pipeline::new();
 
     let src = ElementFactory::make("appsrc")
@@ -319,29 +318,29 @@ pub fn create_rtp_view_pipeline(mut rx_processed: Receiver<Packet>) -> Result<Pi
                       .field("payload", &102i32)
                       .build(),
         )
-        .build().unwrap();
+        .build()?;
 
     let rtpjitterbuffer = ElementFactory::make("rtpjitterbuffer")
         .property("latency", 500u32)
         .property("sync-interval", 500u32)
         .property("do-retransmission", false)
         .property("drop-on-latency", true)
-        .build().unwrap();
+        .build()?;
 
     let rtph264depay = ElementFactory::make("rtph264depay")
         .property("wait-for-keyframe", true)
-        .build().unwrap();
+        .build()?;
 
     let h264parse = ElementFactory::make("h264parse")
         .property("disable-passthrough", true)
         .property("config-interval", -1)
-        .build().unwrap();
+        .build()?;
 
     let avdec_h264 = ElementFactory::make("avdec_h264")
-        .build().unwrap();
+        .build()?;
 
     let videoconvert = ElementFactory::make("videoconvert")
-        .build().unwrap();
+        .build()?;
 
     let capsfilter = ElementFactory::make("capsfilter")
         .property("caps",
@@ -350,7 +349,7 @@ pub fn create_rtp_view_pipeline(mut rx_processed: Receiver<Packet>) -> Result<Pi
                       .field("pixel-aspect-ratio", Fraction::new(1, 1))
                       .build(),
         )
-        .build().unwrap();
+        .build()?;
 
     let sink = ElementFactory::make("appsink")
         .name("appsink")
@@ -365,23 +364,23 @@ pub fn create_rtp_view_pipeline(mut rx_processed: Receiver<Packet>) -> Result<Pi
                       .field("framerate", &gst::Fraction::new(SAMPLING_RATE, 1))
                       .build(),
         )
-        .build().unwrap();
+        .build()?;
 
     let video_queue1 = ElementFactory::make("queue")
         .name("video-queue")
         .property_from_str("leaky", "no")
-        .build().unwrap();
+        .build()?;
 
     let video_elements = [&src, &rtpjitterbuffer, &rtph264depay, &video_queue1, &h264parse, &avdec_h264, &videoconvert, &capsfilter, &sink];
 
     // Add elements to pipeline
-    pipeline.add_many(&video_elements[..]).unwrap();
+    pipeline.add_many(&video_elements[..])?;
 
     // Link elements
     Element::link_many(&video_elements[..]).expect("Failed to link elements");
 
     for e in video_elements {
-        e.sync_state_with_parent().unwrap();
+        e.sync_state_with_parent()?;
     }
 
     let appsrc = src
@@ -393,7 +392,7 @@ pub fn create_rtp_view_pipeline(mut rx_processed: Receiver<Packet>) -> Result<Pi
                 match rx_processed.blocking_recv() {
                     Some(packet) => {
                         // Convert  packet RTP in a GStreamer buffer
-                        let mut buffer = Buffer::from_slice(packet.marshal().unwrap());
+                        let mut buffer = Buffer::from_slice(packet.marshal().unwrap_or_default());
                         {
                             let buffer_ref = buffer.get_mut().unwrap();
                             let mut rtp_packet = RTPBuffer::from_buffer_writable(buffer_ref).unwrap();
@@ -404,9 +403,7 @@ pub fn create_rtp_view_pipeline(mut rx_processed: Receiver<Packet>) -> Result<Pi
                             rtp_packet.set_timestamp(packet.header.timestamp);
                         }
 
-                        if workers::save_stream::get_instance().lock().unwrap().is_saving {
-                            workers::save_stream::get_instance().lock().unwrap().send_frame(buffer.clone());
-                        }
+                        saver.try_send(buffer.clone()).unwrap_or_default();
 
                         // Invia il buffer a GStreamer
                         if let Err(e) = appsrc.push_buffer(buffer) {
@@ -483,5 +480,3 @@ pub fn create_rtp_save_pipeline() -> Result<Pipeline, glib::Error> {
 
     Ok(pipeline)
 }
-
-

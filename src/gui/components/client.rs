@@ -1,20 +1,26 @@
+use crate::config::{Config, Mode};
 use crate::gui::common::icons::Icon;
 use crate::gui::components::buttons::IconButton;
 use crate::gui::style::container::ContainerType;
 use crate::gui::video::{Video, VideoPlayer};
 use crate::gui::widget::{Column, Container, Element, Row};
-use crate::windows::main::MainWindowEvent;
-use crate::workers;
+use crate::gui::windows::main::MainWindowEvent;
+use iced::widget::Space;
 use iced::{Alignment, Length};
 use iced_core::{alignment, Padding};
 
-pub fn client_page<'a, 'b>(video: &'b Video) -> Element<'a, MainWindowEvent>
-where 'b: 'a
+pub fn client_page<'a, 'b>(video: &'b Video, config: &Config) -> Element<'a, MainWindowEvent>
+where
+    'b: 'a,
 {
+    let Some(Mode::Client(client)) = &config.mode else {
+        return Element::new(Space::new(0, 0));
+    };
+
     let actions = Row::new()
         .align_y(Alignment::Center).spacing(10)
         .push(
-            if workers::save_stream::get_instance().lock().unwrap().is_saving {
+            if client.is_saving() {
                 IconButton::new(Some(String::from("Stop")))
                     .icon(Icon::Save)
                     .build()

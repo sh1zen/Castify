@@ -4,12 +4,11 @@ use crate::gui::common::icons::Icon;
 use crate::gui::components::buttons::{IconButton, Key4Board};
 use crate::gui::style::button::ButtonType;
 use crate::gui::style::container::ContainerType;
-use crate::gui::widget::{horizontal_space, vertical_space, Container, Row, Text, Element};
-use crate::windows::main::{MainWindow, MainWindowEvent};
+use crate::gui::widget::{horizontal_space, vertical_space, Container, Element, Row, Text};
+use crate::gui::windows::main::{MainWindow, MainWindowEvent};
 use iced::{Alignment, Length};
 use iced_core::alignment;
 use iced_core::keyboard::{Key, Modifiers};
-use local_ip_address::local_ip;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -91,11 +90,17 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
                 Text::new("Info:").size(16).font(FONT_FAMILY_BOLD),
                 vertical_space().height(15),
                 footer_row(String::from("Local IP"), {
-                    match local_ip() {
-                        Ok(ip) => ip.to_string(),
-                        Err(_) => String::new(),
+                    match config.local_ip {
+                        Some(ip) => ip.to_string(),
+                        _ => String::new(),
                     }
                 }),
+                footer_row(String::from("Public IP"), {
+                    match *config.public_ip.lock().unwrap() {
+                        Some(ip) => ip.to_string(),
+                        _ => String::from("-------"),
+                    }
+                })
             ]
             .width(Length::Fill)
             .padding(10),
@@ -114,13 +119,12 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
 fn shortcuts<Message: 'static>(key_bind: (Modifiers, Key), str: &'static str) -> Row<'static, Message> {
     let s = format!("{}  {}", Key4Board::from_command(key_bind.0).get_label(), Key4Board::from_key(key_bind.1).get_label());
     footer_row(
-        s,
         str.to_string(),
+        s,
     )
 }
 
-fn footer_row<Message: 'static>(str1: String, mut str2: String) -> Row<'static, Message> {
-    str2.insert(0, " ".parse().unwrap());
+fn footer_row<Message: 'static>(str1: String, str2: String) -> Row<'static, Message> {
     crate::row![
         Text::new(str1.to_string())
         .size(14).font(FONT_FAMILY_BOLD),

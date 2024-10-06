@@ -4,7 +4,7 @@ use crate::gui::components::hotkeys::KeyTypes;
 use crate::gui::components::buttons::{IconButton, Key4Board};
 use crate::gui::style::container::ContainerType;
 use crate::gui::widget::{Column, Container, IcedParentExt, Row, Space, Stack, Text, TextInput};
-use crate::windows::main::MainWindowEvent;
+use crate::gui::windows::main::MainWindowEvent;
 use iced::keyboard::Key;
 use iced_core::Length;
 use iced_wgpu::core::keyboard::Modifiers;

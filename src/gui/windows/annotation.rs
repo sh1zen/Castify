@@ -5,7 +5,7 @@ use crate::gui::components::AreaSelector;
 use crate::gui::style::container::ContainerType;
 use crate::gui::style::theme::csx::StyleType;
 use crate::gui::widget::{horizontal_space, vertical_space, Canvas, Column, Container, Element, Row, Stack, Text};
-use crate::windows::GuiWindow;
+use crate::gui::windows::GuiWindow;
 use iced_core::window::Id;
 use iced_core::Alignment::Center;
 use iced_core::Length::Fill;

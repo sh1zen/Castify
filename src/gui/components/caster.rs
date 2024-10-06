@@ -7,7 +7,7 @@ use crate::gui::style::container::ContainerType;
 use crate::gui::widget::{horizontal_space, vertical_space, Column, Container, Element, PickList, Text};
 use crate::row;
 use crate::utils::{format_seconds, get_string_after};
-use crate::windows::main::MainWindowEvent;
+use crate::gui::windows::main::MainWindowEvent;
 use iced::alignment::{Horizontal, Vertical};
 use iced::{Length};
 

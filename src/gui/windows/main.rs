@@ -1,4 +1,4 @@
-use crate::assets::{APP_NAME, CAST_SERVICE_PORT, FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, USE_WEBRTC};
+use crate::assets::{APP_NAME, CAST_SERVICE_PORT, FRAME_HEIGHT, FRAME_RATE, FRAME_WITH};
 use crate::config::{Config, Mode};
 use crate::gui::common::datastructure::ScreenRect;
 use crate::gui::common::messages::AppEvent;
@@ -8,19 +8,18 @@ use crate::gui::components::footer::footer;
 use crate::gui::components::home::initial_page;
 use crate::gui::components::hotkeys::{hotkeys, KeyTypes};
 use crate::gui::components::popup::{show_popup, Popup, PopupMsg, PopupType};
-use crate::gui::components::{caster, home, popup};
+use crate::gui::components::{home, popup};
 use crate::gui::style::theme::csx::StyleType;
 use crate::gui::video::Video;
-use crate::gui::widget::{Column, Container, Element, IcedRenderer};
-use crate::windows::GuiWindow;
+use crate::gui::widget::{Column, Container, Element};
+use crate::gui::windows::GuiWindow;
 use crate::workers;
 use crate::workers::caster::Caster;
-use gstreamer::Pipeline;
+use crate::workers::receiver::Receiver;
 use iced::{window::Id, Task};
-use std::hash::Hash;
+use iced_anim::{Animation, Spring, SpringEvent};
 use std::net::SocketAddr;
 use std::str::FromStr;
-use iced_anim::{Animation, Spring, SpringEvent};
 
 #[derive(PartialEq, Eq)]
 pub enum Page {
@@ -34,7 +33,7 @@ pub struct MainWindow {
     pub theme: Spring<StyleType>,
     page: Page,
     popup: Popup,
-    pub(crate) video: Video,
+    video: Video,
 }
 
 #[derive(Debug, Clone)]
@@ -56,8 +55,6 @@ pub enum MainWindowEvent {
     SaveCapture,
     /// stop saving capture
     SaveCaptureStop,
-    /// Ignore
-    Ignore,
     /// Setup hotkeys
     HotkeysPage,
     /// handle hot keys request update
@@ -72,6 +69,7 @@ pub enum MainWindowEvent {
     OpenWebPage(String),
     /// Handle animated style change
     ThemeUpdate(SpringEvent<StyleType>),
+    /// handle the launch of annotation window
     ShowAnnotationWindow,
 }
 
@@ -109,7 +107,7 @@ impl GuiWindow for MainWindow {
                         self.page = Page::Caster
                     }
                     home::Message::ButtonReceiver => {
-                        config.mode = Some(Mode::Client);
+                        config.mode = Some(Mode::Client(Receiver::new()));
                         self.popup.show(PopupType::IP);
                     }
                 }
@@ -152,39 +150,52 @@ impl GuiWindow for MainWindow {
             MainWindowEvent::ConnectToCaster(mut caster_ip) => {
                 self.popup.hide();
                 self.page = Page::Client;
-                if caster_ip == "auto" {
-                    self.launch_receiver(None)
-                } else if !caster_ip.contains(":") {
-                    caster_ip = format!("{}:{}", caster_ip, CAST_SERVICE_PORT);
-                    match SocketAddr::from_str(&*caster_ip) {
+                let Some(Mode::Client(client)) = &mut config.mode else {
+                    return Task::none();
+                };
+                if caster_ip != "auto" {
+                    if !caster_ip.contains(":") {
+                        caster_ip = format!("{}:{}", caster_ip, CAST_SERVICE_PORT);
+                    }
+
+                    match SocketAddr::from_str(&caster_ip) {
                         Ok(caster_socket_addr) => {
-                            self.launch_receiver(Some(caster_socket_addr))
+                            client.set_caster_addr(caster_socket_addr);
                         }
                         Err(e) => {
                             println!("{}", e);
-                            *self.popup.get_mut(&PopupType::IP).unwrap() = PopupMsg::String("".parse().unwrap())
+                            *self.popup.get_mut(&PopupType::IP).unwrap() = PopupMsg::String("".parse().unwrap());
+                            return Task::none();
                         }
                     }
                 }
+
+                if let Some(pipeline) = client.launch() {
+                    self.video.set_pipeline(pipeline, FRAME_WITH, FRAME_HEIGHT, gstreamer::Fraction::new(FRAME_RATE, 1));
+                }
+
                 Task::none()
             }
             MainWindowEvent::SaveCapture => {
-                self.launch_save_stream();
+                let Some(Mode::Client(client)) = &mut config.mode else {
+                    return Task::none();
+                };
+                client.save_stream();
                 Task::none()
             }
             MainWindowEvent::SaveCaptureStop => {
-                workers::save_stream::get_instance().lock().unwrap().stop();
+                let Some(Mode::Client(client)) = &mut config.mode else {
+                    return Task::none();
+                };
+                client.save_stop();
                 Task::none()
             }
-            MainWindowEvent::ShowAnnotationWindow => { Task::done(AppEvent::OpenAnnotationWindow)}
+            MainWindowEvent::ShowAnnotationWindow => { Task::done(AppEvent::OpenAnnotationWindow) }
             MainWindowEvent::OpenWebPage(s) => { Task::done(AppEvent::OpenWebPage(s)) }
             MainWindowEvent::AreaSelection => { Task::done(AppEvent::OpenAreaSelectionWindow) }
             MainWindowEvent::AreaSelectedFullScreen => { Task::done(AppEvent::AreaSelected(ScreenRect::default())) }
             MainWindowEvent::ExitApp => { Task::done(AppEvent::ExitApp) }
             MainWindowEvent::ThemeUpdate(event) => self.theme.update(event).into(),
-            MainWindowEvent::Ignore => {
-                Task::none()
-            }
         }
     }
 
@@ -197,7 +208,7 @@ impl GuiWindow for MainWindow {
                 caster_page(config)
             }
             Page::Client => {
-                client_page(&self.video)
+                client_page(&self.video, config)
             }
             Page::Hotkeys => {
                 hotkeys()
@@ -219,29 +230,5 @@ impl GuiWindow for MainWindow {
 
     fn theme(&self) -> StyleType {
         self.theme.value().clone()
-    }
-}
-
-impl MainWindow {
-    fn launch_receiver(&mut self, socket_addr: Option<SocketAddr>) {
-        let pipeline: Pipeline = if USE_WEBRTC {
-            let (tx, rx) = tokio::sync::mpsc::channel(1);
-            tokio::spawn(async move {
-                crate::utils::net::rtp::receiver(socket_addr, tx).await;
-            });
-            crate::utils::gist::create_rtp_view_pipeline(rx).unwrap()
-        } else {
-            let (tx, rx) = tokio::sync::mpsc::channel(1);
-            tokio::spawn(async move {
-                crate::utils::net::xgp::receiver(socket_addr, tx).await;
-            });
-            crate::utils::gist::create_view_pipeline(rx).unwrap()
-        };
-
-        self.video.set_pipeline(pipeline, FRAME_WITH, FRAME_HEIGHT, gstreamer::Fraction::new(FRAME_RATE, 1));
-    }
-
-    fn launch_save_stream(&mut self) {
-        workers::save_stream::get_instance().lock().unwrap().start();
     }
 }

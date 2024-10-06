@@ -1,5 +1,5 @@
 use crate::assets::CAST_SERVICE_PORT;
-use crate::utils::net::webrtc_common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
+use crate::utils::net::webrtc::webrtc_common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
 use async_tungstenite::tokio::{accept_async, TokioAdapter};
 use async_tungstenite::tungstenite::Message;
 use async_tungstenite::WebSocketStream;
@@ -44,13 +44,13 @@ impl WebRTCServer {
 
         let server_clone = Arc::clone(&server);
         tokio::spawn(async move {
-            server_clone.run_signaling_server().await;
+            server_clone.run_signaling_server().await.unwrap();
         });
 
         server
     }
 
-    pub async fn run_signaling_server(&self) {
+    pub async fn run_signaling_server(&self) ->Result<(), Box<dyn std::error::Error>> {
         let listener = TcpListener::bind(format!("0.0.0.0:{}", CAST_SERVICE_PORT).to_string()).await.unwrap();
 
         println!("Listener: {:?}", listener);
@@ -69,7 +69,7 @@ impl WebRTCServer {
 
                 tokio::spawn(async move {
                     let peer = Arc::new(WRTCPeer {
-                        connection: create_peer_connection(&api_clone).await,
+                        connection: create_peer_connection(&api_clone).await.unwrap(),
                         video_track: create_video_track(),
                         notify: Arc::new(Notify::new()),
                     });
@@ -86,7 +86,6 @@ impl WebRTCServer {
                         while let Ok((x, _)) = rtp_sender.read(&mut rtcp_buf).await {
                             println!("info:::: {:?}", x);
                         }
-                        Result::<(), ()>::Ok(())
                     });
 
                     println!("peer conn {:?}", peer.connection);
@@ -100,6 +99,7 @@ impl WebRTCServer {
                 });
             }
         }
+        Ok(())
     }
 
     async fn remote_handle_signaling(peer: Arc<WRTCPeer>, ws_stream: WebSocketStream<TokioAdapter<TcpStream>>) -> Result<(), Box<dyn std::error::Error>> {
@@ -124,6 +124,7 @@ impl WebRTCServer {
             println!("Peer Connection State has changed: {s}");
             Box::pin(async {})
         }));
+
 
         let ws_sender_clone = Arc::clone(&ws_sender);
         let peer_conn_clone = Arc::clone(&peer.connection);

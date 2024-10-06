@@ -7,18 +7,17 @@ use crate::gui::widget::Element;
 use crate::utils::key_listener::global_key_listener;
 use crate::utils::open_link;
 use crate::utils::tray_icon::{tray_icon_listener, tray_menu_listener};
-use crate::windows::annotation::AnnotationWindow;
-use crate::windows::area_selector::ASWindow;
-use crate::windows::main::MainWindow;
-use crate::windows::{GuiWindow, WindowManager};
-use crate::workers;
+use crate::gui::windows::annotation::AnnotationWindow;
+use crate::gui::windows::area_selector::ASWindow;
+use crate::gui::windows::main::MainWindow;
+use crate::gui::windows::{GuiWindow, WindowManager};
 use iced::application::Appearance;
 use iced::widget::horizontal_space;
 use iced::Event::Window;
 use iced::{window, Subscription};
 use iced_core::keyboard::{Event, Key};
 use iced_core::window::settings::PlatformSpecific;
-use iced_core::window::{Id, Level, Mode, Position};
+use iced_core::window::{Id, Mode, Position};
 use iced_core::Event::Keyboard;
 use iced_core::Size;
 use iced_runtime::Task;
@@ -97,7 +96,6 @@ impl App {
                             skip_taskbar: true,
                             undecorated_shadow: false,
                         },
-                        level: Level::AlwaysOnTop,
                         ..Default::default()
                     });
                     self.windows.insert(id, WindowManager::AreaSelector(ASWindow::new()));
@@ -128,7 +126,7 @@ impl App {
                         .discard()
                         .chain(window::gain_focus(id))
                         .chain(window::change_mode(id, Mode::Fullscreen))
-                        .chain(window::enable_mouse_passthrough(id))
+                    //.chain(window::enable_mouse_passthrough(id))
                 } else {
                     Task::none()
                 }
@@ -219,7 +217,7 @@ impl App {
                 }
             }
             AppEvent::ExitApp => {
-                workers::sos::get_instance().lock().unwrap().terminate();
+                self.config.sos.cancel();
                 iced::exit()
             }
             AppEvent::Ignore => {
