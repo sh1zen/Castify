@@ -72,7 +72,7 @@ impl Default for Config {
                 } else {
                     None
                 }),
-            sos: Default::default(),
+            sos: SignalOfStop::new(),
         };
 
         let public_ip = Arc::clone(&conf.public_ip);

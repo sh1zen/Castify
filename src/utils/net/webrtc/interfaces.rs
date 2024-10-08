@@ -1,8 +1,9 @@
 use crate::utils::net::common::find_caster;
 use std::net::SocketAddr;
 use webrtc::rtp::packet::Packet;
+use crate::utils::sos::SignalOfStop;
 
-pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc::Sender<Packet>) -> bool {
+pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc::Sender<Packet>, sos: SignalOfStop) -> bool {
     if socket_addr.is_none() {
         socket_addr = find_caster();
     }
@@ -14,7 +15,7 @@ pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc
 
         let addr: &str = &*format!("ws://{}", &(socket_addr.to_string()));
 
-        let tt = crate::utils::net::webrtc::WebRTCClient::new(addr).await;
+        let tt = crate::utils::net::webrtc::WebRTCClient::new(addr, sos).await;
         tt.receive_video(tx).await;
         status = true;
     }

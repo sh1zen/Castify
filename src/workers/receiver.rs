@@ -5,16 +5,21 @@ use crate::workers::WorkerClose;
 use gstreamer::Pipeline;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::thread::sleep;
+use std::time::Duration;
+use crate::utils::sos::SignalOfStop;
 
 #[derive(Debug)]
 pub struct Receiver {
     save_stream: Option<SaveStream>,
     caster_addr: Option<SocketAddr>,
     save_rx: Option<Arc<tokio::sync::Mutex<tokio::sync::mpsc::Receiver<gstreamer::Buffer>>>>,
+    local_sos: SignalOfStop
 }
 
 impl WorkerClose for Receiver {
     fn close(&mut self) {
+        self.local_sos.cancel();
         self.save_stop();
     }
 }
@@ -25,6 +30,7 @@ impl Receiver {
             save_stream: None,
             caster_addr: None,
             save_rx: None,
+            local_sos: SignalOfStop::new(),
         }
     }
 
@@ -39,10 +45,12 @@ impl Receiver {
 
         self.save_rx = Some(Arc::new(tokio::sync::Mutex::new(save_rx)));
 
+        let sos = self.local_sos.clone();
+
         let pipeline: Option<Pipeline> = if USE_WEBRTC {
             let (tx, rx) = tokio::sync::mpsc::channel(1);
             tokio::spawn(async move {
-                crate::utils::net::webrtc::receiver(caster_addr, tx).await;
+                crate::utils::net::webrtc::receiver(caster_addr, tx, sos).await;
             });
             handle_result(crate::utils::gist::create_rtp_view_pipeline(rx, save_tx))
         } else {

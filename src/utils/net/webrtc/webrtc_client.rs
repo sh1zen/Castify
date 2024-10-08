@@ -15,15 +15,17 @@ use webrtc::rtp_transceiver::rtp_codec::RTPCodecType;
 use webrtc::rtp_transceiver::rtp_receiver::RTCRtpReceiver;
 use webrtc::rtp_transceiver::RTCRtpTransceiver;
 use webrtc::track::track_remote::TrackRemote;
+use crate::utils::sos::SignalOfStop;
 
 #[derive(Clone)]
 pub struct WebRTCClient {
     connection: Arc<RTCPeerConnection>,
     ws_stream: Arc<Mutex<WebSocketStream<async_tungstenite::tokio::ConnectStream>>>,
+    local_sos: SignalOfStop
 }
 
 impl WebRTCClient {
-    pub async fn new(signaling_server_url: &str) -> Arc<WebRTCClient> {
+    pub async fn new(signaling_server_url: &str, sos: SignalOfStop) -> Arc<WebRTCClient> {
         let mut conn = Err(Error::ConnectionClosed.into());
 
         while conn.is_err() {
@@ -39,6 +41,7 @@ impl WebRTCClient {
         let client = Arc::new(WebRTCClient {
             connection: create_peer_connection(&api).await.unwrap(),
             ws_stream: Arc::new(Mutex::new(ws_stream)),
+            local_sos: sos,
         });
 
         client.connection.add_transceiver_from_kind(RTPCodecType::Video, None).await.unwrap();
@@ -140,7 +143,7 @@ impl WebRTCClient {
                 let self_c = self_c.clone();
                 async move {
                     while let Ok((packet, _)) = track.read_rtp().await {
-                        if workers::sos::get_instance().lock().unwrap().is_closing() {
+                        if workers::sos::get_instance().lock().unwrap().cancelled() {
                             break;
                         }
                         match tx.lock().await.send(packet).await {
