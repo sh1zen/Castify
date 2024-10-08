@@ -1,6 +1,6 @@
 [package]
 name = "castify"
-version = "0.1.0"
+version = "1.0.0"
 description = "A simple cross-platform screen caster tool"
 edition = "2021"
 authors = ["Andrea Frolli <dev.andrea.frolli@outlook.it>, Pietro Bella, Mario De Paola"]

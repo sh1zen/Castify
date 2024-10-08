@@ -11,8 +11,8 @@ pub fn global_key_listener() -> impl Stream<Item=AppEvent> {
 
         std::thread::spawn(move || {
             listen(move |event| {
-                sender.blocking_send(event.clone()).unwrap();
-            }).unwrap()
+                sender.blocking_send(event.clone()).unwrap_or_default();
+            }).unwrap_or_default();
         });
 
         let mut handler = KeyState::new();
@@ -21,7 +21,7 @@ pub fn global_key_listener() -> impl Stream<Item=AppEvent> {
             let event = receiver.recv().await.unwrap();
 
             if let Some((modifier, key)) = handler.mapping(event) {
-                output.send(AppEvent::KeyPressed(modifier, key)).await.unwrap();
+                output.send(AppEvent::KeyPressed(modifier, key)).await.unwrap_or_default();
             }
         }
     })

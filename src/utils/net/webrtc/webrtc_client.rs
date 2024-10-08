@@ -1,4 +1,5 @@
 use crate::utils::net::webrtc::webrtc_common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
+use crate::utils::sos::SignalOfStop;
 use crate::workers;
 use async_tungstenite::tokio::connect_async;
 use async_tungstenite::tungstenite::{Error, Message};
@@ -15,43 +16,42 @@ use webrtc::rtp_transceiver::rtp_codec::RTPCodecType;
 use webrtc::rtp_transceiver::rtp_receiver::RTCRtpReceiver;
 use webrtc::rtp_transceiver::RTCRtpTransceiver;
 use webrtc::track::track_remote::TrackRemote;
-use crate::utils::sos::SignalOfStop;
 
 #[derive(Clone)]
 pub struct WebRTCClient {
     connection: Arc<RTCPeerConnection>,
     ws_stream: Arc<Mutex<WebSocketStream<async_tungstenite::tokio::ConnectStream>>>,
-    local_sos: SignalOfStop
+    local_sos: SignalOfStop,
 }
 
 impl WebRTCClient {
-    pub async fn new(signaling_server_url: &str, sos: SignalOfStop) -> Arc<WebRTCClient> {
+    pub async fn new(signaling_server_url: &str, sos: SignalOfStop) -> Result<Arc<WebRTCClient>, Box<dyn std::error::Error + Send + Sync>> {
         let mut conn = Err(Error::ConnectionClosed.into());
 
         while conn.is_err() {
+            if sos.cancelled() {
+                return Err(Error::ConnectionClosed.into());
+            }
             conn = connect_async(signaling_server_url).await;
         }
 
         // Connect to the signaling server
-        let (ws_stream, _) = conn.unwrap();
+        let (ws_stream, _) = conn.map_err(|e| format!("WebRTCClient Error: {:?}", e))?;
 
         // Create the WebRTC API
         let api = create_webrtc_api();
 
         let client = Arc::new(WebRTCClient {
-            connection: create_peer_connection(&api).await.unwrap(),
+            connection: create_peer_connection(&api).await.map_err(|e| format!("WebRTCClient Error: {:?}", e))?,
             ws_stream: Arc::new(Mutex::new(ws_stream)),
             local_sos: sos,
         });
 
-        client.connection.add_transceiver_from_kind(RTPCodecType::Video, None).await.unwrap();
+        client.connection.add_transceiver_from_kind(RTPCodecType::Video, None).await.map_err(|e| format!("WebRTCClient Error: {:?}", e))?;
 
-        let rtp_sender = client.connection.add_track(create_video_track()).await.unwrap();
+        let rtp_sender = client.connection.add_track(create_video_track()).await.map_err(|e| format!("WebRTCClient Error: {:?}", e))?;
 
-        // Read incoming RTCP packets
-        // Before these packets are returned they are processed by interceptors. For things
-        // like NACK this needs to be called.
-        tokio::spawn(async move {
+        client.local_sos.spawn(async move {
             let mut rtcp_buf = vec![0u8; 1500];
             while let Ok((x, _)) = rtp_sender.read(&mut rtcp_buf).await {
                 println!("info:::: {:?}", x);
@@ -89,13 +89,13 @@ impl WebRTCClient {
 
         // Start handling signaling
         let client_clone = Arc::clone(&client);
-        tokio::spawn(async move {
+        client.local_sos.spawn(async move {
             if let Err(e) = client_clone.client_handle_signaling().await {
                 eprintln!("Error handling signaling: {}", e);
             }
         });
 
-        client
+        Ok(client)
     }
 
     async fn client_handle_signaling(self: Arc<Self>) -> Result<(), Box<dyn std::error::Error>> {
@@ -131,31 +131,32 @@ impl WebRTCClient {
         let tx = Arc::new(Mutex::new(tx));
         let connection = Arc::clone(&self.connection);
 
-        let self_c = self.clone();
+        let sos = self.local_sos.clone();
 
         // Set up the event handler for incoming tracks
         connection.on_track(Box::new(move |track: Arc<TrackRemote>, _receiver: Arc<RTCRtpReceiver>, _transceiver: Arc<RTCRtpTransceiver>| {
             // Send a PLI on an interval so that the publisher is pushing a keyframe every rtcpPLIInterval
             //let media_ssrc = track.ssrc();
             //let codec = track.codec();
+            let sos = sos.clone();
+
             Box::pin({
                 let tx = Arc::clone(&tx);
-                let self_c = self_c.clone();
                 async move {
-                    while let Ok((packet, _)) = track.read_rtp().await {
-                        if workers::sos::get_instance().lock().unwrap().cancelled() {
-                            break;
-                        }
-                        match tx.lock().await.send(packet).await {
-                            Err(SendError(e)) => {
-                                println!("Error channel packet {}", e);
+                    sos.spawn(async move {
+                        while let Ok((packet, _)) = track.read_rtp().await {
+                            if workers::sos::get_instance().lock().unwrap().cancelled() {
                                 break;
                             }
-                            _ => {}
+                            match tx.lock().await.send(packet).await {
+                                Err(SendError(e)) => {
+                                    println!("Error channel packet {}", e);
+                                    break;
+                                }
+                                _ => {}
+                            }
                         }
-                    }
-                    //println!("NEED TO CLOSE CONNECTION");
-                    self_c.disconnect().await;
+                    });
                 }
             })
         }));

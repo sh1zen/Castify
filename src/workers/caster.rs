@@ -1,16 +1,16 @@
 use crate::assets::{FRAME_RATE, USE_WEBRTC};
 use crate::gui::common::datastructure::ScreenRect;
 use crate::utils::gist::create_stream_pipeline;
+use crate::utils::net::webrtc::WebRTCServer;
 use crate::workers::WorkerClose;
+use display_info::DisplayInfo;
 use glib::prelude::ObjectExt;
 use gstreamer::prelude::{ElementExt, ElementExtManual, GObjectExtManualGst, GstBinExt};
 use gstreamer::Pipeline;
 use gstreamer_app::gst;
-use display_info::DisplayInfo;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use crate::utils::net::webrtc::WebRTCServer;
 
 #[derive(Debug, Clone)]
 pub struct XMonitor {
@@ -42,8 +42,10 @@ impl WorkerClose for Caster {
         if self.init {
             self.pause();
             let _ = self.pipeline.set_state(gst::State::Null).is_err();
+            self.init = false;
+            self.blank_screen = false;
+            self.pipeline = Default::default();
         }
-        self.init = false;
     }
 }
 
