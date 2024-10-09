@@ -1,7 +1,7 @@
 use crate::assets::FONT_FAMILY_BOLD;
 use crate::config::Config;
 use crate::gui::common::icons::Icon;
-use crate::gui::components::buttons::IconButton;
+use crate::gui::components::custom::IconButton;
 use crate::gui::style::button::ButtonType;
 use crate::gui::style::container::ContainerType;
 use crate::gui::widget::{horizontal_space, vertical_space, Column, Container, Element, PickList, Text};
@@ -16,27 +16,29 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
 
     let mut content = Column::new().spacing(10).padding(15);
 
-    if let Some(crate::config::Mode::Caster(caster)) = &config.mode {
-        if caster.is_streaming() {
-            is_streaming = true;
-            content = content
-                .push(
-                    Container::new(
-                        row![Text::new(format_seconds(caster.streaming_time).to_string()).font(FONT_FAMILY_BOLD)]
-                    ).width(Length::Fill).height(Length::Fill)
-                        .align_x(Horizontal::Center)
-                        .align_y(Vertical::Center).height(80).class(ContainerType::Standard)
-                )
-                .push(
-                    Container::new(
-                        row![
+    let Some(crate::config::Mode::Caster(caster)) = &config.mode else {
+        unreachable!("Mode must be Caster here")
+    };
+
+    if caster.is_streaming() {
+        is_streaming = true;
+        content = content
+            .push(
+                Container::new(
+                    row![Text::new(format_seconds(caster.streaming_time).to_string()).font(FONT_FAMILY_BOLD)]
+                ).width(Length::Fill).height(Length::Fill)
+                    .align_x(Horizontal::Center)
+                    .align_y(Vertical::Center).height(80).class(ContainerType::Standard)
+            )
+            .push(
+                Container::new(
+                    row![
                             IconButton::new(Some(String::from("Annotations"))).icon(Icon::Image).build().width(180).on_press(MainWindowEvent::ShowAnnotationWindow)
                         ]
-                    ).width(Length::Fill).height(Length::Fill)
-                        .align_x(Horizontal::Center)
-                        .align_y(Vertical::Center).height(80).class(ContainerType::Standard)
-                );
-        }
+                ).width(Length::Fill).height(Length::Fill)
+                    .align_x(Horizontal::Center)
+                    .align_y(Vertical::Center).height(80).class(ContainerType::Standard)
+            );
     }
 
     if !is_streaming {
@@ -111,29 +113,31 @@ fn monitor_name(id: u32) -> String {
 fn monitors_picklist(config: &Config) -> Container<'static, MainWindowEvent> {
     let mut content = Column::new();
 
-    if let Some(crate::config::Mode::Caster(caster)) = &config.mode {
-        let mut monitors = Vec::new();
+    let Some(crate::config::Mode::Caster(caster)) = &config.mode else {
+        unreachable!("Mode must be Caster here")
+    };
 
-        for monitor_id in caster.get_monitors() {
-            monitors.push(monitor_name(monitor_id));
-        }
+    let mut monitors = Vec::new();
 
-        if monitors.len() == 0 {
-            return Container::new(iced::widget::Space::new(0, 0));
-        }
-
-        let selected = monitor_name(caster.current_monitor());
-        content = content
-            .push(
-                PickList::new(
-                    monitors,
-                    Some(selected),
-                    |val| {
-                        MainWindowEvent::CasterMonitor(get_string_after(val.clone(), '#').trim().parse::<u32>().unwrap())
-                    },
-                ).padding([11, 8])
-            )
+    for monitor_id in caster.get_monitors() {
+        monitors.push(monitor_name(monitor_id));
     }
+
+    if monitors.len() == 0 {
+        return Container::new(iced::widget::Space::new(0, 0));
+    }
+
+    let selected = monitor_name(caster.current_monitor());
+    content = content
+        .push(
+            PickList::new(
+                monitors,
+                Some(selected),
+                |val| {
+                    MainWindowEvent::CasterMonitor(get_string_after(val.clone(), '#').trim().parse::<u32>().unwrap())
+                },
+            ).padding([11, 8])
+        );
 
     Container::new(content)
         .align_x(Horizontal::Center)

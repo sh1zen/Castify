@@ -4,7 +4,8 @@ pub mod gist;
 pub mod net;
 pub mod tray_icon;
 pub mod key_listener;
-pub(crate) mod sos;
+pub mod sos;
+pub mod bimap;
 
 pub fn get_string_after(s: String, c: char) -> String {
     let index = s.find(c);
@@ -49,7 +50,7 @@ pub fn evaluate_points(point_a: Point, point_b: Point) -> (Point, Point) {
     (start, end)
 }
 
-pub fn handle_result<T, E>(result: Result<T, E>) -> Option<T> {
+pub fn result_to_option<T, E>(result: Result<T, E>) -> Option<T> {
     match result {
         Ok(value) => Some(value),
         Err(_) => None,

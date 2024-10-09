@@ -1,6 +1,5 @@
 use crate::utils::net::webrtc::webrtc_common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
 use crate::utils::sos::SignalOfStop;
-use crate::workers;
 use async_tungstenite::tokio::connect_async;
 use async_tungstenite::tungstenite::{Error, Message};
 use async_tungstenite::WebSocketStream;
@@ -145,9 +144,6 @@ impl WebRTCClient {
                 async move {
                     sos.spawn(async move {
                         while let Ok((packet, _)) = track.read_rtp().await {
-                            if workers::sos::get_instance().lock().unwrap().cancelled() {
-                                break;
-                            }
                             match tx.lock().await.send(packet).await {
                                 Err(SendError(e)) => {
                                     println!("Error channel packet {}", e);

@@ -4,13 +4,10 @@ use crate::gui::common::messages::AppEvent;
 use crate::gui::components::hotkeys::KeyTypes;
 use crate::gui::style::theme::csx::StyleType;
 use crate::gui::widget::Element;
+use crate::gui::windows::{GuiWindow, WindowType, Windows};
 use crate::utils::key_listener::global_key_listener;
 use crate::utils::open_link;
 use crate::utils::tray_icon::{tray_icon_listener, tray_menu_listener};
-use crate::gui::windows::annotation::AnnotationWindow;
-use crate::gui::windows::area_selector::ASWindow;
-use crate::gui::windows::main::MainWindow;
-use crate::gui::windows::{GuiWindow, WindowManager};
 use iced::application::Appearance;
 use iced::widget::horizontal_space;
 use iced::Event::Window;
@@ -21,24 +18,22 @@ use iced_core::window::{Id, Mode, Position};
 use iced_core::Event::Keyboard;
 use iced_core::Size;
 use iced_runtime::Task;
-use std::collections::BTreeMap;
+use std::process::exit;
 use std::time::Duration;
 
 pub struct App {
     pub config: Config,
     dark_mode: bool,
-    windows: BTreeMap<Id, WindowManager>,
-    main_window: Option<Id>,
+    windows: Windows,
 }
 
 impl App {
     pub fn new() -> (Self, Task<AppEvent>) {
         (
             Self {
-                config: Config::default(),
+                config: Config::new(),
                 dark_mode: false,
-                windows: Default::default(),
-                main_window: None,
+                windows: Windows::new(),
             },
             Task::done(AppEvent::OpenMainWindow),
         )
@@ -47,7 +42,8 @@ impl App {
     pub(crate) fn update(&mut self, message: AppEvent) -> Task<AppEvent> {
         match message {
             AppEvent::OpenMainWindow => {
-                if self.main_window.is_none() {
+                let main_window = self.windows.get_id(WindowType::Main);
+                if main_window.is_none() {
                     let (id, open_task) = window::open(window::Settings {
                         size: self.config.window_size,
                         position: Position::Centered,
@@ -77,15 +73,14 @@ impl App {
                         exit_on_close_request: false,
                         ..Default::default()
                     });
-                    self.main_window = Some(id);
-                    self.windows.insert(id, WindowManager::Main(MainWindow::new()));
+                    self.windows.insert(id, WindowType::Main);
                     open_task.discard().chain(window::gain_focus(id))
                 } else {
-                    window::gain_focus(self.main_window.unwrap())
+                    window::gain_focus(main_window.unwrap())
                 }
             }
             AppEvent::OpenAreaSelectionWindow => {
-                if self.windows.len() <= 1 {
+                if !self.windows.contains(WindowType::AreaSelector) {
                     let (id, open_task) = window::open(window::Settings {
                         transparent: true,
                         decorations: false,
@@ -98,7 +93,7 @@ impl App {
                         },
                         ..Default::default()
                     });
-                    self.windows.insert(id, WindowManager::AreaSelector(ASWindow::new()));
+                    self.windows.insert(id, WindowType::AreaSelector);
                     open_task
                         .discard()
                         .chain(window::gain_focus(id))
@@ -108,7 +103,7 @@ impl App {
                 }
             }
             AppEvent::OpenAnnotationWindow => {
-                if self.windows.len() <= 1 {
+                if !self.windows.contains(WindowType::Annotation) {
                     let (id, open_task) = window::open(window::Settings {
                         transparent: true,
                         decorations: false,
@@ -121,7 +116,7 @@ impl App {
                         },
                         ..Default::default()
                     });
-                    self.windows.insert(id, WindowManager::Annotation(AnnotationWindow::new()));
+                    self.windows.insert(id, WindowType::Annotation);
                     open_task
                         .discard()
                         .chain(window::gain_focus(id))
@@ -139,14 +134,11 @@ impl App {
                 Task::none()
             }
             AppEvent::CloseWindow(id) => {
-                if self.main_window == Some(id) {
-                    self.main_window = None;
-                }
-                self.windows.remove(&id);
+                self.windows.remove(id, self.windows.of_type(id, WindowType::Main));
                 window::close(id)
             }
             AppEvent::WindowEvent(id, message) => {
-                match self.windows.get_mut(&id) {
+                match self.windows.get_manager_mut(id) {
                     Some(window_handler) => window_handler.update(id, message, &mut self.config),
                     None => Task::none(),
                 }
@@ -161,7 +153,7 @@ impl App {
                 Task::none()
             }
             AppEvent::WindowResized(id, width, height) => {
-                if Some(id) == self.main_window {
+                if self.windows.of_type(id, WindowType::Main) {
                     self.config.window_size = Size { width: width as f32, height: height as f32 };
                 }
                 Task::none()
@@ -217,8 +209,16 @@ impl App {
                 }
             }
             AppEvent::ExitApp => {
+                let mut vet = Vec::new();
                 self.config.sos.cancel();
-                iced::exit()
+                for (id, _) in self.windows.iter() {
+                    vet.push(window::close(id.clone()));
+                }
+                vet.push(Task::done(AppEvent::Terminate));
+                Task::batch(vet)
+            }
+            AppEvent::Terminate => {
+                exit(0)
             }
             AppEvent::Ignore => {
                 Task::none()
@@ -231,21 +231,21 @@ impl App {
     }
 
     pub(crate) fn view(&self, id: Id) -> Element<AppEvent> {
-        match self.windows.get(&id) {
+        match self.windows.get_manager(id) {
             Some(window_handler) => window_handler.view(&self.config).map(move |message| AppEvent::WindowEvent(id, message)),
             None => horizontal_space().into(),
         }
     }
 
     pub fn title(&self, id: Id) -> String {
-        match self.windows.get(&id) {
+        match self.windows.get_manager(id) {
             Some(window_handler) => window_handler.title(),
             None => String::new(),
         }
     }
 
     pub fn theme(&self, id: Id) -> StyleType {
-        match self.windows.get(&id) {
+        match self.windows.get_manager(id) {
             Some(window_handler) => window_handler.theme(),
             None => StyleType::default(),
         }

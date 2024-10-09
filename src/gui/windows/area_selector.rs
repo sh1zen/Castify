@@ -26,16 +26,17 @@ pub enum ASWindowEvent {
     ExitValid,
 }
 
-
-impl GuiWindow for ASWindow {
-    type Message = ASWindowEvent;
-
-    fn new() -> Self {
+impl ASWindow {
+    pub fn new() -> Self {
         ASWindow {
             area: None,
             invalid: false,
         }
     }
+}
+
+impl GuiWindow for ASWindow {
+    type Message = ASWindowEvent;
 
     fn title(&self) -> String {
         String::from(APP_NAME) + "::AreaSelection"
@@ -76,7 +77,6 @@ impl GuiWindow for ASWindow {
 
     fn view(&self, _config: &Config) -> Element<Self::Message> {
         let text_hint = if self.invalid {
-
             "Invalid selection"
         } else if let Some(_) = self.area {
             "Enter to Confirm | Click to Reset"

@@ -20,5 +20,6 @@ pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc
             status = true;
         }
     }
+
     status
 }

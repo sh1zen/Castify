@@ -1,7 +1,7 @@
 use crate::gui::components::hotkeys::KeyTypes;
 use crate::utils::sos::SignalOfStop;
-use crate::workers::receiver::Receiver;
 use crate::workers::caster::Caster;
+use crate::workers::receiver::Receiver;
 use crate::workers::WorkerClose;
 use iced_core::keyboard::key::Named;
 use iced_core::keyboard::{Key, Modifiers};
@@ -17,7 +17,6 @@ pub enum Mode {
 }
 
 impl Mode {
-
     pub fn close(&mut self) {
         match self {
             Mode::Caster(closable) => closable.close(),
@@ -58,8 +57,8 @@ pub struct Config {
     pub sos: SignalOfStop,
 }
 
-impl Default for Config {
-    fn default() -> Self {
+impl Config {
+    pub fn new() -> Self {
         let conf = Config {
             hotkey_map: Default::default(),
             window_size: Size { width: 660f32, height: 440f32 },
@@ -84,9 +83,6 @@ impl Default for Config {
 
         conf
     }
-}
-
-impl Config {
     pub fn reset_mode(&mut self) {
         if self.mode.is_some() {
             let mut mode = self.mode.take().unwrap();

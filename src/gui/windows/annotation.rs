@@ -11,6 +11,7 @@ use iced_core::Alignment::Center;
 use iced_core::Length::Fill;
 use iced_runtime::Task;
 
+
 pub struct AnnotationWindow {
 }
 
@@ -20,14 +21,16 @@ pub enum AnnotationWindowEvent {
 }
 
 
-impl GuiWindow for AnnotationWindow {
-    type Message = AnnotationWindowEvent;
-
-    fn new() -> Self {
+impl AnnotationWindow {
+    pub fn new() -> Self {
         AnnotationWindow {
 
         }
     }
+}
+
+impl GuiWindow for AnnotationWindow {
+    type Message = AnnotationWindowEvent;
 
     fn title(&self) -> String {
         String::from("")

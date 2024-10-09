@@ -1,6 +1,6 @@
 use crate::assets::FONT_FAMILY_BOLD;
 use crate::gui::common::icons::Icon;
-use crate::gui::components::buttons::IconButton;
+use crate::gui::components::custom::IconButton;
 use crate::gui::style::container::ContainerType;
 use crate::gui::widget::{horizontal_space, vertical_space, Container, Element, Row, Text};
 use crate::gui::windows::main::MainWindowEvent;

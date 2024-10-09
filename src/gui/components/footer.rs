@@ -1,4 +1,3 @@
-use crate::assets::APP_NAME;
 use crate::assets::APP_VERSION;
 use crate::gui::common::icons::Icon;
 use crate::gui::style::button::ButtonType;
@@ -13,7 +12,7 @@ pub fn footer<'a>() -> Container<'a, MainWindowEvent> {
     let made_by = Text::new("Made by:  A. Frolli  P. Bella  M. De Paola")
         .width(Length::Fill)
         .align_x(Horizontal::Right)
-        .size(14.0);
+        .size(12.0);
 
     let version = Row::new()
         .align_y(Alignment::Center)
@@ -21,7 +20,7 @@ pub fn footer<'a>() -> Container<'a, MainWindowEvent> {
         .width(Length::Fill)
         .spacing(5)
         .push(
-            Text::new(format!("{APP_NAME} {APP_VERSION}")).size(14.0)
+            Text::new(APP_VERSION).size(12.0)
         );
 
     let footer_row = Row::new()

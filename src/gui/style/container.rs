@@ -56,9 +56,12 @@ impl Catalog for StyleType {
                     _ => Color::TRANSPARENT,
                 },
             },
-            text_color: Some(palette.text),
+            text_color: Some(match class {
+                ContainerType::Video => palette.text_inv,
+                _ => palette.text,
+            }),
             shadow: match class {
-                ContainerType::Modal => Shadow {
+                ContainerType::Modal | ContainerType::Video => Shadow {
                     color: Color::BLACK,
                     offset: Vector::ZERO,
                     blur_radius: 3.0,

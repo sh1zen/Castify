@@ -3,17 +3,16 @@ use crate::config::{Config, Mode};
 use crate::gui::common::datastructure::ScreenRect;
 use crate::gui::common::messages::AppEvent;
 use crate::gui::components::caster::caster_page;
-use crate::gui::components::client::client_page;
 use crate::gui::components::footer::footer;
 use crate::gui::components::home::initial_page;
 use crate::gui::components::hotkeys::{hotkeys, KeyTypes};
 use crate::gui::components::popup::{show_popup, Popup, PopupMsg, PopupType};
+use crate::gui::components::receiver::client_page;
 use crate::gui::components::{home, popup};
 use crate::gui::style::theme::csx::StyleType;
 use crate::gui::video::Video;
 use crate::gui::widget::{Column, Container, Element};
 use crate::gui::windows::GuiWindow;
-use crate::workers;
 use crate::workers::caster::Caster;
 use crate::workers::receiver::Receiver;
 use iced::{window::Id, Task};
@@ -73,10 +72,8 @@ pub enum MainWindowEvent {
     ShowAnnotationWindow,
 }
 
-impl GuiWindow for MainWindow {
-    type Message = MainWindowEvent;
-
-    fn new() -> Self {
+impl MainWindow {
+    pub fn new() -> Self {
         Self {
             // make as unique initializer using same as workers
             theme: Spring::new(StyleType::default()),
@@ -85,6 +82,10 @@ impl GuiWindow for MainWindow {
             video: Video::new(),
         }
     }
+}
+
+impl GuiWindow for MainWindow {
+    type Message = MainWindowEvent;
 
     fn title(&self) -> String {
         APP_NAME.into()
@@ -107,7 +108,7 @@ impl GuiWindow for MainWindow {
                         self.page = Page::Caster
                     }
                     home::Message::ButtonReceiver => {
-                        config.mode = Some(Mode::Client(Receiver::new()));
+                        config.mode = Some(Mode::Client(Receiver::new(config.sos.clone())));
                         self.popup.show(PopupType::IP);
                     }
                 }
