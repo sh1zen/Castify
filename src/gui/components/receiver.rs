@@ -15,7 +15,7 @@ pub fn client_page<'a, 'b>(video: &'b Video, config: &Config) -> Element<'a, Mai
 where
     'b: 'a,
 {
-    let Some(Mode::Client(client)) = &config.mode else {
+    let Some(Mode::Receiver(client)) = &config.mode else {
         unreachable!("Mode must be Receiver here")
     };
 
@@ -44,7 +44,7 @@ where
 
     let video = {
         let client = match &config.mode {
-            Some(Mode::Client(c)) => c,
+            Some(Mode::Receiver(c)) => c,
             _ => unreachable!("Mode must be Client here"),
         };
 

@@ -10,22 +10,21 @@ use local_ip_address::local_ip;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::{Arc, Mutex};
 
-#[derive(Debug)]
 pub enum Mode {
     Caster(Caster),
-    Client(Receiver),
+    Receiver(Receiver),
 }
 
 impl Mode {
     pub fn close(&mut self) {
         match self {
             Mode::Caster(closable) => closable.close(),
-            Mode::Client(closable) => closable.close(),
+            Mode::Receiver(closable) => closable.close(),
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct HotkeyMap {
     pub pause: (Modifiers, Key),
     pub record: (Modifiers, Key),
@@ -46,7 +45,6 @@ impl Default for HotkeyMap {
     }
 }
 
-#[derive(Debug)]
 pub struct Config {
     pub hotkey_map: HotkeyMap,
     pub window_size: Size,
@@ -61,7 +59,7 @@ impl Config {
     pub fn new() -> Self {
         let conf = Config {
             hotkey_map: Default::default(),
-            window_size: Size { width: 660f32, height: 440f32 },
+            window_size: Size { width: 680f32, height: 460f32 },
             e_time: 0,
             mode: None,
             public_ip: Arc::new(Mutex::new(None)),
@@ -83,10 +81,21 @@ impl Config {
 
         conf
     }
+
     pub fn reset_mode(&mut self) {
         if self.mode.is_some() {
             let mut mode = self.mode.take().unwrap();
             mode.close();
         }
     }
+}
+
+/// Returns a version as specified in Cargo.toml
+pub fn version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
+
+
+pub fn app_name() -> &'static str {
+    env!("CARGO_PKG_NAME")
 }

@@ -1,6 +1,4 @@
 use crate::assets::{FONT_BASE_DATA, FONT_FAMILY_BASE, ICONS_BYTES};
-use crate::utils::tray_icon::tray_icon;
-use std::borrow::Cow;
 
 pub mod app;
 pub mod components;
@@ -33,14 +31,13 @@ macro_rules! row {
 }
 
 pub fn run() {
-    let _tray_icon = tray_icon();
 
     let app = iced::daemon(App::title, App::update, App::view)
         .style(App::style)
         .theme(App::theme)
         .antialiasing(true)
-        .font(Cow::Borrowed(ICONS_BYTES))
-        .font(Cow::Borrowed(FONT_BASE_DATA))
+        .font(ICONS_BYTES)
+        .font(FONT_BASE_DATA)
         .default_font(FONT_FAMILY_BASE)
         .subscription(App::subscription);
 

@@ -1,4 +1,4 @@
-use crate::assets::{FRAME_RATE, USE_WEBRTC};
+use crate::assets::FRAME_RATE;
 use crate::utils::result_to_option;
 use crate::utils::sos::SignalOfStop;
 use crate::workers::save_stream::SaveStream;
@@ -8,7 +8,6 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-#[derive(Debug)]
 pub struct Receiver {
     is_streaming: Arc<Mutex<bool>>,
     save_stream: Option<SaveStream>,
@@ -19,8 +18,8 @@ pub struct Receiver {
 
 impl WorkerClose for Receiver {
     fn close(&mut self) {
-        self.local_sos.cancel();
         self.save_stop();
+        self.local_sos.cancel();
     }
 }
 
@@ -48,17 +47,11 @@ impl Receiver {
 
         let sos = self.local_sos.clone();
 
-        let pipeline: Option<Pipeline> = if USE_WEBRTC {
+        let pipeline: Option<Pipeline> = {
             let (tx, rx) = tokio::sync::mpsc::channel(1);
             let is_streaming = self.is_streaming.clone();
             tokio::spawn(async move {
                 *is_streaming.lock().await = crate::utils::net::webrtc::receiver(caster_addr, tx, sos).await;
-            });
-            result_to_option(crate::utils::gist::create_rtp_view_pipeline(rx, save_tx))
-        } else {
-            let (tx, rx) = tokio::sync::mpsc::channel(1);
-            tokio::spawn(async move {
-                crate::utils::net::xgp::receiver(caster_addr, tx).await;
             });
             result_to_option(crate::utils::gist::create_view_pipeline(rx, save_tx))
         };

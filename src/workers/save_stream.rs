@@ -1,5 +1,4 @@
-use crate::assets::USE_WEBRTC;
-use crate::utils::gist::{create_rtp_save_pipeline, create_save_pipeline};
+use crate::utils::gist::create_save_pipeline;
 use glib::prelude::*;
 use gstreamer::prelude::{ElementExt, GstBinExt};
 use gstreamer::{FlowSuccess, MessageView, Pipeline};
@@ -19,18 +18,14 @@ pub struct SaveStream {
 impl SaveStream {
     pub fn new(saver_channel: Arc<tokio::sync::Mutex<Receiver<gstreamer::Buffer>>>) -> Self {
         Self {
-            saver_channel: saver_channel,
+            saver_channel,
             is_saving: Arc::new(tokio::sync::Mutex::new(false)),
             pipeline: Default::default(),
         }
     }
 
     pub fn start(&mut self) {
-        let pipeline = if USE_WEBRTC {
-            create_rtp_save_pipeline().unwrap()
-        } else {
-            create_save_pipeline().unwrap()
-        };
+        let pipeline = create_save_pipeline().unwrap();
 
         if let Some(appsrc) = pipeline.by_name("appsrc").and_then(|elem| elem.downcast::<AppSrc>().ok()) {
             pipeline.set_state(gst::State::Playing).expect("Failed starting save_pipeline");

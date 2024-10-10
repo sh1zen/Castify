@@ -1,8 +1,10 @@
 use crate::assets::CAST_SERVICE_PORT;
-use igd::search_gateway;
 use local_ip_address::local_ip;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
-use std::net::{IpAddr, SocketAddr, SocketAddrV4};
+use natpmp::Natpmp;
+use std::net::SocketAddr;
+use std::thread::sleep;
+use std::time::Duration;
 
 const LOCAL_DISCOVERY_SERVICE_NAME: &'static str = "_screen_caster._tcp.local.";
 const FORWARDING_SERVICE_NAME: &'static str = "Castify";
@@ -55,21 +57,18 @@ pub(crate) fn caster_discover_service() -> ServiceDaemon {
 }
 
 pub(crate) fn port_forwarding() -> Result<(), Box<dyn std::error::Error>> {
-    let gateway = search_gateway(Default::default())?;
 
-    let local_ip = local_ip()?;
+    // Initialize NAT-PMP with the router's IP address
+    let mut natpmp = Natpmp::new()?;
 
-    let IpAddr::V4(ipv4) = local_ip else {
-        return Err(Box::new(std::io::Error::new(std::io::ErrorKind::AddrNotAvailable, "Local ipv4 not found")))
-    };
+    // Send a request to create a port mapping
+    natpmp.send_port_mapping_request(natpmp::Protocol::UDP, CAST_SERVICE_PORT, 8080, 3600)?;
 
-    gateway.add_port(
-        igd::PortMappingProtocol::TCP,
-        31415,
-        SocketAddrV4::new(ipv4, CAST_SERVICE_PORT),
-        3600,
-        FORWARDING_SERVICE_NAME,
-    )?;
+    sleep(Duration::from_millis(250));
+
+    // Handle response (wait for a while for the response to come back)
+    let mapping = natpmp.read_response_or_retry()?;
+    println!("Got response: {:?}", mapping);
 
     println!("Port forwarding setup complete!");
 

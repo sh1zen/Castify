@@ -1,4 +1,4 @@
-use crate::assets::APP_VERSION;
+use crate::config::version;
 use crate::gui::common::icons::Icon;
 use crate::gui::style::button::ButtonType;
 use crate::gui::style::container::ContainerType;
@@ -20,7 +20,7 @@ pub fn footer<'a>() -> Container<'a, MainWindowEvent> {
         .width(Length::Fill)
         .spacing(5)
         .push(
-            Text::new(APP_VERSION).size(12.0)
+            Text::new(version()).size(12.0)
         );
 
     let footer_row = Row::new()

@@ -7,7 +7,7 @@ use crate::gui::widget::Element;
 use crate::gui::windows::{GuiWindow, WindowType, Windows};
 use crate::utils::key_listener::global_key_listener;
 use crate::utils::open_link;
-use crate::utils::tray_icon::{tray_icon_listener, tray_menu_listener};
+use crate::utils::tray_icon::{tray_icon, tray_icon_listener, tray_menu_listener};
 use iced::application::Appearance;
 use iced::widget::horizontal_space;
 use iced::Event::Window;
@@ -20,26 +20,30 @@ use iced_core::Size;
 use iced_runtime::Task;
 use std::process::exit;
 use std::time::Duration;
+use tray_icon::TrayIcon;
 
 pub struct App {
     pub config: Config,
     dark_mode: bool,
     windows: Windows,
+    tray_icon: TrayIcon,
 }
 
 impl App {
     pub fn new() -> (Self, Task<AppEvent>) {
+        let tray_icon = tray_icon();
         (
             Self {
                 config: Config::new(),
                 dark_mode: false,
                 windows: Windows::new(),
+                tray_icon,
             },
             Task::done(AppEvent::OpenMainWindow),
         )
     }
 
-    pub(crate) fn update(&mut self, message: AppEvent) -> Task<AppEvent> {
+    pub fn update(&mut self, message: AppEvent) -> Task<AppEvent> {
         match message {
             AppEvent::OpenMainWindow => {
                 let main_window = self.windows.get_id(WindowType::Main);
@@ -47,7 +51,7 @@ impl App {
                     let (id, open_task) = window::open(window::Settings {
                         size: self.config.window_size,
                         position: Position::Centered,
-                        min_size: Some(Size::new(400f32, 300f32)),
+                        min_size: Some(Size { width: 680f32, height: 460f32 }),
                         max_size: None,
                         visible: true,
                         resizable: true,
@@ -209,15 +213,11 @@ impl App {
                 }
             }
             AppEvent::ExitApp => {
-                let mut vet = Vec::new();
-                self.config.sos.cancel();
                 for (id, _) in self.windows.iter() {
-                    vet.push(window::close(id.clone()));
+                    let _: Task<AppEvent> = window::close(*id);
                 }
-                vet.push(Task::done(AppEvent::Terminate));
-                Task::batch(vet)
-            }
-            AppEvent::Terminate => {
+                self.config.reset_mode();
+                self.config.sos.cancel();
                 exit(0)
             }
             AppEvent::Ignore => {
@@ -230,7 +230,7 @@ impl App {
         }
     }
 
-    pub(crate) fn view(&self, id: Id) -> Element<AppEvent> {
+    pub fn view(&self, id: Id) -> Element<AppEvent> {
         match self.windows.get_manager(id) {
             Some(window_handler) => window_handler.view(&self.config).map(move |message| AppEvent::WindowEvent(id, message)),
             None => horizontal_space().into(),

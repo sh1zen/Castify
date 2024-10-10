@@ -1,8 +1,6 @@
 use iced_core::font::{Family, Stretch, Style, Weight};
 use iced_core::Font;
 
-pub const USE_WEBRTC: bool = true;
-
 // conv
 pub const SAMPLING_RATE: i32 = 30;
 
@@ -13,10 +11,6 @@ pub const FRAME_HEIGHT: i32 = 1080;
 // connections
 pub const MAX_PACKAGES_FAIL: u8 = 5;
 pub const CAST_SERVICE_PORT: u16 = 31413;
-
-// app name
-pub const APP_VERSION: &str = "1.0.0";
-pub const APP_NAME: &str = "Castify";
 
 #[cfg(target_os = "windows")]
 pub const TARGET_OS: &str = "windows";

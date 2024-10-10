@@ -12,7 +12,8 @@ use tray_icon::{
     TrayIcon, TrayIconAttributes, TrayIconEvent,
 };
 
-use crate::assets::{APP_NAME, ICON_BYTES};
+use crate::assets::ICON_BYTES;
+use crate::config::app_name;
 use crate::gui::common::messages::AppEvent;
 
 pub fn tray_icon() -> TrayIcon {
@@ -31,12 +32,12 @@ pub fn tray_icon() -> TrayIcon {
     ]).expect("Tray icon set up failed.");
 
     TrayIcon::new(TrayIconAttributes {
-        tooltip: Some(APP_NAME.to_string()),
+        tooltip: Some(app_name().to_string()),
         menu: Some(Box::new(menu)),
         icon: Some(icon),
         icon_is_template: false,
         menu_on_left_click: false,
-        title: Some(APP_NAME.to_string()),
+        title: Some(app_name().to_string()),
         ..Default::default()
     }).unwrap()
 }

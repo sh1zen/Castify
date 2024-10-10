@@ -1,5 +1,5 @@
-use crate::assets::{APP_NAME, CAST_SERVICE_PORT, FRAME_HEIGHT, FRAME_RATE, FRAME_WITH};
-use crate::config::{Config, Mode};
+use crate::assets::{CAST_SERVICE_PORT, FRAME_HEIGHT, FRAME_RATE, FRAME_WITH};
+use crate::config::{app_name, Config, Mode};
 use crate::gui::common::datastructure::ScreenRect;
 use crate::gui::common::messages::AppEvent;
 use crate::gui::components::caster::caster_page;
@@ -88,7 +88,7 @@ impl GuiWindow for MainWindow {
     type Message = MainWindowEvent;
 
     fn title(&self) -> String {
-        APP_NAME.into()
+        app_name().into()
     }
 
     fn update(&mut self, _id: Id, message: MainWindowEvent, config: &mut Config) -> Task<AppEvent> {
@@ -96,7 +96,6 @@ impl GuiWindow for MainWindow {
             MainWindowEvent::Home => {
                 config.hotkey_map.updating = KeyTypes::None;
                 config.reset_mode();
-                println!("{:?}", config.mode);
                 self.popup.hide();
                 self.page = Page::Home;
                 Task::none()
@@ -108,7 +107,7 @@ impl GuiWindow for MainWindow {
                         self.page = Page::Caster
                     }
                     home::Message::ButtonReceiver => {
-                        config.mode = Some(Mode::Client(Receiver::new(config.sos.clone())));
+                        config.mode = Some(Mode::Receiver(Receiver::new(config.sos.clone())));
                         self.popup.show(PopupType::IP);
                     }
                 }
@@ -151,7 +150,7 @@ impl GuiWindow for MainWindow {
             MainWindowEvent::ConnectToCaster(mut caster_ip) => {
                 self.popup.hide();
                 self.page = Page::Client;
-                let Some(Mode::Client(client)) = &mut config.mode else {
+                let Some(Mode::Receiver(client)) = &mut config.mode else {
                     return Task::none();
                 };
                 if caster_ip != "auto" {
@@ -178,14 +177,14 @@ impl GuiWindow for MainWindow {
                 Task::none()
             }
             MainWindowEvent::SaveCapture => {
-                let Some(Mode::Client(client)) = &mut config.mode else {
+                let Some(Mode::Receiver(client)) = &mut config.mode else {
                     return Task::none();
                 };
                 client.save_stream();
                 Task::none()
             }
             MainWindowEvent::SaveCaptureStop => {
-                let Some(Mode::Client(client)) = &mut config.mode else {
+                let Some(Mode::Receiver(client)) = &mut config.mode else {
                     return Task::none();
                 };
                 client.save_stop();

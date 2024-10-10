@@ -1,13 +1,15 @@
-use crate::assets::{APP_NAME, FONT_FAMILY_BOLD};
-use crate::config::Config;
+use crate::assets::{FONT_FAMILY_BOLD, ICON_BYTES};
+use crate::config::{app_name, Config};
 use crate::gui::common::icons::Icon;
 use crate::gui::components::custom::{IconButton, Key4Board};
 use crate::gui::style::button::ButtonType;
 use crate::gui::style::container::ContainerType;
-use crate::gui::widget::{horizontal_space, vertical_space, Container, Element, Row, Text};
+use crate::gui::widget::{horizontal_space, vertical_space, Container, Element, Row, Space, Text};
 use crate::gui::windows::main::{MainWindow, MainWindowEvent};
+use iced::widget::Image;
 use iced::{Alignment, Length};
-use iced_core::alignment;
+use iced_core::{alignment, Padding};
+use iced_core::image::Handle;
 use iced_core::keyboard::{Key, Modifiers};
 
 #[derive(Debug, Clone)]
@@ -17,14 +19,24 @@ pub enum Message {
 }
 pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a, MainWindowEvent> {
     let header = crate::row![
-            Text::new(APP_NAME).size(40).font(FONT_FAMILY_BOLD),
+            Row::new()
+                .push(Image::new(Handle::from_bytes(ICON_BYTES)).width(58).height(58))
+                .push(Space::with_width(16))
+                .push(Text::new(app_name()).size(42).font(FONT_FAMILY_BOLD))
+                .align_y(alignment::Vertical::Center),
             horizontal_space(),
             IconButton::new(Some(String::from("Exit"))).style(ButtonType::Danger).build()
                 .on_press(MainWindowEvent::ExitApp)
                 .height(40)
-                .width(80),
+                .width(100),
         ]
-        .align_y(alignment::Vertical::Center);
+        .align_y(alignment::Vertical::Center)
+        .padding(Padding {
+            top: 0.0,
+            right: 0.0,
+            bottom: 10.0,
+            left: 0.0,
+        });
 
     let body = crate::column![
             Container::new(

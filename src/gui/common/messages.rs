@@ -36,5 +36,4 @@ pub enum AppEvent
     AreaSelected(ScreenRect),
     /// Handle Caster Rec/Pause actions
     CasterToggleStreaming,
-    Terminate,
 }

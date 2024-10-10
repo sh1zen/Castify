@@ -1,4 +1,4 @@
-use crate::assets::{FRAME_RATE, USE_WEBRTC};
+use crate::assets::FRAME_RATE;
 use crate::gui::common::datastructure::ScreenRect;
 use crate::utils::gist::create_stream_pipeline;
 use crate::utils::net::webrtc::WebRTCServer;
@@ -10,9 +10,7 @@ use gstreamer::prelude::{ElementExt, ElementExtManual, GObjectExtManualGst, GstB
 use gstreamer::Pipeline;
 use gstreamer_app::gst;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use futures_util::task::LocalSpawnExt;
+use std::error::Error;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -27,7 +25,6 @@ pub struct XMonitor {
 
 unsafe impl Send for XMonitor {}
 
-#[derive(Debug, Clone)]
 pub struct Caster {
     init: bool,
     pub streaming_time: u64,
@@ -36,15 +33,15 @@ pub struct Caster {
     blank_screen: bool,
     monitor: u32,
     monitors: HashMap<u32, XMonitor>,
-    running: Arc<AtomicBool>,
-    local_sos: SignalOfStop,
+    server: WebRTCServer,
+    sos: SignalOfStop,
 }
 
 impl WorkerClose for Caster {
     fn close(&mut self) {
-        self.running.store(false, Ordering::Relaxed);
         if self.init {
             self.pause();
+            self.server.close();
             let _ = self.pipeline.set_state(gst::State::Null).is_err();
             self.init = false;
             self.blank_screen = false;
@@ -65,8 +62,8 @@ impl Caster {
             monitors,
             blank_screen: false,
             monitor: main,
-            running: Arc::new(AtomicBool::new(true)),
-            local_sos: sos,
+            sos,
+            server: WebRTCServer::new(),
         }
     }
 
@@ -140,22 +137,17 @@ impl Caster {
             // process screens
             self.pipeline = create_stream_pipeline(&(self.monitors.get(&self.monitor).unwrap().device_identifier), tx_processed, false).unwrap();
 
-            let running = Arc::clone(&self.running);
-            let sos = self.local_sos.clone();
-            let sos2 = self.local_sos.clone();
-
-            sos.spawn(async move {
-                //crate::utils::net::common::port_forwarding().expect("Failed to setup port forwarding.");
+            self.sos.spawn(async move {
                 // used for auto caster discovery
                 crate::utils::net::common::caster_discover_service();
 
-                if USE_WEBRTC {
-                    let server = WebRTCServer::new(sos2);
-                    server.send_video_frames(rx_processed, running).await;
-                } else {
-                    crate::utils::net::xgp::caster(rx_processed, running).await;
+                if let Err(e) = crate::utils::net::common::port_forwarding() {
+                    println!("Failed to setup port forwarding: {}", e)
                 }
             });
+
+            self.server.run();
+            self.server.send_video_frames(rx_processed);
         }
     }
 

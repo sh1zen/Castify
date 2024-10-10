@@ -1,5 +1,5 @@
-use crate::assets::{APP_NAME, FONT_FAMILY_BOLD};
-use crate::config::Config;
+use crate::assets::FONT_FAMILY_BOLD;
+use crate::config::{app_name, Config};
 use crate::gui::common::datastructure::ScreenRect;
 use crate::gui::common::messages::AppEvent;
 use crate::gui::components::AreaSelector;
@@ -39,7 +39,7 @@ impl GuiWindow for ASWindow {
     type Message = ASWindowEvent;
 
     fn title(&self) -> String {
-        String::from(APP_NAME) + "::AreaSelection"
+        String::from(app_name()) + "::AreaSelection"
     }
 
     fn update(&mut self, id: Id, message: Self::Message, _config: &mut Config) -> Task<AppEvent> {
