@@ -45,7 +45,6 @@ natpmp= "0.4.0"
 async-tungstenite = { version = "0.28.0", features = ["tokio-runtime"] }
 futures-util = { version = "0.3.31" }
 
-
 [target.'cfg( target_os = "linux" )'.dependencies]
 gtk = "0.18.1"
 

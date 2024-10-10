@@ -104,7 +104,7 @@ impl GuiWindow for MainWindow {
             MainWindowEvent::Mode(mode) => {
                 match mode {
                     home::Message::ButtonCaster => {
-                        config.mode = Some(Mode::Caster(Caster::new()));
+                        config.mode = Some(Mode::Caster(Caster::new(config.sos.clone())));
                         self.page = Page::Caster
                     }
                     home::Message::ButtonReceiver => {

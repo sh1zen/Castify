@@ -1,13 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod gui;
-mod utils;
-mod workers;
-mod xmacro;
-mod assets;
-mod config;
-
 use std::{panic, process};
+
+pub mod gui;
+pub mod utils;
+pub mod workers;
+pub mod assets;
+pub mod config;
+pub mod xmacro;
 
 fn main() {
     let os_supported = gstreamer::init().is_ok();

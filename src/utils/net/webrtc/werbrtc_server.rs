@@ -1,5 +1,6 @@
 use crate::assets::CAST_SERVICE_PORT;
 use crate::utils::net::webrtc::webrtc_common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
+use crate::utils::sos::SignalOfStop;
 use async_tungstenite::tokio::{accept_async, TokioAdapter};
 use async_tungstenite::tungstenite::Message;
 use async_tungstenite::WebSocketStream;
@@ -31,19 +32,23 @@ struct WRTCPeer {
 pub struct WebRTCServer {
     api: Arc<API>,
     peers: Arc<Mutex<Vec<Arc<WRTCPeer>>>>,
+    sos: SignalOfStop
 }
 
 impl WebRTCServer {
-    pub fn new() -> Arc<WebRTCServer> {
+    pub fn new( sos: SignalOfStop) -> Arc<WebRTCServer> {
         let api = create_webrtc_api();
+
+        let sos_clone = sos.clone();
 
         let server = Arc::new(WebRTCServer {
             api,
             peers: Arc::new(Mutex::new(Vec::new())),
+            sos
         });
 
         let server_clone = Arc::clone(&server);
-        tokio::spawn(async move {
+        sos_clone.spawn(async move {
             server_clone.run_signaling_server().await.unwrap();
         });
 

@@ -2,6 +2,7 @@ use crate::assets::{FRAME_RATE, USE_WEBRTC};
 use crate::gui::common::datastructure::ScreenRect;
 use crate::utils::gist::create_stream_pipeline;
 use crate::utils::net::webrtc::WebRTCServer;
+use crate::utils::sos::SignalOfStop;
 use crate::workers::WorkerClose;
 use display_info::DisplayInfo;
 use glib::prelude::ObjectExt;
@@ -11,8 +12,10 @@ use gstreamer_app::gst;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use futures_util::task::LocalSpawnExt;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct XMonitor {
     x: i32,
     y: i32,
@@ -34,6 +37,7 @@ pub struct Caster {
     monitor: u32,
     monitors: HashMap<u32, XMonitor>,
     running: Arc<AtomicBool>,
+    local_sos: SignalOfStop,
 }
 
 impl WorkerClose for Caster {
@@ -51,7 +55,7 @@ impl WorkerClose for Caster {
 
 
 impl Caster {
-    pub fn new() -> Self {
+    pub fn new(sos: SignalOfStop) -> Self {
         let (monitors, main) = Self::setup_monitors();
         Self {
             init: false,
@@ -62,6 +66,7 @@ impl Caster {
             blank_screen: false,
             monitor: main,
             running: Arc::new(AtomicBool::new(true)),
+            local_sos: sos,
         }
     }
 
@@ -136,15 +141,17 @@ impl Caster {
             self.pipeline = create_stream_pipeline(&(self.monitors.get(&self.monitor).unwrap().device_identifier), tx_processed, false).unwrap();
 
             let running = Arc::clone(&self.running);
+            let sos = self.local_sos.clone();
+            let sos2 = self.local_sos.clone();
 
-            tokio::spawn(async move {
+            sos.spawn(async move {
                 //crate::utils::net::common::port_forwarding().expect("Failed to setup port forwarding.");
                 // used for auto caster discovery
                 crate::utils::net::common::caster_discover_service();
 
                 if USE_WEBRTC {
-                    let calla = WebRTCServer::new();
-                    calla.send_video_frames(rx_processed, running).await;
+                    let server = WebRTCServer::new(sos2);
+                    server.send_video_frames(rx_processed, running).await;
                 } else {
                     crate::utils::net::xgp::caster(rx_processed, running).await;
                 }
