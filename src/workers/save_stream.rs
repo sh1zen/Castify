@@ -1,12 +1,10 @@
 use crate::utils::gist::create_save_pipeline;
 use glib::prelude::*;
 use gstreamer::prelude::{ElementExt, GstBinExt};
-use gstreamer::{FlowSuccess, MessageView, Pipeline};
+use gstreamer::{ClockTime, FlowSuccess, MessageView, Pipeline, StateChangeSuccess};
 use gstreamer_app::{gst, AppSrc};
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::mpsc::Receiver;
-use tokio::time::sleep;
 
 #[derive(Debug)]
 pub struct SaveStream {
@@ -62,22 +60,20 @@ impl SaveStream {
 
         tokio::spawn(async move {
             let mut pipeline = pipeline.lock().await;
+
             match &pipeline
                 .by_name("appsrc").and_then(|elem| elem.downcast::<AppSrc>().ok()) {
                 Some(appsrc) => {
                     appsrc.end_of_stream().unwrap_or(FlowSuccess::Ok);
                     if let Some(bus) = pipeline.bus()
                     {
-                        for msg in bus.iter() {
+                        for msg in bus.iter_timed(Some(ClockTime::from_mseconds(10))) {
                             match msg.view() {
                                 MessageView::Eos(_) => {
-                                    pipeline.set_state(gstreamer::State::Null).unwrap();
+                                    pipeline.set_state(gstreamer::State::Null).unwrap_or(StateChangeSuccess::NoPreroll);
                                     break;
                                 }
-                                _ => {
-                                    // fix to allow pipeline to prepare for gstreamer::State::Null
-                                    sleep(Duration::from_millis(2)).await;
-                                }
+                                _ => {}
                             }
                         }
                     }

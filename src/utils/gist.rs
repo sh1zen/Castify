@@ -1,4 +1,4 @@
-use crate::assets::{FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, SAMPLING_RATE, TARGET_OS};
+use crate::assets::{FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, TARGET_OS};
 use chrono::Local;
 use gstreamer as gst;
 use gstreamer::prelude::*;
@@ -10,7 +10,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use webrtc::rtp::packet::Packet;
 use webrtc::util::Marshal;
 
-pub fn create_stream_pipeline(monitor: &str, tx_processed: Sender<Buffer>, use_rtp: bool) -> Result<Pipeline, glib::Error> {
+pub fn create_stream_pipeline(monitor: &str, tx_processed: Sender<Buffer>, use_rtp: bool) -> Result<Pipeline, Box<dyn Error>> {
     let pipeline = Pipeline::new();
 
     let src = match TARGET_OS {
@@ -21,7 +21,9 @@ pub fn create_stream_pipeline(monitor: &str, tx_processed: Sender<Buffer>, use_r
         }
         "macos" => {
             ElementFactory::make("avfvideosrc")
-                .property_from_str("device-index", monitor)
+                // todo device-index
+
+                //.property_from_str("device-index", monitor)
                 .property("capture-screen", true)
                 .property("capture-screen-cursor", true)
         }
@@ -36,19 +38,19 @@ pub fn create_stream_pipeline(monitor: &str, tx_processed: Sender<Buffer>, use_r
         }
     }
         .name("src")
-        .build().unwrap();
+        .build()?;
 
     let videobox = ElementFactory::make("videobox")
         .name("videobox")
-        .build().unwrap();
+        .build()?;
 
     let video_convert = ElementFactory::make("videoconvert")
         .name("videoconvert")
-        .build().unwrap();
+        .build()?;
 
     let videoscale = ElementFactory::make("videoscale")
         .name("videoscale")
-        .build().unwrap();
+        .build()?;
 
     let videoscale_capsfilter = ElementFactory::make("capsfilter")
         .name("videoscale-capsfilter")
@@ -58,8 +60,9 @@ pub fn create_stream_pipeline(monitor: &str, tx_processed: Sender<Buffer>, use_r
                       .field("height", FRAME_HEIGHT)
                       .field("pixel-aspect-ratio", Fraction::new(1, 1))
                       .field("framerate", Fraction::new(FRAME_RATE, 1))
+                      .field("format", "I420")
                       .build(),
-        ).build().unwrap();
+        ).build()?;
 
     let video_encoder = ElementFactory::make("x264enc")
         .name("x264enc")
@@ -69,37 +72,37 @@ pub fn create_stream_pipeline(monitor: &str, tx_processed: Sender<Buffer>, use_r
         .property_from_str("tune", "zerolatency")
         .property_from_str("speed-preset", "superfast")
         .property("key-int-max", 15u32)
-        .build().unwrap();
+        .build()?;
 
     let video_queue = ElementFactory::make("queue")
         .property_from_str("leaky", "downstream")
-        .build().unwrap();
+        .build()?;
 
     let h264parse = ElementFactory::make("h264parse")
-        .property("disable-passthrough", &true)
-        .property("config-interval", &-1) // Send SPS/PPS with every keyframe
-        .build().unwrap();
+        .property("disable-passthrough", true)
+        .property("config-interval", -1) // Send SPS/PPS with every keyframe
+        .build()?;
 
     let rtph264pay = ElementFactory::make("rtph264pay")
-        .property("config-interval", &-1)
-        .property("pt", &96u32)
-        .build().unwrap();
+        .property("config-interval", -1)
+        .property("pt", 96u32)
+        .build()?;
 
     let sink = if use_rtp {
         ElementFactory::make("appsink")
             .name("appsink")
-            .property("sync", &false)
-            .property("emit-signals", &true)
+            .property("sync", false)
+            .property("emit-signals", true)
             .property("caps",
                       &gst::Caps::builder("application/x-rtp")
-                          .field("stream-format", &"byte-stream")
-                          .field("alignment", &"au")
-                          .field("media", &"video")
-                          .field("clock-rate", &90000)
-                          .field("encoding-name", &"H264")
-                          .field("payload", &96i32)
+                          .field("stream-format", "byte-stream")
+                          .field("alignment", "au")
+                          .field("media", "video")
+                          .field("clock-rate", 90000)
+                          .field("encoding-name", "H264")
+                          .field("payload", 96i32)
                           .build(),
-            ).build().unwrap()
+            ).build()?
     } else {
         ElementFactory::make("appsink")
             .name("appsink")
@@ -107,10 +110,10 @@ pub fn create_stream_pipeline(monitor: &str, tx_processed: Sender<Buffer>, use_r
             .property("emit-signals", &true)
             .property("caps",
                       &gst::Caps::builder("video/x-h264")
-                          .field("stream-format", &"byte-stream")
-                          .field("alignment", &"au")
+                          .field("stream-format", "byte-stream")
+                          .field("alignment", "au")
                           .build(),
-            ).build().unwrap()
+            ).build()?
     };
 
     let video_elements: Vec<&Element> = if use_rtp {
@@ -120,13 +123,13 @@ pub fn create_stream_pipeline(monitor: &str, tx_processed: Sender<Buffer>, use_r
     };
 
     // Add elements to pipeline
-    pipeline.add_many(&video_elements[..]).unwrap();
+    pipeline.add_many(&video_elements[..])?;
 
     // Link elements
     Element::link_many(&video_elements[..]).expect("Failed to link elements");
 
     for e in video_elements {
-        e.sync_state_with_parent().unwrap();
+        e.sync_state_with_parent()?;
     }
 
     let appsink = sink
@@ -212,8 +215,8 @@ pub fn create_view_pipeline(mut rx_processed: Receiver<Packet>, saver: Sender<Bu
                       .field("stream-format", "byte-stream")
                       .field("width", &FRAME_WITH)
                       .field("height", &FRAME_HEIGHT)
-                      .field("pixel-aspect-ratio", &gst::Fraction::new(1, 1))
-                      .field("framerate", &gst::Fraction::new(SAMPLING_RATE, 1))
+                      .field("pixel-aspect-ratio", &Fraction::new(1, 1))
+                      .field("framerate", &Fraction::new(FRAME_RATE, 1))
                       .build(),
         )
         .build()?;
@@ -269,7 +272,7 @@ pub fn create_view_pipeline(mut rx_processed: Receiver<Packet>, saver: Sender<Bu
     Ok(pipeline)
 }
 
-pub fn create_save_pipeline() -> Result<Pipeline, glib::Error> {
+pub fn create_save_pipeline() -> Result<Pipeline, Box<dyn Error>> {
     let pipeline = Pipeline::new();
 
     let src = ElementFactory::make("appsrc")
@@ -284,50 +287,51 @@ pub fn create_save_pipeline() -> Result<Pipeline, glib::Error> {
                       .field("clock-rate", &90000)
                       .field("encoding-name", &"H264")
                       .field("payload", &102i32)
+                      .field("framerate", &Fraction::new(FRAME_RATE, 1))
                       .build(),
         )
-        .build().unwrap();
+        .build()?;
 
     let rtpjitterbuffer = ElementFactory::make("rtpjitterbuffer")
         .property("latency", 500u32)
         .property("sync-interval", 500u32)
         .property("do-retransmission", false)
         .property("drop-on-latency", true)
-        .build().unwrap();
+        .build()?;
 
     let rtph264depay = ElementFactory::make("rtph264depay")
         .property("wait-for-keyframe", true)
-        .build().unwrap();
+        .build()?;
 
     let h264parse = ElementFactory::make("h264parse")
         .property("disable-passthrough", true)
-        .property("config-interval", -1)
-        .build().unwrap();
-
+        .property("config-interval", 0)
+        .build()?;
 
     let mp4_muxer = ElementFactory::make("mp4mux")
-        .build().unwrap();
+        .property("faststart", true)
+        .build()?;
 
     let filesink = ElementFactory::make("filesink")
         .name("filesink")
         .property_from_str("location", &*format!("capture-{}.mp4", Local::now().format("%Y-%m-%d_%H-%M-%S")).to_string())
-        .build().unwrap();
+        .build()?;
 
     let video_queue1 = ElementFactory::make("queue")
         .name("video-queue")
         .property_from_str("leaky", "no")
-        .build().unwrap();
+        .build()?;
 
-    let video_elements = [&src, &rtpjitterbuffer, &rtph264depay, &video_queue1, &h264parse, &mp4_muxer, &filesink];
+    let video_elements = [&src, &rtpjitterbuffer, &rtph264depay, &video_queue1, &h264parse,  &mp4_muxer, &filesink];
 
     // Add elements to pipeline
-    pipeline.add_many(&video_elements[..]).unwrap();
+    pipeline.add_many(&video_elements[..])?;
 
     // Link elements
     Element::link_many(&video_elements[..]).expect("Failed to link elements");
 
     for e in video_elements {
-        e.sync_state_with_parent().unwrap();
+        e.sync_state_with_parent()?;
     }
 
     Ok(pipeline)

@@ -6,22 +6,22 @@ use rdev::{listen, EventType, Key as RdevKey};
 use tokio::sync::mpsc::channel;
 
 pub fn global_key_listener() -> impl Stream<Item=AppEvent> {
+    let (sender, mut receiver) = channel(10);
+
+    std::thread::spawn(move || {
+        listen(move |event| {
+            sender.blocking_send(event.clone()).unwrap_or_default();
+        }).unwrap_or_default();
+    });
+
     stream::channel(10, move |mut output| async move {
-        let (sender, mut receiver) = channel(10);
-
-        std::thread::spawn(move || {
-            listen(move |event| {
-                sender.blocking_send(event.clone()).unwrap_or_default();
-            }).unwrap_or_default();
-        });
-
         let mut handler = KeyState::new();
 
         loop {
-            let event = receiver.recv().await.unwrap();
-
-            if let Some((modifier, key)) = handler.mapping(event) {
-                output.send(AppEvent::KeyPressed(modifier, key)).await.unwrap_or_default();
+            if let Some(event) = receiver.recv().await {
+                if let Some((modifier, key)) = handler.mapping(event) {
+                    output.send(AppEvent::KeyPressed(modifier, key)).await.unwrap_or_default();
+                }
             }
         }
     })

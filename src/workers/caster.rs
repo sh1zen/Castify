@@ -10,7 +10,6 @@ use gstreamer::prelude::{ElementExt, ElementExtManual, GObjectExtManualGst, GstB
 use gstreamer::Pipeline;
 use gstreamer_app::gst;
 use std::collections::HashMap;
-use std::error::Error;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
