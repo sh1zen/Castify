@@ -36,7 +36,7 @@ impl GuiWindow for AnnotationWindow {
         String::from("")
     }
 
-    fn update(&mut self, id: Id, message: Self::Message, config: &mut Config) -> Task<AppEvent> {
+    fn update(&mut self, _id: Id, message: Self::Message, config: &mut Config) -> Task<AppEvent> {
         Task::none()
     }
 

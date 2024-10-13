@@ -4,7 +4,7 @@ use crate::gui::common::messages::AppEvent;
 use crate::gui::components::hotkeys::KeyTypes;
 use crate::gui::style::theme::csx::StyleType;
 use crate::gui::widget::Element;
-use crate::gui::windows::{GuiWindow, WindowType, Windows};
+use crate::gui::windows::{WindowType, Windows};
 use crate::utils::key_listener::global_key_listener;
 use crate::utils::open_link;
 use crate::utils::tray_icon::{tray_icon, tray_icon_listener, tray_menu_listener};
@@ -16,15 +16,15 @@ use iced_core::keyboard::{Event, Key};
 use iced_core::window::settings::PlatformSpecific;
 use iced_core::window::{Id, Mode, Position};
 use iced_core::Event::Keyboard;
-use iced_core::Size;
+use iced_core::{Point, Size};
 use iced_runtime::Task;
 use std::process::exit;
 use std::time::Duration;
 use tray_icon::TrayIcon;
 
+#[allow(dead_code)]
 pub struct App {
     pub config: Config,
-    dark_mode: bool,
     windows: Windows,
     tray_icon: TrayIcon,
 }
@@ -35,7 +35,6 @@ impl App {
         (
             Self {
                 config: Config::new(),
-                dark_mode: false,
                 windows: Windows::new(),
                 tray_icon,
             },
@@ -65,14 +64,14 @@ impl App {
                         ),
                         #[cfg(target_os = "macos")]
                         platform_specific: PlatformSpecific {
-                            title_hidden: true,
-                            titlebar_transparent: true,
+                            title_hidden: false,
+                            titlebar_transparent: false,
                             fullsize_content_view: true,
                         },
                         #[cfg(target_os = "linux")]
                         platform_specific: PlatformSpecific {
-                            application_id: String::from(APP_NAME_ID),
-                            override_redirect: true,
+                            application_id: String::from(app_id()),
+                            override_redirect: false,
                         },
                         exit_on_close_request: false,
                         ..Default::default()
@@ -84,8 +83,21 @@ impl App {
                 }
             }
             AppEvent::OpenAreaSelectionWindow => {
+                let Some(crate::config::Mode::Caster(caster)) = &mut self.config.mode else {
+                    unreachable!("Mode must be Caster here")
+                };
                 if !self.windows.contains(WindowType::AreaSelector) {
+                    let monitor = caster.get_monitor();
+
                     let (id, open_task) = window::open(window::Settings {
+                        size: monitor.map_or(Size { width: 1920.0, height: 1080.0 }, |mon| Size {
+                            width: mon.width as f32,
+                            height: mon.height as f32,
+                        }),
+                        position: Position::Specific(monitor.map_or(Point::default(), |mon| Point {
+                            x: mon.x as f32,
+                            y: mon.y as f32,
+                        })),
                         transparent: true,
                         decorations: false,
                         resizable: false,
@@ -94,6 +106,11 @@ impl App {
                             drag_and_drop: false,
                             skip_taskbar: true,
                             undecorated_shadow: false,
+                        },
+                        #[cfg(target_os = "linux")]
+                        platform_specific: PlatformSpecific {
+                            application_id: String::from(app_id()),
+                            override_redirect: true,
                         },
                         ..Default::default()
                     });
@@ -107,8 +124,22 @@ impl App {
                 }
             }
             AppEvent::OpenAnnotationWindow => {
+                let Some(crate::config::Mode::Caster(caster)) = &mut self.config.mode else {
+                    unreachable!("Mode must be Caster here")
+                };
+
                 if !self.windows.contains(WindowType::Annotation) {
+                    let monitor = caster.get_monitor();
+
                     let (id, open_task) = window::open(window::Settings {
+                        size: monitor.map_or(Size { width: 1920.0, height: 1080.0 }, |mon| Size {
+                            width: mon.width as f32,
+                            height: mon.height as f32,
+                        }),
+                        position: Position::Specific(monitor.map_or(Point::default(), |mon| Point {
+                            x: mon.x as f32,
+                            y: mon.y as f32,
+                        })),
                         transparent: true,
                         decorations: false,
                         resizable: false,
@@ -117,6 +148,11 @@ impl App {
                             drag_and_drop: false,
                             skip_taskbar: true,
                             undecorated_shadow: false,
+                        },
+                        #[cfg(target_os = "linux")]
+                        platform_specific: PlatformSpecific {
+                            application_id: String::from(app_id()),
+                            override_redirect: true,
                         },
                         ..Default::default()
                     });

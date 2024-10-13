@@ -127,7 +127,7 @@ fn monitors_picklist(config: &Config) -> Container<'static, MainWindowEvent> {
         return Container::new(iced::widget::Space::new(0, 0));
     }
 
-    let selected = monitor_name(caster.current_monitor());
+    let selected = monitor_name(caster.current_monitor_id());
     content = content
         .push(
             PickList::new(

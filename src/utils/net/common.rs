@@ -7,7 +7,6 @@ use std::thread::sleep;
 use std::time::Duration;
 
 const LOCAL_DISCOVERY_SERVICE_NAME: &'static str = "_screen_caster._tcp.local.";
-const FORWARDING_SERVICE_NAME: &'static str = "Castify";
 
 pub(crate) fn find_caster() -> Option<SocketAddr> {
     // Create a daemon

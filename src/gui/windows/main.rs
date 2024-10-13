@@ -1,5 +1,5 @@
 use crate::assets::{CAST_SERVICE_PORT, FRAME_HEIGHT, FRAME_RATE, FRAME_WITH};
-use crate::config::{app_name, Config, Mode};
+use crate::config::{app_name, saving_path, Config, Mode};
 use crate::gui::common::datastructure::ScreenRect;
 use crate::gui::common::messages::AppEvent;
 use crate::gui::components::caster::caster_page;
@@ -88,7 +88,7 @@ impl GuiWindow for MainWindow {
     type Message = MainWindowEvent;
 
     fn title(&self) -> String {
-        app_name().into()
+        app_name()
     }
 
     fn update(&mut self, _id: Id, message: MainWindowEvent, config: &mut Config) -> Task<AppEvent> {
@@ -180,7 +180,8 @@ impl GuiWindow for MainWindow {
                 let Some(Mode::Receiver(client)) = &mut config.mode else {
                     return Task::none();
                 };
-                client.save_stream();
+                let saving_path = saving_path();
+                client.save_stream(saving_path);
                 Task::none()
             }
             MainWindowEvent::SaveCaptureStop => {

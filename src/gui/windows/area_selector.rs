@@ -39,7 +39,7 @@ impl GuiWindow for ASWindow {
     type Message = ASWindowEvent;
 
     fn title(&self) -> String {
-        String::from(app_name()) + "::AreaSelection"
+        app_name() + "::AreaSelection"
     }
 
     fn update(&mut self, id: Id, message: Self::Message, _config: &mut Config) -> Task<AppEvent> {

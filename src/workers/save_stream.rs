@@ -22,8 +22,8 @@ impl SaveStream {
         }
     }
 
-    pub fn start(&mut self) {
-        let pipeline = create_save_pipeline().unwrap();
+    pub fn start(&mut self, path: String) {
+        let pipeline = create_save_pipeline(path).unwrap();
 
         if let Some(appsrc) = pipeline.by_name("appsrc").and_then(|elem| elem.downcast::<AppSrc>().ok()) {
             pipeline.set_state(gst::State::Playing).expect("Failed starting save_pipeline");

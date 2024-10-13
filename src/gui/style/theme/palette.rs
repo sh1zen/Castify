@@ -52,9 +52,9 @@ impl Palette {
     pub fn disabled(&self, color: Color) -> Color {
         if self.is_nightly() {
             Color {
-                r: f32::min(color.r - 0.1, 1.0),
-                g: f32::min(color.g - 0.1, 1.0),
-                b: f32::min(color.b - 0.1, 1.0),
+                r: f32::min(color.r + 0.1, 1.0),
+                g: f32::min(color.g + 0.1, 1.0),
+                b: f32::min(color.b + 0.1, 1.0),
                 a: 0.6,
             }
         } else {

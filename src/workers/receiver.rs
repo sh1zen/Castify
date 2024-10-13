@@ -71,10 +71,10 @@ impl Receiver {
         *self.is_streaming.blocking_lock()
     }
 
-    pub fn save_stream(&mut self) {
+    pub fn save_stream(&mut self, path: String) {
         if let Some(saver_channel) = &self.save_rx {
             let mut stream_saver = SaveStream::new(Arc::clone(saver_channel));
-            stream_saver.start();
+            stream_saver.start(path);
             self.save_stream = Some(stream_saver);
         }
     }

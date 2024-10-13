@@ -13,7 +13,7 @@ pub async fn receiver(mut socket_addr: Option<SocketAddr>, tx: tokio::sync::mpsc
     if let Some(socket_addr) = socket_addr {
         println!("Connecting to caster at {:?}", socket_addr);
 
-        let addr: &str = &*format!("ws://{}", &(socket_addr.to_string()));
+        let addr: &str = &format!("ws://{}", &(socket_addr.to_string()));
 
         if let Ok(tt) = crate::utils::net::webrtc::WebRTCClient::new(addr, sos).await {
             tt.receive_video(tx).await;

@@ -6,6 +6,8 @@ pub mod tray_icon;
 pub mod key_listener;
 pub mod sos;
 pub mod bimap;
+pub mod path;
+pub mod text;
 
 pub fn get_string_after(s: String, c: char) -> String {
     let index = s.find(c);

@@ -1,15 +1,15 @@
+use crate::assets::FONT_FAMILY_BOLD;
 use crate::config::{Config, Mode};
 use crate::gui::common::icons::Icon;
 use crate::gui::components::custom::IconButton;
 use crate::gui::style::container::ContainerType;
+use crate::gui::style::text::TextType;
 use crate::gui::video::{Video, VideoPlayer};
-use crate::gui::widget::{Column, Container, Element, Row, Stack};
+use crate::gui::widget::{Column, Container, Element, Row};
 use crate::gui::windows::main::MainWindowEvent;
-use iced::widget::{Space, Text};
+use iced::widget::Text;
 use iced::{Alignment, Length};
 use iced_core::{alignment, Padding};
-use crate::assets::FONT_FAMILY_BOLD;
-use crate::gui::style::text::TextType;
 
 pub fn client_page<'a, 'b>(video: &'b Video, config: &Config) -> Element<'a, MainWindowEvent>
 where
@@ -34,12 +34,15 @@ where
                     .on_press(MainWindowEvent::SaveCapture)
             }
         )
-        .push(
-            IconButton::new(Some(String::from("Exit")))
+        .push({
+            let mut button = IconButton::new(Some(String::from("Exit")))
                 .icon(Icon::Stop)
-                .build()
-                .on_press(MainWindowEvent::ExitApp)
-        )
+                .build();
+            if !client.is_saving() {
+                button = button.on_press(MainWindowEvent::ExitApp);
+            }
+            button
+        })
         .align_y(Alignment::Center);
 
     let video = {
@@ -65,7 +68,6 @@ where
 
         video
     };
-
 
     let content = Column::new()
         .spacing(20)

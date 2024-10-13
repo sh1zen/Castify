@@ -13,7 +13,7 @@ use tray_icon::{
 };
 
 use crate::assets::ICON_BYTES;
-use crate::config::app_name;
+use crate::config::{app_id, app_name};
 use crate::gui::common::messages::AppEvent;
 
 pub fn tray_icon() -> TrayIcon {
@@ -32,12 +32,12 @@ pub fn tray_icon() -> TrayIcon {
     ]).expect("Tray icon set up failed.");
 
     TrayIcon::new(TrayIconAttributes {
-        tooltip: Some(app_name().to_string()),
+        tooltip: Some(app_id()),
         menu: Some(Box::new(menu)),
         icon: Some(icon),
         icon_is_template: false,
         menu_on_left_click: false,
-        title: Some(app_name().to_string()),
+        title: Some(app_name()),
         ..Default::default()
     }).unwrap()
 }

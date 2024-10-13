@@ -46,18 +46,21 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
                         .icon(Icon::Settings)
                         .style(ButtonType::Standard)
                         .build()
+                        .width(150)
                         .on_press(MainWindowEvent::HotkeysPage),
                     horizontal_space().width(10),
                     IconButton::new(Some(String::from("Receiver")))
                         .icon(Icon::Connection)
                         .style(ButtonType::Standard)
                         .build()
+                        .width(150)
                         .on_press(MainWindowEvent::Mode(Message::ButtonReceiver)),
                     horizontal_space().width(10),
                     IconButton::new(Some(String::from("Caster")))
                         .icon(Icon::Cast)
                         .style(ButtonType::Standard)
                         .build()
+                        .width(150)
                         .on_press(MainWindowEvent::Mode(Message::ButtonCaster)),
                 ]
                 .align_y(alignment::Vertical::Center)

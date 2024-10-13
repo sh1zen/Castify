@@ -1,5 +1,4 @@
 use crate::assets::{FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, TARGET_OS};
-use chrono::Local;
 use gstreamer as gst;
 use gstreamer::prelude::*;
 use gstreamer::{Buffer, Element, ElementFactory, Fraction, Pipeline};
@@ -22,7 +21,6 @@ pub fn create_stream_pipeline(monitor: &str, tx_processed: Sender<Buffer>, use_r
         "macos" => {
             ElementFactory::make("avfvideosrc")
                 // todo device-index
-
                 //.property_from_str("device-index", monitor)
                 .property("capture-screen", true)
                 .property("capture-screen-cursor", true)
@@ -272,8 +270,12 @@ pub fn create_view_pipeline(mut rx_processed: Receiver<Packet>, saver: Sender<Bu
     Ok(pipeline)
 }
 
-pub fn create_save_pipeline() -> Result<Pipeline, Box<dyn Error>> {
+pub fn create_save_pipeline(mut filepath: String) -> Result<Pipeline, Box<dyn Error>> {
     let pipeline = Pipeline::new();
+
+    if filepath.len() <= 2 {
+        filepath = String::from("");
+    }
 
     let src = ElementFactory::make("appsrc")
         .name("appsrc")
@@ -314,7 +316,7 @@ pub fn create_save_pipeline() -> Result<Pipeline, Box<dyn Error>> {
 
     let filesink = ElementFactory::make("filesink")
         .name("filesink")
-        .property_from_str("location", &*format!("capture-{}.mp4", Local::now().format("%Y-%m-%d_%H-%M-%S")).to_string())
+        .property_from_str("location", &filepath)
         .build()?;
 
     let video_queue1 = ElementFactory::make("queue")
@@ -322,7 +324,7 @@ pub fn create_save_pipeline() -> Result<Pipeline, Box<dyn Error>> {
         .property_from_str("leaky", "no")
         .build()?;
 
-    let video_elements = [&src, &rtpjitterbuffer, &rtph264depay, &video_queue1, &h264parse,  &mp4_muxer, &filesink];
+    let video_elements = [&src, &rtpjitterbuffer, &rtph264depay, &video_queue1, &h264parse, &mp4_muxer, &filesink];
 
     // Add elements to pipeline
     pipeline.add_many(&video_elements[..])?;

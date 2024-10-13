@@ -26,6 +26,7 @@ iced_core = "0.13.2"
 iced_wgpu = "0.13.5"
 iced_graphics = "0.13.0"
 iced_anim = { version = "0.1.2", features = ["derive", "serde"] }
+regex = "1.11.0"
 ctrlc = "3.4.5"
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
@@ -42,7 +43,6 @@ local-ip-address = "0.6.3"
 webrtc = "0.11.0"
 mdns-sd = "0.11.5"
 natpmp = "0.4.0"
-
 async-tungstenite = { version = "0.28.0", features = ["tokio-runtime"] }
 futures-util = { version = "0.3.31" }
 

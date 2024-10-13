@@ -17,7 +17,7 @@ pub struct AreaSelectorState {
     pub final_pos: Option<Point>,
 }
 
-
+#[allow(dead_code)]
 pub struct AreaSelector<'a, Message, Theme>
 {
     on_press: Option<Box<dyn Fn(f32, f32) -> Message + 'a>>,

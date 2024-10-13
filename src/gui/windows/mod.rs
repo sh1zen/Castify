@@ -10,7 +10,7 @@ use iced::window::Id;
 use iced_runtime::Task;
 use std::collections::hash_map::Iter;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 pub mod main;
 pub mod area_selector;

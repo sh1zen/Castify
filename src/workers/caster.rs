@@ -14,10 +14,10 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct XMonitor {
-    x: i32,
-    y: i32,
-    width: u32,
-    height: u32,
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
     primary: bool,
     device_identifier: String,
 }
@@ -118,7 +118,11 @@ impl Caster {
         self.pipeline.set_state(state).is_err()
     }
 
-    pub fn current_monitor(&self) -> u32 {
+    pub fn get_monitor(&self) -> Option<&XMonitor> {
+        self.monitors.get(&self.monitor)
+    }
+
+    pub fn current_monitor_id(&self) -> u32 {
         self.monitor
     }
 
@@ -227,7 +231,15 @@ impl Caster {
                     #[cfg(target_os = "macos")]
                     device_identifier: display.raw_handle.id.to_string(),
                     #[cfg(target_os = "linux")]
-                    device_identifier: display.name.to_string(),
+                    device_identifier: format!(":{}", &{
+                        let input = display.name;
+                        let re = regex::Regex::new(r"\d+$").unwrap(); // Match one or more digits
+                        if let Some(m) = re.find(&input) {
+                            m.as_str().parse().unwrap()
+                        } else {
+                            display.id.to_string()
+                        }
+                    }),
                 });
 
                 if display.is_primary {
