@@ -18,19 +18,16 @@ pub const TARGET_OS: &str = "linux";
 
 pub const ICON_BYTES: &[u8] = include_bytes!("../resources/icons/96x96.png");
 
-
-//font to display icons
-pub const ICON_FONT_FAMILY_NAME: &str = "icons4screencaster";
-pub const ICONS_BYTES: &[u8] = include_bytes!("../resources/icons4screencaster.ttf");
-pub const ICONS: Font = Font {
-    family: Family::Name(ICON_FONT_FAMILY_NAME),
-    weight: Weight::Normal,
+pub const FONT_AWESOME_BYTES: &[u8] = include_bytes!("../resources/Font Awesome 6 Free-Solid-900.otf");
+pub const FONT_AWESOME: Font = Font {
+    family: Family::Name("Font Awesome 6 Free"),
+    weight: Weight::Black,
     stretch: Stretch::Normal,
     style: Style::Normal,
 };
 
 // font text base
-pub const FONT_BASE_DATA: &[u8] = include_bytes!("../resources/Raleway-VariableFont.ttf");
+pub const FONT_BASE_BYTES: &[u8] = include_bytes!("../resources/Raleway-VariableFont.ttf");
 
 pub const FONT_FAMILY_BASE: Font = Font {
     family: Family::Name("Raleway"),

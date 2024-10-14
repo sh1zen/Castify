@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::gui::common::icons::Icon;
 use crate::gui::components::hotkeys::KeyTypes;
-use crate::gui::components::custom::{IconButton, Key4Board};
+use crate::gui::components::custom::{Dimensions, IconButton, Key4Board};
 use crate::gui::style::container::ContainerType;
 use crate::gui::widget::{Column, Container, IcedParentExt, Row, Space, Stack, Text, TextInput};
 use crate::gui::windows::main::MainWindowEvent;
@@ -93,8 +93,8 @@ pub fn show_popup<'a>(popup: &Popup, config: &Config, body: Container<'a, MainWi
 
     let content = Container::new(pp)
         .class(ContainerType::Modal)
-        .center_x(Length::Fixed(450.0))
-        .center_y(Length::Fixed(250.0));
+        .center_x(Length::Fixed(480.0))
+        .center_y(Length::Fixed(260.0));
 
     let centered_content = Container::new(content).center(Length::Fill);
 
@@ -127,7 +127,7 @@ fn hotkey_update<'a>(popup: &Popup, config: &Config) -> Container<'a, MainWindow
         _ => { (Modifiers::empty(), Key::Unidentified) }
     };
 
-    let ok_button = IconButton::new(Some(String::from("Ok"))).build().on_press(MainWindowEvent::ClosePopup);
+    let ok_button = IconButton::new().label(String::from("Ok")).build().on_press(MainWindowEvent::ClosePopup);
 
     let content = popup_base(None)
         .push(
@@ -168,7 +168,7 @@ fn ip_popup<'a>(popup: &Popup) -> Container<'a, MainWindowEvent> {
         .padding([8, 12])
         .id(iced::widget::text_input::Id::new("ip_text_input"));
 
-    let mut button = IconButton::new(Some(String::from("Connect"))).build();
+    let mut button = IconButton::new().label(String::from("Connect")).icon(Icon::Connect).dim(Dimensions::Large).build();
 
     if !entered_ip.is_empty() {
         button = button.on_press(MainWindowEvent::ConnectToCaster(entered_ip.clone()));
@@ -179,10 +179,10 @@ fn ip_popup<'a>(popup: &Popup) -> Container<'a, MainWindowEvent> {
         .push(
             Row::new().spacing(12)
                 .push(button)
-                .push(IconButton::new(Some(String::from("Auto"))).build().on_press(MainWindowEvent::ConnectToCaster("auto".parse().unwrap())))
+                .push(IconButton::new().label(String::from("Auto")).icon(Icon::Auto).build().on_press(MainWindowEvent::ConnectToCaster("auto".parse().unwrap())))
                 .push(
-                    IconButton::new(Some(String::from("Home")))
-                        .icon(Icon::Browser)
+                    IconButton::new().label(String::from("Home"))
+                        .icon(Icon::Home)
                         .build()
                         .on_press(MainWindowEvent::Home)
                 )

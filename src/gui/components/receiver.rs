@@ -23,19 +23,21 @@ where
         .align_y(Alignment::Center).spacing(10)
         .push(
             if client.is_saving() {
-                IconButton::new(Some(String::from("Stop")))
+                IconButton::new()
+                    .label(String::from("Stop"))
                     .icon(Icon::Save)
                     .build()
                     .on_press(MainWindowEvent::SaveCaptureStop)
             } else {
-                IconButton::new(Some(String::from("Save")))
+                IconButton::new()
+                    .label(String::from("Save"))
                     .icon(Icon::Download)
                     .build()
                     .on_press(MainWindowEvent::SaveCapture)
             }
         )
         .push({
-            let mut button = IconButton::new(Some(String::from("Exit")))
+            let mut button = IconButton::new().label(String::from("Exit"))
                 .icon(Icon::Stop)
                 .build();
             if !client.is_saving() {

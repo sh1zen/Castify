@@ -4,7 +4,6 @@ use iced::application::{Appearance, DefaultStyle};
 use iced_anim::Animate;
 use iced_core::Color;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub enum StyleType {
@@ -94,17 +93,5 @@ impl Animate for StyleType {
 
     fn distance_to(&self, end: &Self) -> Vec<f32> {
         self.get_palette().distance_to(&end.get_palette())
-    }
-}
-
-
-impl Display for StyleType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::LightVenus => write!(f, "Light"),
-            Self::DarkVenus => write!(f, "Dark"),
-            Self::Custom(_) => write!(f, "Custom"),
-            _ => { write!(f, "Undefined") }
-        }
     }
 }

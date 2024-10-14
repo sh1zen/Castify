@@ -1,4 +1,4 @@
-use crate::assets::{FONT_BASE_DATA, FONT_FAMILY_BASE, ICONS_BYTES};
+use crate::assets::{FONT_BASE_BYTES, FONT_FAMILY_BASE, FONT_AWESOME_BYTES};
 
 pub mod app;
 pub mod components;
@@ -36,8 +36,8 @@ pub fn run() {
         .style(App::style)
         .theme(App::theme)
         .antialiasing(true)
-        .font(ICONS_BYTES)
-        .font(FONT_BASE_DATA)
+        .font(FONT_AWESOME_BYTES)
+        .font(FONT_BASE_BYTES)
         .default_font(FONT_FAMILY_BASE)
         .subscription(App::subscription);
 

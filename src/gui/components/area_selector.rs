@@ -20,9 +20,9 @@ pub struct AreaSelectorState {
 #[allow(dead_code)]
 pub struct AreaSelector<'a, Message, Theme>
 {
-    on_press: Option<Box<dyn Fn(f32, f32) -> Message + 'a>>,
-    on_drag: Option<Box<dyn Fn(f32, f32) -> Message + 'a>>,
-    on_release: Option<Box<dyn Fn(f32, f32) -> Message + 'a>>,
+    on_press: Option<Box<dyn Fn(Point) -> Message + 'a>>,
+    on_drag: Option<Box<dyn Fn(Point) -> Message + 'a>>,
+    on_release: Option<Box<dyn Fn(Point) -> Message + 'a>>,
     on_release_rect: Option<Box<dyn Fn(ScreenRect) -> Message + 'a>>,
     on_esc: Option<Message>,
     on_confirm: Option<Message>,
@@ -46,7 +46,7 @@ impl<'a, Message, Theme> AreaSelector<'a, Message, Theme>
 
     pub fn on_drag<F>(mut self, callback: F) -> Self
     where
-        F: 'a + Fn(f32, f32) -> Message,
+        F: 'a + Fn(Point) -> Message,
     {
         self.on_drag = Some(Box::new(callback));
         self
@@ -54,7 +54,7 @@ impl<'a, Message, Theme> AreaSelector<'a, Message, Theme>
 
     pub fn on_press<F>(mut self, callback: F) -> Self
     where
-        F: 'a + Fn(f32, f32) -> Message,
+        F: 'a + Fn(Point) -> Message,
     {
         self.on_press = Some(Box::new(callback));
         self
@@ -62,7 +62,7 @@ impl<'a, Message, Theme> AreaSelector<'a, Message, Theme>
 
     pub fn on_release<F>(mut self, callback: F) -> Self
     where
-        F: 'a + Fn(f32, f32) -> Message,
+        F: 'a + Fn(Point) -> Message,
     {
         self.on_release = Some(Box::new(callback));
         self
@@ -142,7 +142,7 @@ impl<'a, Message: Clone, Theme> canvas::Program<Message, Theme> for AreaSelector
 
                 let mut message = None;
                 if let Some(callback) = &self.on_press {
-                    message = Some(callback(cursor_position.x, cursor_position.y));
+                    message = Some(callback(cursor_position));
                 }
                 (canvas::event::Status::Captured, message)
             }
@@ -152,7 +152,7 @@ impl<'a, Message: Clone, Theme> canvas::Program<Message, Theme> for AreaSelector
 
                     let mut message = None;
                     if let Some(callback) = &self.on_drag {
-                        message = Some(callback(cursor_position.x, cursor_position.y));
+                        message = Some(callback(cursor_position));
                     }
                     (canvas::event::Status::Captured, message)
                 } else {
@@ -164,8 +164,9 @@ impl<'a, Message: Clone, Theme> canvas::Program<Message, Theme> for AreaSelector
 
                 let mut message = None;
                 if let Some(callback) = &self.on_release {
-                    message = Some(callback(cursor_position.x, cursor_position.y));
-                } else if let Some(callback) = &self.on_release_rect {
+                    message = Some(callback(cursor_position));
+                }
+                if let Some(callback) = &self.on_release_rect {
                     message = Some(callback(Self::calc_rect(state.initial_pos, state.final_pos)));
                 }
 

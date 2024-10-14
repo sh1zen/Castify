@@ -19,18 +19,21 @@ use iced::{window::Id, Task};
 use iced_anim::{Animation, Spring, SpringEvent};
 use std::net::SocketAddr;
 use std::str::FromStr;
+use crate::gui::components::info::info_page;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Page {
     Home,
     Caster,
     Client,
     Hotkeys,
+    Info,
 }
 
 pub struct MainWindow {
     pub theme: Spring<StyleType>,
     page: Page,
+    prev_page: Page,
     popup: Popup,
     video: Video,
 }
@@ -70,17 +73,25 @@ pub enum MainWindowEvent {
     ThemeUpdate(SpringEvent<StyleType>),
     /// handle the launch of annotation window
     ShowAnnotationWindow,
+    /// program info
+    OpenInfo,
+    Ignore,
 }
 
 impl MainWindow {
     pub fn new() -> Self {
         Self {
-            // make as unique initializer using same as workers
             theme: Spring::new(StyleType::default()),
             page: Page::Home,
             popup: Popup::new(),
             video: Video::new(),
+            prev_page: Page::Home,
         }
+    }
+
+    pub fn change_page(&mut self, page: Page) {
+        self.prev_page = self.page;
+        self.page = page;
     }
 }
 
@@ -97,14 +108,14 @@ impl GuiWindow for MainWindow {
                 config.hotkey_map.updating = KeyTypes::None;
                 config.reset_mode();
                 self.popup.hide();
-                self.page = Page::Home;
+                self.change_page(Page::Home);
                 Task::none()
             }
             MainWindowEvent::Mode(mode) => {
                 match mode {
                     home::Message::ButtonCaster => {
                         config.mode = Some(Mode::Caster(Caster::new(config.sos.clone())));
-                        self.page = Page::Caster
+                        self.change_page(Page::Caster);
                     }
                     home::Message::ButtonReceiver => {
                         config.mode = Some(Mode::Receiver(Receiver::new(config.sos.clone())));
@@ -135,7 +146,7 @@ impl GuiWindow for MainWindow {
                 Task::none()
             }
             MainWindowEvent::HotkeysPage => {
-                self.page = Page::Hotkeys;
+                self.change_page(Page::Hotkeys);
                 Task::none()
             }
             MainWindowEvent::HotkeysTypePage(key) => {
@@ -149,7 +160,7 @@ impl GuiWindow for MainWindow {
             }
             MainWindowEvent::ConnectToCaster(mut caster_ip) => {
                 self.popup.hide();
-                self.page = Page::Client;
+                self.change_page(Page::Client);
                 let Some(Mode::Receiver(client)) = &mut config.mode else {
                     return Task::none();
                 };
@@ -197,6 +208,15 @@ impl GuiWindow for MainWindow {
             MainWindowEvent::AreaSelectedFullScreen => { Task::done(AppEvent::AreaSelected(ScreenRect::default())) }
             MainWindowEvent::ExitApp => { Task::done(AppEvent::ExitApp) }
             MainWindowEvent::ThemeUpdate(event) => self.theme.update(event).into(),
+            MainWindowEvent::OpenInfo => {
+                if self.page == Page::Info {
+                    self.page = self.prev_page;
+                } else {
+                    self.change_page(Page::Info);
+                }
+                Task::none()
+            }
+            MainWindowEvent::Ignore => Task::none()
         }
     }
 
@@ -213,6 +233,9 @@ impl GuiWindow for MainWindow {
             }
             Page::Hotkeys => {
                 hotkeys()
+            }
+            Page::Info => {
+                info_page()
             }
         };
 

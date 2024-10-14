@@ -1,15 +1,15 @@
 use crate::assets::FONT_FAMILY_BOLD;
 use crate::config::Config;
 use crate::gui::common::icons::Icon;
-use crate::gui::components::custom::IconButton;
+use crate::gui::components::custom::{Dimensions, IconButton};
 use crate::gui::style::button::ButtonType;
 use crate::gui::style::container::ContainerType;
 use crate::gui::widget::{horizontal_space, vertical_space, Column, Container, Element, PickList, Text};
+use crate::gui::windows::main::MainWindowEvent;
 use crate::row;
 use crate::utils::{format_seconds, get_string_after};
-use crate::gui::windows::main::MainWindowEvent;
 use iced::alignment::{Horizontal, Vertical};
-use iced::{Length};
+use iced::Length;
 
 pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
     let mut is_streaming = false;
@@ -33,7 +33,7 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
             .push(
                 Container::new(
                     row![
-                            IconButton::new(Some(String::from("Annotations"))).icon(Icon::Image).build().width(180).on_press(MainWindowEvent::ShowAnnotationWindow)
+                            IconButton::new().label(String::from("Annotations")).icon(Icon::Image).build().width(180).on_press(MainWindowEvent::ShowAnnotationWindow)
                         ]
                 ).width(Length::Fill).height(Length::Fill)
                     .align_x(Horizontal::Center)
@@ -50,13 +50,17 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
             .push(
                 Container::new(
                     row![
-                        IconButton::new(Some(String::from("Full Screen")))
-                        .icon(Icon::Screen)
-                        .build()
-                        .on_press(MainWindowEvent::AreaSelectedFullScreen),
+                        IconButton::new()
+                            .label(String::from("Full Screen"))
+                            .icon(Icon::Screen)
+                            .dim(Dimensions::Large)
+                            .build()
+                            .on_press(MainWindowEvent::AreaSelectedFullScreen),
                         horizontal_space().width(10),
-                        IconButton::new(Some(String::from("Select Area")))
+                        IconButton::new()
+                            .label(String::from("Select Area"))
                             .icon(Icon::Area)
+                            .dim(Dimensions::Large)
                             .build()
                             .on_press(MainWindowEvent::AreaSelection)
                     ]
@@ -65,10 +69,10 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
             .push(
                 Container::new(
                     row![
-                        IconButton::new(Some(String::from("Home")))
-                        .icon(Icon::Browser)
-                        .build()
-                        .on_press(MainWindowEvent::Home)
+                        IconButton::new().label(String::from("Home"))
+                            .icon(Icon::Home)
+                            .build()
+                            .on_press(MainWindowEvent::Home)
                     ]
                 ).center(Length::Fill)
                     .height(80).class(ContainerType::Standard)
@@ -80,13 +84,13 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
         .push(
             Container::new(
                 if is_streaming {
-                    IconButton::new(None)
+                    IconButton::new()
                         .icon(Icon::Pause)
                         .style(ButtonType::Rounded)
                         .build().width(80).height(80)
                         .on_press(MainWindowEvent::CasterToggleStreaming)
                 } else {
-                    IconButton::new(None)
+                    IconButton::new()
                         .icon(Icon::Video)
                         .style(ButtonType::Rounded)
                         .build().width(80).height(80)

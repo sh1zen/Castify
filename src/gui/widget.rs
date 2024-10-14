@@ -1,5 +1,4 @@
 use iced::widget as w;
-
 use crate::gui::style::theme::csx::StyleType as Theme;
 
 pub type IcedRenderer = iced::Renderer;

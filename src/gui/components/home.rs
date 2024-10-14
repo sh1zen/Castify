@@ -1,7 +1,7 @@
 use crate::assets::{FONT_FAMILY_BOLD, ICON_BYTES};
 use crate::config::{app_name, Config};
 use crate::gui::common::icons::Icon;
-use crate::gui::components::custom::{IconButton, Key4Board};
+use crate::gui::components::custom::{IconButton, Key4Board, Dimensions};
 use crate::gui::style::button::ButtonType;
 use crate::gui::style::container::ContainerType;
 use crate::gui::widget::{horizontal_space, vertical_space, Container, Element, Row, Space, Text};
@@ -25,7 +25,7 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
                 .push(Text::new(app_name()).size(42).font(FONT_FAMILY_BOLD))
                 .align_y(alignment::Vertical::Center),
             horizontal_space(),
-            IconButton::new(Some(String::from("Exit"))).style(ButtonType::Danger).build()
+            IconButton::new().label(String::from("Exit")).style(ButtonType::Danger).build()
                 .on_press(MainWindowEvent::ExitApp)
                 .height(40)
                 .width(100),
@@ -42,23 +42,29 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
             Container::new(
                 crate::row![
                     horizontal_space(),
-                    IconButton::new(Some(String::from("Hotkeys")))
+                    IconButton::new()
+                        .label(String::from("Hotkeys"))
                         .icon(Icon::Settings)
                         .style(ButtonType::Standard)
+                        .dim(Dimensions::Auto)
                         .build()
                         .width(150)
                         .on_press(MainWindowEvent::HotkeysPage),
                     horizontal_space().width(10),
-                    IconButton::new(Some(String::from("Receiver")))
+                    IconButton::new()
+                        .label(String::from("Receiver"))
                         .icon(Icon::Connection)
                         .style(ButtonType::Standard)
+                        .dim(Dimensions::Auto)
                         .build()
                         .width(150)
                         .on_press(MainWindowEvent::Mode(Message::ButtonReceiver)),
                     horizontal_space().width(10),
-                    IconButton::new(Some(String::from("Caster")))
+                    IconButton::new()
+                        .label(String::from("Caster"))
                         .icon(Icon::Cast)
                         .style(ButtonType::Standard)
+                        .dim(Dimensions::Auto)
                         .build()
                         .width(150)
                         .on_press(MainWindowEvent::Mode(Message::ButtonCaster)),
@@ -71,13 +77,15 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
             .class(ContainerType::Standard)
             .height(80),
             Container::new(
-                crate::row![
-                    Text::new("App Theme").align_x(alignment::Horizontal::Left).size(20).font(FONT_FAMILY_BOLD),
-                    horizontal_space().width(Length::Fill),
-                    IconButton::new(Some(String::from(if main_window.theme.target().get_palette().is_nightly() {"Dark"} else {"Light"}))).build().on_press(
-                    MainWindowEvent::ThemeUpdate(main_window.theme.target().toggle().into())
-                ),
-                ]
+                Row::new()
+                    .push(Text::new("App Theme").align_x(alignment::Horizontal::Left).size(20).font(FONT_FAMILY_BOLD))
+                    .push( horizontal_space().width(Length::Fill))
+                    .push(
+                        IconButton::new()
+                            .label_if_else(main_window.theme.target().get_palette().is_nightly(), "Light".to_string(), "Dark".to_string())
+                            .icon(Icon::LightDarkMode).build()
+                            .on_press(MainWindowEvent::ThemeUpdate(main_window.theme.target().toggle().into()))
+                    )
                 .align_y(Alignment::Center)
                 .width(Length::Fill)
                 .height(Length::Fill)

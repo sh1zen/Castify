@@ -11,7 +11,19 @@ pub enum TextType {
     Subtitle,
     Danger,
     White,
+    Colored(Color),
 }
+
+impl TextType {
+    pub fn maybe_colored(color: Option<Color>) -> TextType {
+        if let Some(color) = color {
+            TextType::Colored(color)
+        } else {
+            TextType::Standard
+        }
+    }
+}
+
 impl iced_core::widget::text::Catalog for StyleType {
     type Class<'a> = TextType;
 
@@ -46,8 +58,8 @@ impl iced_core::widget::text::Catalog for StyleType {
                 }
                 TextType::Danger => mix(palette.danger, palette.text),
                 TextType::White => Color::WHITE,
+                TextType::Colored(color) => color.clone()
             })
         }
     }
 }
-

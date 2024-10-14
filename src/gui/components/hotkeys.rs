@@ -29,13 +29,15 @@ pub fn hotkeys<'a>() -> Element<'a, MainWindowEvent> {
             Row::new()
                 .align_y(Alignment::Center).spacing(15)
                 .push(
-                    IconButton::new(Some(String::from("Pause")))
+                    IconButton::new()
+                        .label(String::from("Pause"))
                         .icon(Icon::Pause)
                         .build().width(160)
                         .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::Pause))
                 )
                 .push(
-                    IconButton::new(Some(String::from("Record")))
+                    IconButton::new()
+                        .label(String::from("Record"))
                         .icon(Icon::Video)
                         .build().width(160)
                         .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::Record))
@@ -44,13 +46,15 @@ pub fn hotkeys<'a>() -> Element<'a, MainWindowEvent> {
             Row::new()
                 .align_y(Alignment::Center).spacing(15)
                 .push(
-                    IconButton::new(Some(String::from("Terminate")))
+                    IconButton::new()
+                        .label(String::from("Terminate"))
                         .icon(Icon::Stop)
                         .build().width(160)
                         .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::Close))
                 )
                 .push(
-                    IconButton::new(Some(String::from("Blank Screen")))
+                    IconButton::new()
+                        .label(String::from("Blank Screen"))
                         .icon(Icon::Banned)
                         .build().width(160)
                         .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::BlankScreen))
@@ -64,8 +68,9 @@ pub fn hotkeys<'a>() -> Element<'a, MainWindowEvent> {
     let actions = Container::new(
         crate::row![
             horizontal_space().width(Length::Fill),
-            IconButton::new(Some(String::from("Home")))
-                .icon(Icon::Browser)
+            IconButton::new()
+                .label(String::from("Home"))
+                .icon(Icon::Home)
                 .build()
                 .on_press(MainWindowEvent::Home),
             horizontal_space().width(Length::Fill),
