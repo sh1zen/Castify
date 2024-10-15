@@ -20,8 +20,7 @@ pub fn create_stream_pipeline(monitor: &str, tx_processed: Sender<Buffer>, use_r
         }
         "macos" => {
             ElementFactory::make("avfvideosrc")
-                // todo device-index
-                //.property_from_str("device-index", monitor)
+                .property_from_str("device-index", monitor)
                 .property("capture-screen", true)
                 .property("capture-screen-cursor", true)
         }

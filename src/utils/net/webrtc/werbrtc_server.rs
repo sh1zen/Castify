@@ -53,7 +53,6 @@ impl WebRTCServer {
         self.sos.spawn(async move {
             if let Some(listener) = result_to_option(TcpListener::bind(format!("0.0.0.0:{}", CAST_SERVICE_PORT).to_string()).await) {
                 println!("Listener: {:?}", listener);
-
                 while let Ok((stream, _)) = listener.accept().await {
                     let sos_clone = sos.clone();
                     let peers_clone = Arc::clone(&peers);
