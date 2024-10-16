@@ -1,7 +1,7 @@
 use crate::assets::FONT_FAMILY_BOLD;
 use crate::config::Config;
 use crate::gui::common::icons::Icon;
-use crate::gui::components::custom::{Dimensions, IconButton};
+use crate::gui::components::button::{Dimensions, IconButton};
 use crate::gui::style::button::ButtonType;
 use crate::gui::style::container::ContainerType;
 use crate::gui::widget::{horizontal_space, vertical_space, Column, Container, Element, PickList, Text};

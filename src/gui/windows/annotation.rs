@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::gui::common::icons::Icon;
 use crate::gui::common::messages::AppEvent;
-use crate::gui::components::custom::IconButton;
+use crate::gui::components::button::IconButton;
 use crate::gui::components::{Annotation, Shape, ShapeColor, ShapeStroke, ShapeType};
 use crate::gui::style::button::ButtonType;
 use crate::gui::style::theme::csx::StyleType;

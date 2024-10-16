@@ -1,5 +1,5 @@
-use crate::gui::video::pipeline::VideoPrimitive;
-use crate::gui::video::Video;
+use crate::gui::components::video::pipeline::VideoPrimitive;
+use crate::gui::components::video::Video;
 use gstreamer as gst;
 use iced::{advanced::{self, graphics::core::event::Status, layout, widget, Widget}, Element};
 use iced_wgpu::primitive::Renderer as PrimitiveRenderer;

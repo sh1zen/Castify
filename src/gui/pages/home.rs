@@ -1,16 +1,16 @@
 use crate::assets::{FONT_FAMILY_BOLD, ICON_BYTES};
 use crate::config::{app_name, Config};
 use crate::gui::common::icons::Icon;
-use crate::gui::components::custom::{IconButton, Key4Board, Dimensions};
+use crate::gui::components::button::{Dimensions, IconButton, Key4Board};
 use crate::gui::style::button::ButtonType;
 use crate::gui::style::container::ContainerType;
 use crate::gui::widget::{horizontal_space, vertical_space, Container, Element, Row, Space, Text};
 use crate::gui::windows::main::{MainWindow, MainWindowEvent};
 use iced::widget::Image;
 use iced::{Alignment, Length};
-use iced_core::{alignment, Padding};
 use iced_core::image::Handle;
 use iced_core::keyboard::{Key, Modifiers};
+use iced_core::{alignment, Padding};
 
 #[derive(Debug, Clone)]
 pub enum Message {

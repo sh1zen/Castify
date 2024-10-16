@@ -2,15 +2,14 @@ use crate::assets::{CAST_SERVICE_PORT, FRAME_HEIGHT, FRAME_RATE, FRAME_WITH};
 use crate::config::{app_name, saving_path, Config, Mode};
 use crate::gui::common::datastructure::ScreenRect;
 use crate::gui::common::messages::AppEvent;
-use crate::gui::components::caster::caster_page;
-use crate::gui::components::footer::footer;
-use crate::gui::components::home::initial_page;
-use crate::gui::components::hotkeys::{hotkeys, KeyTypes};
-use crate::gui::components::popup::{show_popup, Popup, PopupMsg, PopupType};
-use crate::gui::components::receiver::client_page;
-use crate::gui::components::{home, popup};
+use crate::gui::pages::caster::caster_page;
+use crate::gui::pages::footer::footer;
+use crate::gui::pages::home::initial_page;
+use crate::gui::pages::hotkeys::{hotkeys, KeyTypes};
+use crate::gui::pages::popup::{show_popup, Popup, PopupMsg, PopupType};
+use crate::gui::pages::receiver::client_page;
 use crate::gui::style::theme::csx::StyleType;
-use crate::gui::video::Video;
+use crate::gui::components::video::Video;
 use crate::gui::widget::{Column, Container, Element};
 use crate::gui::windows::GuiWindow;
 use crate::workers::caster::Caster;
@@ -19,7 +18,8 @@ use iced::{window::Id, Task};
 use iced_anim::{Animation, Spring, SpringEvent};
 use std::net::SocketAddr;
 use std::str::FromStr;
-use crate::gui::components::info::info_page;
+use crate::gui::pages::info::info_page;
+use crate::gui::pages::{home, popup};
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Page {

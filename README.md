@@ -18,6 +18,7 @@ A simple cross-platform screen caster tool made in Rust
 ## 📋 Requirements Run
 - **Mac OS**
     - Grant Access to Accessibility API: Add `Castify` to **System Preferences > Security & Privacy > Privacy > Accessibility**
+    - Maybe disable Firewall for the Caster
 
 
 ## 💻 Requirements Dev

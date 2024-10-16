@@ -1,10 +1,10 @@
 use crate::assets::FONT_FAMILY_BOLD;
 use crate::config::{Config, Mode};
 use crate::gui::common::icons::Icon;
-use crate::gui::components::custom::IconButton;
+use crate::gui::components::button::IconButton;
 use crate::gui::style::container::ContainerType;
 use crate::gui::style::text::TextType;
-use crate::gui::video::{Video, VideoPlayer};
+use crate::gui::components::video::{Video, VideoPlayer};
 use crate::gui::widget::{Column, Container, Element, Row};
 use crate::gui::windows::main::MainWindowEvent;
 use iced::widget::Text;

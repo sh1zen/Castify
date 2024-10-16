@@ -2,8 +2,6 @@ use iced_core::Point;
 
 pub mod gist;
 pub mod net;
-pub mod tray_icon;
-pub mod key_listener;
 pub mod sos;
 pub mod bimap;
 pub mod path;

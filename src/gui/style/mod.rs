@@ -6,3 +6,4 @@ mod picklist;
 pub mod button;
 mod scrollbar;
 mod menu;
+mod slider;

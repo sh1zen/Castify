@@ -1,4 +1,4 @@
-use crate::gui::components::hotkeys::KeyTypes;
+use crate::gui::pages::hotkeys::KeyTypes;
 use crate::utils::path::default_saving_path;
 use crate::utils::sos::SignalOfStop;
 use crate::utils::text::capitalize_first_letter;

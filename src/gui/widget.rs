@@ -1,10 +1,9 @@
-use iced::widget as w;
 use crate::gui::style::theme::csx::StyleType as Theme;
+use iced::widget as w;
 
 pub type IcedRenderer = iced::Renderer;
 
 pub type Element<'a, Message> = iced::Element<'a, Message, Theme, IcedRenderer>;
-
 
 pub type Container<'a, Message> = w::Container<'a, Message, Theme, IcedRenderer>;
 pub type Row<'a, Message> = w::Row<'a, Message, Theme, IcedRenderer>;
@@ -17,7 +16,7 @@ pub type Stack<'a, Message> = w::Stack<'a, Message, Theme, IcedRenderer>;
 
 pub type PickList<'a, T, L, V, Message> = w::PickList<'a, T, L, V, Message, Theme, IcedRenderer>;
 pub type Scrollable<'a, Message> = w::Scrollable<'a, Message, Theme, IcedRenderer>;
-
+pub type Slider<'a, T, Message> = w::Slider<'a, T, Message, Theme>;
 pub type Canvas<P, Message> = w::Canvas<P, Message, Theme, IcedRenderer>;
 
 

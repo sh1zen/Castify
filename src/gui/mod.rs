@@ -1,12 +1,12 @@
-use crate::assets::{FONT_BASE_BYTES, FONT_FAMILY_BASE, FONT_AWESOME_BYTES};
+use crate::assets::{FONT_AWESOME_BYTES, FONT_BASE_BYTES, FONT_FAMILY_BASE};
 
 pub mod app;
 pub mod components;
 pub mod style;
 pub mod common;
-pub mod video;
 pub mod widget;
 mod windows;
+pub mod pages;
 
 use self::app::App;
 

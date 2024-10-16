@@ -1,13 +1,13 @@
 use crate::assets::ICON_BYTES;
 use crate::config::Config;
 use crate::gui::common::messages::AppEvent;
-use crate::gui::components::hotkeys::KeyTypes;
+use crate::gui::pages::hotkeys::KeyTypes;
 use crate::gui::style::theme::csx::StyleType;
 use crate::gui::widget::Element;
 use crate::gui::windows::{WindowType, Windows};
-use crate::utils::key_listener::global_key_listener;
+use crate::workers::key_listener::global_key_listener;
 use crate::utils::open_link;
-use crate::utils::tray_icon::{tray_icon, tray_icon_listener, tray_menu_listener};
+use crate::workers::tray_icon::{tray_icon, tray_icon_listener, tray_menu_listener};
 use iced::application::Appearance;
 use iced::widget::horizontal_space;
 use iced::Event::Window;

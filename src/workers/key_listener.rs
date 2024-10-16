@@ -3,35 +3,16 @@ use iced::keyboard::Key as icedKey;
 use iced::{futures::{SinkExt, Stream}, stream};
 use iced_core::keyboard::key::Named;
 use rdev::{listen, EventType, Key as RdevKey};
-#[cfg(target_os = "linux")]
-use rdev::start_grab_listen;
-#[cfg(not(target_os = "linux"))]
-use rdev::grab;
 use tokio::sync::mpsc::channel;
 
 pub fn global_key_listener() -> impl Stream<Item=AppEvent> {
     let (sender, mut receiver) = channel(10);
 
     std::thread::spawn(move || {
-        #[cfg(target_os = "linux")]
-        start_grab_listen(move |event| {
-            sender.blocking_send(event.clone()).ok();
-            Some(event)
-        }).unwrap_or_default();
-        #[cfg(not(target_os = "linux"))]
-        grab(move |event| {
-            sender.blocking_send(event.clone()).ok();
-            Some(event)
-        }).unwrap_or_default();
-    });
-
-    /*
-    std::thread::spawn(move || {
         listen(move |event| {
             sender.blocking_send(event.clone()).unwrap_or_default();
         }).unwrap_or_default();
     });
-     */
 
     stream::channel(10, move |mut output| async move {
         let mut handler = KeyState::new();
@@ -45,6 +26,8 @@ pub fn global_key_listener() -> impl Stream<Item=AppEvent> {
         }
     })
 }
+
+
 
 struct KeyState {
     alt: bool,
