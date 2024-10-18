@@ -1,12 +1,12 @@
 use crate::gui::common::datastructure::ScreenRect;
 use crate::utils::evaluate_points;
+use iced::keyboard::key::Named;
+use iced::keyboard::{Event, Key};
+use iced::mouse::{Cursor, Interaction};
 use iced::widget::canvas;
 use iced::widget::canvas::{Frame, Geometry, Path, Stroke};
 use iced::Renderer;
-use iced_core::keyboard::key::Named;
-use iced_core::keyboard::{Event, Key};
-use iced_core::mouse::{Cursor, Interaction};
-use iced_core::{mouse, Color, Point, Rectangle, Size};
+use iced::{mouse, Color, Point, Rectangle, Size};
 use iced_graphics::geometry;
 use iced_graphics::geometry::{LineCap, LineDash, LineJoin, Style};
 

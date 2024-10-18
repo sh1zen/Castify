@@ -1,6 +1,6 @@
 use crate::gui::style::theme::csx::StyleType;
 use iced::widget::container::{Catalog, Style};
-use iced_core::{Background, Border, Color, Shadow, Vector};
+use iced::{Background, Border, Color, Shadow, Vector};
 
 #[derive(Clone, Copy, Debug, Default)]
 #[allow(dead_code)]

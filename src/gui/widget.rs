@@ -11,12 +11,13 @@ pub type Column<'a, Message> = w::Column<'a, Message, Theme, IcedRenderer>;
 
 pub type Text<'a> = iced::advanced::widget::Text<'a, Theme, IcedRenderer>;
 pub type TextInput<'a, Message> = w::TextInput<'a, Message, Theme, IcedRenderer>;
+pub type TextEditor<'a, Message> = w::TextEditor<'a, Message, Theme, IcedRenderer>;
 pub type Button<'a, Message> = w::Button<'a, Message, Theme, IcedRenderer>;
 pub type Stack<'a, Message> = w::Stack<'a, Message, Theme, IcedRenderer>;
 
 pub type PickList<'a, T, L, V, Message> = w::PickList<'a, T, L, V, Message, Theme, IcedRenderer>;
-pub type Scrollable<'a, Message> = w::Scrollable<'a, Message, Theme, IcedRenderer>;
-pub type Slider<'a, T, Message> = w::Slider<'a, T, Message, Theme>;
+//pub type Scrollable<'a, Message> = w::Scrollable<'a, Message, Theme, IcedRenderer>;
+//pub type Slider<'a, T, Message> = w::Slider<'a, T, Message, Theme>;
 pub type Canvas<P, Message> = w::Canvas<P, Message, Theme, IcedRenderer>;
 
 

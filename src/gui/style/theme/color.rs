@@ -1,4 +1,4 @@
-use iced_core::Color;
+use iced::Color;
 use std::hash::{Hash, Hasher};
 
 
@@ -27,14 +27,6 @@ impl ColorExt for Color {
     }
 }
 
-pub fn multiply(color: Color, multiplier: f32) -> Color {
-    Color::new(
-        (color.r * multiplier).clamp(0.0, 1.0),
-        (color.g * multiplier).clamp(0.0, 1.0),
-        (color.b * multiplier).clamp(0.0, 1.0),
-        color.a,
-    )
-}
 pub fn mix(bg: Color, fg: Color) -> Color {
     let a = 1. - (1. - fg.a) * (1. - bg.a);
     Color {
@@ -44,7 +36,6 @@ pub fn mix(bg: Color, fg: Color) -> Color {
         a,
     }
 }
-
 
 pub fn color_hash<H: Hasher>(color: Color, state: &mut H) {
     // Hash isn't implemented for floats, so lets hash the color as RGBA instead.

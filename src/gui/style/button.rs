@@ -1,8 +1,8 @@
 use crate::assets::{BORDER_RADIUS, BORDER_WIDTH};
 use crate::gui::style::theme::csx::StyleType;
+use iced::border::Radius;
 use iced::widget::button::{Catalog, Status, Style};
-use iced_core::border::Radius;
-use iced_core::{Background, Border, Color, Shadow, Vector};
+use iced::{Background, Border, Color, Shadow, Vector};
 
 #[derive(Clone, Copy, Debug, Default)]
 #[allow(dead_code)]

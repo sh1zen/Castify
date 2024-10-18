@@ -12,17 +12,17 @@ use iced::alignment::{Horizontal, Vertical};
 use iced::Length;
 
 pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
-    let mut is_streaming = false;
-
-    let mut content = Column::new().spacing(10).padding(15);
-
     let Some(crate::config::Mode::Caster(caster)) = &config.mode else {
         unreachable!("Mode must be Caster here")
     };
 
-    if caster.is_streaming() {
+    let mut is_streaming = false;
+
+    let mut content = Column::new().spacing(10).padding(15);
+
+    content = if caster.is_streaming() {
         is_streaming = true;
-        content = content
+        content
             .push(
                 Container::new(
                     row![
@@ -37,16 +37,15 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
             .push(
                 Container::new(
                     row![
-                            IconButton::new().label(String::from("Annotations")).icon(Icon::Image).build().width(180).on_press(MainWindowEvent::ShowAnnotationWindow)
+                            IconButton::new().label(String::from("Annotations")).icon(Icon::Image).build().width(180).on_press(MainWindowEvent::ShowAnnotationWindow),
+                            IconButton::new().label(String::from("Manual connection")).icon(Icon::Sync).build().width(180).on_press(MainWindowEvent::ShowSDP)
                         ]
                 ).width(Length::Fill).height(Length::Fill)
                     .align_x(Horizontal::Center)
                     .align_y(Vertical::Center).height(80).class(ContainerType::Standard)
-            );
-    }
-
-    if !is_streaming {
-        content = content
+            )
+    } else {
+        content
             .push(
                 Container::new(row![monitors_picklist(config)])
                     .center(Length::Fill).height(80).class(ContainerType::Standard)
@@ -81,7 +80,7 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
                 ).center(Length::Fill)
                     .height(80).class(ContainerType::Standard)
             )
-    }
+    };
 
     content = content
         .push(vertical_space())

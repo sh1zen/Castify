@@ -1,7 +1,7 @@
 use crate::assets::{BORDER_RADIUS, BORDER_WIDTH};
 use crate::gui::style::theme::csx::StyleType;
 use iced::widget::pick_list::{Catalog, Status, Style};
-use iced_core::{Background, Border, Color};
+use iced::{Background, Border, Color};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub enum PicklistType {

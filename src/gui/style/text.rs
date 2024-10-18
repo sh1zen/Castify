@@ -1,6 +1,6 @@
 use crate::gui::style::theme::color::mix;
 use crate::gui::style::theme::csx::StyleType;
-use iced_core::Color;
+use iced::Color;
 
 #[derive(Clone, Copy, Debug, Default)]
 #[allow(dead_code)]
@@ -24,16 +24,16 @@ impl TextType {
     }
 }
 
-impl iced_core::widget::text::Catalog for StyleType {
+impl iced::widget::text::Catalog for StyleType {
     type Class<'a> = TextType;
 
     fn default<'a>() -> Self::Class<'a> {
         TextType::Standard
     }
 
-    fn style(&self, class: &Self::Class<'_>) -> iced_core::widget::text::Style {
+    fn style(&self, class: &Self::Class<'_>) -> iced::widget::text::Style {
         let palette = self.get_palette();
-        iced_core::widget::text::Style {
+        iced::widget::text::Style {
             color: Some(match class {
                 TextType::Standard => palette.text,
                 TextType::Title => {

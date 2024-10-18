@@ -2,7 +2,7 @@
 
 use crate::config::{app_id, app_name, app_version};
 use crate::utils::flags::Flags;
-use clap::{Arg, Command, ValueHint};
+use clap::{Arg, Command};
 use interprocess::local_socket::traits::Stream;
 use interprocess::local_socket::{GenericNamespaced, ToNsName};
 use std::{panic, process};
@@ -24,16 +24,19 @@ fn main() {
         .arg(
             Arg::new("multi-instance")
                 .short('m')
-                .long("multi-instance")
+                .long("multi")
                 .value_name("MULTI INSTANCE")
-                .help("Allow multi application instance at once (yes/no).")
+                .help("Allow multiple application instance at once (yes/no).")
+                .required(false)
+                .default_missing_value("yes")
+                .ignore_case(true)
+                .num_args(0..=1)
                 .default_value("no")
-                .value_hint(ValueHint::CommandString)
         )
         .get_matches();
 
     let multi_instances = match matches.get_one::<String>("multi-instance") {
-        Some(v) => v.to_lowercase() == "yes",
+        Some(val) => &val.to_lowercase() == "yes",
         None => false,
     };
 
@@ -70,6 +73,6 @@ fn main() {
     }
 
     gui::run(Flags {
-        multi: multi_instances
+        multi_instance: multi_instances
     });
 }

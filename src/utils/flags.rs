@@ -1,3 +1,3 @@
 pub struct Flags {
-    pub multi: bool,
+    pub multi_instance: bool,
 }

@@ -1,4 +1,4 @@
-use crate::gui::pages::hotkeys::KeyTypes;
+use crate::gui::common::hotkeys::KeyTypes;
 use crate::utils::flags::Flags;
 use crate::utils::path::default_saving_path;
 use crate::utils::sos::SignalOfStop;
@@ -7,9 +7,9 @@ use crate::workers::caster::Caster;
 use crate::workers::receiver::Receiver;
 use crate::workers::WorkerClose;
 use chrono::Local;
-use iced_core::keyboard::key::Named;
-use iced_core::keyboard::{Key, Modifiers};
-use iced_core::Size;
+use iced::keyboard::key::Named;
+use iced::keyboard::{Key, Modifiers};
+use iced::Size;
 use local_ip_address::local_ip;
 use native_dialog::FileDialog;
 use std::net::{IpAddr, Ipv4Addr};
@@ -51,7 +51,7 @@ impl Default for HotkeyMap {
 }
 
 pub struct Config {
-    pub hotkey_map: HotkeyMap,
+    pub shortcuts: HotkeyMap,
     pub window_size: Size,
     pub e_time: u64,
     pub mode: Option<Mode>,
@@ -64,7 +64,7 @@ pub struct Config {
 impl Config {
     pub fn new(flags: Flags) -> Self {
         let conf = Config {
-            hotkey_map: Default::default(),
+            shortcuts: Default::default(),
             window_size: Size { width: 680f32, height: 460f32 },
             e_time: 0,
             mode: None,
@@ -76,7 +76,7 @@ impl Config {
                     None
                 }),
             sos: SignalOfStop::new(),
-            multi_instance: flags.multi,
+            multi_instance: flags.multi_instance,
         };
 
         let public_ip = Arc::clone(&conf.public_ip);
@@ -94,10 +94,6 @@ impl Config {
             let mut mode = self.mode.take().unwrap();
             mode.close();
         }
-    }
-
-    pub fn close(&mut self) {
-        //std::fs::remove_file().unwrap_or_default();
     }
 }
 

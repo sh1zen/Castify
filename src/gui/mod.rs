@@ -2,13 +2,13 @@ use crate::assets::{FONT_AWESOME_BYTES, FONT_BASE_BYTES, FONT_FAMILY_BASE};
 use crate::config::app_id;
 use crate::utils::flags::Flags;
 
-pub mod app;
-pub mod components;
-pub mod style;
+mod app;
+mod components;
+mod style;
 pub mod common;
-pub mod widget;
+mod widget;
 mod windows;
-pub mod pages;
+mod pages;
 
 use self::app::App;
 

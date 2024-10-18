@@ -2,9 +2,11 @@ use crate::assets::CAST_SERVICE_PORT;
 use crate::utils::net::webrtc::webrtc_common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
 use crate::utils::result_to_option;
 use crate::utils::sos::SignalOfStop;
-use async_tungstenite::tokio::{accept_async, TokioAdapter};
-use async_tungstenite::tungstenite::Message;
-use async_tungstenite::WebSocketStream;
+use async_tungstenite::{
+    tokio::{accept_async, TokioAdapter},
+    tungstenite::Message,
+    WebSocketStream,
+};
 use futures_util::{SinkExt, StreamExt};
 use std::ops::Add;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,13 +15,14 @@ use std::time::{Duration, SystemTime};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
 use tokio::time::sleep;
-use webrtc::api::API;
 use webrtc::ice_transport::ice_connection_state::RTCIceConnectionState;
 use webrtc::peer_connection::sdp::sdp_type::RTCSdpType;
 use webrtc::peer_connection::RTCPeerConnection;
 use webrtc::rtp_transceiver::rtp_codec::RTPCodecType;
-use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSample;
-use webrtc::track::track_local::TrackLocal;
+use webrtc::track::track_local::{
+    track_local_static_sample::TrackLocalStaticSample,
+    TrackLocal,
+};
 
 struct WRTCPeer {
     connection: Arc<RTCPeerConnection>,
@@ -28,24 +31,19 @@ struct WRTCPeer {
 }
 
 pub struct WebRTCServer {
-    api: Arc<API>,
     peers: Arc<Mutex<Vec<Arc<WRTCPeer>>>>,
     sos: SignalOfStop,
 }
 
 impl WebRTCServer {
     pub fn new() -> WebRTCServer {
-        let api = create_webrtc_api();
-
         WebRTCServer {
-            api,
             peers: Arc::new(Mutex::new(Vec::new())),
             sos: SignalOfStop::new(),
         }
     }
 
     pub fn run(&mut self) {
-        let api = Arc::clone(&self.api);
         let sos = self.sos.clone();
         let peers = Arc::clone(&self.peers);
 
@@ -55,9 +53,8 @@ impl WebRTCServer {
                 while let Ok((stream, _)) = listener.accept().await {
                     let sos_clone = sos.clone();
                     let peers_clone = Arc::clone(&peers);
-                    let api_clone = Arc::clone(&api);
                     sos.spawn(async move {
-                        if let Ok(peer) = WebRTCServer::handle_connection(stream, api_clone, sos_clone).await {
+                        if let Ok(peer) = WebRTCServer::handle_connection(stream, sos_clone).await {
                             peers_clone.lock().await.push(Arc::clone(&peer));
                         }
                     });
@@ -66,9 +63,11 @@ impl WebRTCServer {
         });
     }
 
-    async fn handle_connection(stream: TcpStream, api: Arc<API>, sos: SignalOfStop) -> Result<Arc<WRTCPeer>, Box<dyn std::error::Error + Send + Sync>> {
+    async fn handle_connection(stream: TcpStream, sos: SignalOfStop) -> Result<Arc<WRTCPeer>, Box<dyn std::error::Error + Send + Sync>> {
         println!("Incoming connection: {:?}", stream);
         let ws_stream = accept_async(stream).await.map_err(|e| format!("WebRTCServer Error: {:?}", e))?;
+
+        let api = create_webrtc_api();
 
         let peer = Arc::new(WRTCPeer {
             connection: create_peer_connection(&api).await.map_err(|e| format!("WebRTCServer Error: {:?}", e))?,
@@ -221,3 +220,4 @@ impl WebRTCServer {
         self.sos.cancel();
     }
 }
+

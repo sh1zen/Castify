@@ -1,7 +1,7 @@
 use crate::assets::{BORDER_RADIUS, BORDER_WIDTH};
 use crate::gui::style::theme::csx::StyleType;
 use iced::overlay::menu::{Catalog, Style};
-use iced_core::{Background, Border};
+use iced::{Background, Border};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub enum MenuType {

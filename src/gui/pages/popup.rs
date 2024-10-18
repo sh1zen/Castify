@@ -1,12 +1,12 @@
 use crate::config::Config;
+use crate::gui::common::hotkeys::KeyTypes;
 use crate::gui::common::icons::Icon;
-use crate::gui::pages::hotkeys::KeyTypes;
 use crate::gui::components::button::{Dimensions, IconButton, Key4Board};
 use crate::gui::style::container::ContainerType;
-use crate::gui::widget::{Column, Container, IcedParentExt, Row, Space, Stack, Text, TextInput};
+use crate::gui::widget::{Column, Container, Element, IcedParentExt, Row, Space, Stack, Text, TextInput};
 use crate::gui::windows::main::MainWindowEvent;
 use iced::keyboard::Key;
-use iced_core::Length;
+use iced::Length;
 use iced_wgpu::core::keyboard::Modifiers;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -21,17 +21,19 @@ pub struct Interaction {
 pub enum PopupType {
     IP,
     HotkeyUpdate,
+    ShowSDP,
+    SetSDP,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum PopupMsg {
+pub enum PopupContent {
     String(String),
     HotKey(KeyTypes),
 }
 
 pub struct Popup {
     show_popup: Option<PopupType>,
-    popups: HashMap<PopupType, PopupMsg>,
+    popups: HashMap<PopupType, PopupContent>,
 }
 
 impl Popup {
@@ -62,15 +64,15 @@ impl Popup {
         self.popups.contains_key(&p0)
     }
 
-    pub fn get_mut(&mut self, p0: &PopupType) -> Option<&mut PopupMsg> {
+    pub fn get_mut(&mut self, p0: &PopupType) -> Option<&mut PopupContent> {
         self.popups.get_mut(p0)
     }
 
-    pub fn get(&self, p0: &PopupType) -> Option<&PopupMsg> {
+    pub fn get(&self, p0: &PopupType) -> Option<&PopupContent> {
         self.popups.get(p0)
     }
 
-    pub(crate) fn insert(&mut self, p0: PopupType, p1: PopupMsg) -> bool {
+    pub(crate) fn insert(&mut self, p0: PopupType, p1: PopupContent) -> bool {
         self.popups.insert(p0, p1).is_some()
     }
 }
@@ -88,6 +90,12 @@ pub fn show_popup<'a>(popup: &Popup, config: &Config, body: Container<'a, MainWi
         }
         PopupType::HotkeyUpdate => {
             hotkey_update(popup, config)
+        }
+        PopupType::ShowSDP => {
+            show_text(popup)
+        }
+        PopupType::SetSDP => {
+            show_text(popup)
         }
     };
 
@@ -113,17 +121,17 @@ pub fn show_popup<'a>(popup: &Popup, config: &Config, body: Container<'a, MainWi
 
 fn hotkey_update<'a>(popup: &Popup, config: &Config) -> Container<'a, MainWindowEvent> {
     let updating_key = match get_popup_data(popup, PopupType::HotkeyUpdate) {
-        PopupMsg::HotKey(key) => {
+        PopupContent::HotKey(key) => {
             key
         }
         _ => { KeyTypes::None }
     };
 
     let c_key = match updating_key {
-        KeyTypes::Pause => { config.hotkey_map.pause.clone() }
-        KeyTypes::Record => { config.hotkey_map.record.clone() }
-        KeyTypes::Close => { config.hotkey_map.end_session.clone() }
-        KeyTypes::BlankScreen => { config.hotkey_map.blank_screen.clone() }
+        KeyTypes::Pause => { config.shortcuts.pause.clone() }
+        KeyTypes::Record => { config.shortcuts.record.clone() }
+        KeyTypes::Close => { config.shortcuts.end_session.clone() }
+        KeyTypes::BlankScreen => { config.shortcuts.blank_screen.clone() }
         _ => { (Modifiers::empty(), Key::Unidentified) }
     };
 
@@ -150,9 +158,33 @@ fn hotkey_update<'a>(popup: &Popup, config: &Config) -> Container<'a, MainWindow
     Container::new(content.width(500).height(300)).class(ContainerType::Modal)
 }
 
+fn show_text<'a>(popup: &Popup) -> Container<'a, MainWindowEvent> {
+    let text = if let Some(PopupContent::String(text)) = &popup.popups.get(&PopupType::ShowSDP) {
+        text
+    } else { "" };
+
+    let input = TextInput::new("Share to partner", text)
+        .on_input(|_| MainWindowEvent::Ignore)
+        .padding([8, 12]);
+
+    let content = popup_base(Some("Copy and share this to the other party."))
+        .push(input)
+        .push(
+            Row::new().spacing(12)
+                .push(
+                    IconButton::new().label(String::from("Close"))
+                        .icon(Icon::Close)
+                        .build()
+                        .on_press(MainWindowEvent::ClosePopup)
+                )
+        );
+
+    Container::new(content.width(500).height(300)).class(ContainerType::Modal)
+}
+
 fn ip_popup<'a>(popup: &Popup) -> Container<'a, MainWindowEvent> {
     let mut entered_ip = match get_popup_data(popup, PopupType::IP) {
-        PopupMsg::String(str) => {
+        PopupContent::String(str) => {
             str
         }
         _ => { "".parse().unwrap() }
@@ -198,10 +230,49 @@ fn popup_base<Message>(title: Option<&str>) -> Column<Message> {
         .push_if(title.is_some(), || Text::new(title.unwrap()).size(20))
 }
 
-fn get_popup_data(popup: &Popup, popup_type: PopupType) -> PopupMsg {
+fn get_popup_data(popup: &Popup, popup_type: PopupType) -> PopupContent {
     if popup.has(&popup_type) {
         popup.get(&popup_type).unwrap().clone()
     } else {
-        PopupMsg::String("".parse().unwrap())
+        PopupContent::String("".parse().unwrap())
+    }
+}
+
+pub struct AwPopup<'a, Message> {
+    title: Option<&'a str>,
+    content: Option<Element<'a, Message>>,
+    on_close: Option<Message>,
+}
+
+impl<'a, Message: 'a> AwPopup<'a, Message> {
+    pub fn new() -> Self {
+        AwPopup {
+            title: None,
+            content: None,
+            on_close: None,
+        }
+    }
+
+    pub fn title(mut self, title: &'a str) -> Self {
+        self.title = Some(title);
+        self
+    }
+
+    pub fn content(mut self, content: Element<'a, Message>) -> Self {
+        self.content = Some(content);
+        self
+    }
+
+    pub fn on_close(mut self, message: Message) -> Self {
+        self.on_close = Some(message);
+        self
+    }
+
+    pub fn build(&mut self) -> Element<'a, Message> {
+        if let Some(content) = self.content.take() {
+            Container::new(content).into()
+        } else {
+            Space::new(0, 0).into()
+        }
     }
 }

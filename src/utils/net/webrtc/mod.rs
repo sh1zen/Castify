@@ -1,8 +1,13 @@
 mod werbrtc_server;
 mod webrtc_client;
 mod webrtc_common;
-mod interfaces;
 
+use std::future::Future;
 pub use webrtc_client::WebRTCClient;
 pub use werbrtc_server::WebRTCServer;
-pub use interfaces::receiver;
+
+pub trait ManualSdp: Send + Sync {
+    fn get_sdp(&self) -> String;
+
+    fn set_remote_sdp(&mut self, sdp: String) -> bool;
+}

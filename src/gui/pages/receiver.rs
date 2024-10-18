@@ -2,14 +2,14 @@ use crate::assets::FONT_FAMILY_BOLD;
 use crate::config::{Config, Mode};
 use crate::gui::common::icons::Icon;
 use crate::gui::components::button::IconButton;
+use crate::gui::components::video::{Video, VideoPlayer};
 use crate::gui::style::container::ContainerType;
 use crate::gui::style::text::TextType;
-use crate::gui::components::video::{Video, VideoPlayer};
 use crate::gui::widget::{Column, Container, Element, Row};
 use crate::gui::windows::main::MainWindowEvent;
 use iced::widget::Text;
+use iced::{alignment, Padding};
 use iced::{Alignment, Length};
-use iced_core::{alignment, Padding};
 
 pub fn client_page<'a, 'b>(video: &'b Video, config: &Config) -> Element<'a, MainWindowEvent>
 where

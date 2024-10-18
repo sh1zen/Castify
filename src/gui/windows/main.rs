@@ -1,15 +1,17 @@
 use crate::assets::{CAST_SERVICE_PORT, FRAME_HEIGHT, FRAME_RATE, FRAME_WITH};
 use crate::config::{app_name, saving_path, Config, Mode};
 use crate::gui::common::datastructure::ScreenRect;
+use crate::gui::common::hotkeys::{hotkeys, KeyTypes};
 use crate::gui::common::messages::AppEvent;
+use crate::gui::components::video::Video;
 use crate::gui::pages::caster::caster_page;
 use crate::gui::pages::footer::footer;
 use crate::gui::pages::home::initial_page;
-use crate::gui::pages::hotkeys::{hotkeys, KeyTypes};
-use crate::gui::pages::popup::{show_popup, Popup, PopupMsg, PopupType};
+use crate::gui::pages::info::info_page;
+use crate::gui::pages::popup::{show_popup, Popup, PopupContent, PopupType};
 use crate::gui::pages::receiver::client_page;
+use crate::gui::pages::{home, popup};
 use crate::gui::style::theme::csx::StyleType;
-use crate::gui::components::video::Video;
 use crate::gui::widget::{Column, Container, Element};
 use crate::gui::windows::GuiWindow;
 use crate::workers::caster::Caster;
@@ -18,8 +20,7 @@ use iced::{window::Id, Task};
 use iced_anim::{Animation, Spring, SpringEvent};
 use std::net::SocketAddr;
 use std::str::FromStr;
-use crate::gui::pages::info::info_page;
-use crate::gui::pages::{home, popup};
+use crate::utils::net::webrtc::ManualSdp;
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Page {
@@ -77,6 +78,10 @@ pub enum MainWindowEvent {
     OpenInfo,
     /// Ignore the event
     Ignore,
+    /// Show WebRTC SDP
+    ShowSDP,
+    /// Set WebRTC SDP
+    SetSDP(String),
 }
 
 impl MainWindow {
@@ -106,7 +111,7 @@ impl GuiWindow for MainWindow {
     fn update(&mut self, _id: Id, message: MainWindowEvent, config: &mut Config) -> Task<AppEvent> {
         match message {
             MainWindowEvent::Home => {
-                config.hotkey_map.updating = KeyTypes::None;
+                config.shortcuts.updating = KeyTypes::None;
                 config.reset_mode();
                 self.popup.hide();
                 self.change_page(Page::Home);
@@ -125,9 +130,37 @@ impl GuiWindow for MainWindow {
                 }
                 Task::none()
             }
-            MainWindowEvent::CasterToggleStreaming => {
-                Task::done(AppEvent::CasterToggleStreaming)
+            MainWindowEvent::ShowSDP => {
+                /*if let Some(sdp_provider) = match &config.mode {
+                    //Some(Mode::Caster(caster)) => Some(caster as &(dyn ManualSdp + Send + Sync)),
+                    Some(Mode::Receiver(receiver)) => Some(receiver as &(dyn ManualSdp + Send + Sync + 'static)),
+                    _ => None,
+                } {
+                    self.popup.insert(PopupType::ShowSDP, PopupContent::String("loading".to_string()));
+                    self.popup.show(PopupType::ShowSDP);
+                    Task::future(async move {
+                        let sdp = sdp_provider.get_sdp().await;
+                        self.popup.insert(PopupType::ShowSDP, PopupContent::String(sdp));
+                        self.popup.show(PopupType::ShowSDP);
+                        AppEvent::Ignore
+                    })
+                    //Task::none()
+                } else {
+                    Task::none()
+                }*/
+                Task::none()
             }
+            MainWindowEvent::SetSDP(sdp) => {
+                /*if let Some(sdp_provider) = match &mut config.mode {
+                    Some(Mode::Caster(caster)) => Some(caster as &mut dyn ManualSdp),
+                    Some(Mode::Receiver(receiver)) => Some(receiver as &mut dyn ManualSdp),
+                    _ => None,
+                } {
+                    sdp_provider.set_remote_sdp(sdp);
+                }*/
+                Task::none()
+            }
+            MainWindowEvent::CasterToggleStreaming => { Task::done(AppEvent::CasterToggleStreaming) }
             MainWindowEvent::CasterMonitor(mon) => {
                 if let Some(Mode::Caster(caster)) = &mut config.mode {
                     caster.change_monitor(mon);
@@ -136,9 +169,9 @@ impl GuiWindow for MainWindow {
             }
             MainWindowEvent::PopupMessage(msg) => {
                 if self.popup.has(&msg.p_type) {
-                    *self.popup.get_mut(&msg.p_type).unwrap() = PopupMsg::String(msg.text)
+                    *self.popup.get_mut(&msg.p_type).unwrap() = PopupContent::String(msg.text)
                 } else {
-                    self.popup.insert(msg.p_type, PopupMsg::String(msg.text));
+                    self.popup.insert(msg.p_type, PopupContent::String(msg.text));
                 }
                 Task::none()
             }
@@ -151,10 +184,10 @@ impl GuiWindow for MainWindow {
                 Task::none()
             }
             MainWindowEvent::HotkeysTypePage(key) => {
-                config.hotkey_map.updating = key;
+                config.shortcuts.updating = key;
                 self.popup.insert(
                     PopupType::HotkeyUpdate,
-                    PopupMsg::HotKey(key),
+                    PopupContent::HotKey(key),
                 );
                 self.popup.show(PopupType::HotkeyUpdate);
                 Task::none()
@@ -176,7 +209,7 @@ impl GuiWindow for MainWindow {
                         }
                         Err(e) => {
                             println!("{}", e);
-                            *self.popup.get_mut(&PopupType::IP).unwrap() = PopupMsg::String("".parse().unwrap());
+                            *self.popup.get_mut(&PopupType::IP).unwrap() = PopupContent::String("".parse().unwrap());
                             return Task::none();
                         }
                     }
@@ -203,12 +236,6 @@ impl GuiWindow for MainWindow {
                 client.save_stop();
                 Task::none()
             }
-            MainWindowEvent::ShowAnnotationWindow => { Task::done(AppEvent::OpenAnnotationWindow) }
-            MainWindowEvent::OpenWebPage(s) => { Task::done(AppEvent::OpenWebPage(s)) }
-            MainWindowEvent::AreaSelection => { Task::done(AppEvent::OpenAreaSelectionWindow) }
-            MainWindowEvent::AreaSelectedFullScreen => { Task::done(AppEvent::AreaSelected(ScreenRect::default())) }
-            MainWindowEvent::ExitApp => { Task::done(AppEvent::ExitApp) }
-            MainWindowEvent::ThemeUpdate(event) => self.theme.update(event).into(),
             MainWindowEvent::OpenInfo => {
                 if self.page == Page::Info {
                     self.page = self.prev_page;
@@ -217,6 +244,12 @@ impl GuiWindow for MainWindow {
                 }
                 Task::none()
             }
+            MainWindowEvent::ShowAnnotationWindow => { Task::done(AppEvent::OpenAnnotationWindow) }
+            MainWindowEvent::OpenWebPage(s) => { Task::done(AppEvent::OpenWebPage(s)) }
+            MainWindowEvent::AreaSelection => { Task::done(AppEvent::OpenAreaSelectionWindow) }
+            MainWindowEvent::AreaSelectedFullScreen => { Task::done(AppEvent::AreaSelected(ScreenRect::default())) }
+            MainWindowEvent::ExitApp => { Task::done(AppEvent::ExitApp) }
+            MainWindowEvent::ThemeUpdate(event) => self.theme.update(event).into(),
             MainWindowEvent::Ignore => Task::none()
         }
     }

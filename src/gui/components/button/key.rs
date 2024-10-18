@@ -2,7 +2,7 @@ use crate::assets::FONT_FAMILY_BOLD;
 use crate::gui::style::button::ButtonType;
 use crate::gui::widget::{Button, Container, Text};
 use iced::keyboard::{Key, Modifiers};
-use iced_core::{alignment, Padding};
+use iced::{alignment, Padding};
 use std::default::Default;
 
 #[derive(Default)]

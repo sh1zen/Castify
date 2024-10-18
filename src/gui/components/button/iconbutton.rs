@@ -3,8 +3,8 @@ use crate::gui::common::icons::Icon;
 use crate::gui::style::button::ButtonType;
 use crate::gui::style::text::TextType;
 use crate::gui::widget::{Button, Container, IcedParentExt, Row, Space, Text};
-use iced_core::alignment::{Horizontal, Vertical};
-use iced_core::{Color, Length, Padding};
+use iced::alignment::{Horizontal, Vertical};
+use iced::{Color, Length, Padding};
 
 pub struct IconButton {
     label: Option<String>,
@@ -15,6 +15,7 @@ pub struct IconButton {
     color: Option<Color>,
 }
 
+#[allow(dead_code)]
 pub enum Dimensions {
     Small,
     Medium,
@@ -22,6 +23,7 @@ pub enum Dimensions {
     Auto,
 }
 
+#[allow(dead_code)]
 impl IconButton {
     pub fn new() -> Self {
         Self {

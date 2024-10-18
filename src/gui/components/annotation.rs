@@ -1,10 +1,10 @@
+use iced::keyboard::key::Named;
+use iced::keyboard::{Event, Key};
+use iced::mouse::{Cursor, Interaction};
 use iced::widget::canvas;
 use iced::widget::canvas::{Frame, Geometry, Path, Stroke};
 use iced::Renderer;
-use iced_core::keyboard::key::Named;
-use iced_core::keyboard::{Event, Key};
-use iced_core::mouse::{Cursor, Interaction};
-use iced_core::{mouse, Color, Point, Rectangle};
+use iced::{mouse, Color, Point, Rectangle};
 use iced_graphics::geometry::path::Builder;
 use iced_graphics::geometry::LineJoin;
 use iced_graphics::geometry::Style::Solid;

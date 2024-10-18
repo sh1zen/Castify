@@ -1,7 +1,7 @@
 use crate::gui::common::datastructure::ScreenRect;
 use crate::gui::windows::WindowMessage;
 use iced::keyboard::{Key, Modifiers};
-use iced_core::window::Id;
+use iced::window::Id;
 
 #[derive(Debug, Clone)]
 pub enum AppEvent

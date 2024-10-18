@@ -7,10 +7,10 @@ use crate::gui::style::button::ButtonType;
 use crate::gui::style::theme::csx::StyleType;
 use crate::gui::widget::{horizontal_space, vertical_space, Canvas, Column, Container, Element, Row, Stack};
 use crate::gui::windows::GuiWindow;
-use iced_core::alignment;
-use iced_core::window::Id;
-use iced_core::Length::Fill;
-use iced_runtime::Task;
+use iced::alignment;
+use iced::window::Id;
+use iced::Length::Fill;
+use iced::Task;
 
 pub struct AnnotationWindow {
     shape: Shape,

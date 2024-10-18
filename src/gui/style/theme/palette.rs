@@ -1,7 +1,7 @@
 use crate::gui::style::theme::color::color_hash;
 use crate::gui::style::theme::csx::StyleType;
+use iced::Color;
 use iced_anim::Animate;
-use iced_core::Color;
 use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone, Copy, PartialEq, Animate)]
@@ -78,7 +78,14 @@ impl Default for Palette {
 impl Hash for Palette {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let Palette {
-            background, primary, primary_darker, secondary, danger, action, text, text_inv
+            background,
+            primary,
+            primary_darker,
+            secondary,
+            danger,
+            action,
+            text,
+            text_inv
         } = self;
 
         color_hash(*background, state);

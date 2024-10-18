@@ -1,7 +1,7 @@
 use crate::assets::ICON_BYTES;
 use crate::config::Config;
+use crate::gui::common::hotkeys::KeyTypes;
 use crate::gui::common::messages::AppEvent;
-use crate::gui::pages::hotkeys::KeyTypes;
 use crate::gui::style::theme::csx::StyleType;
 use crate::gui::widget::Element;
 use crate::gui::windows::{WindowType, Windows};
@@ -10,16 +10,17 @@ use crate::utils::ipc::ipc;
 use crate::utils::open_link;
 use crate::workers::key_listener::{global_key_listener, valid_iced_key};
 use crate::workers::tray_icon::{tray_icon, tray_icon_listener, tray_menu_listener};
-use iced::application::Appearance;
+use iced::keyboard::{Event, Key, Modifiers};
 use iced::widget::horizontal_space;
-use iced::Event::Window;
-use iced::{window, Subscription};
-use iced_core::keyboard::{Event, Key, Modifiers};
-use iced_core::window::settings::PlatformSpecific;
-use iced_core::window::{Id, Mode, Position};
-use iced_core::Event::Keyboard;
-use iced_core::{Point, Size};
-use iced_runtime::Task;
+use iced::{
+    application::Appearance,
+    window,
+    window::{
+        settings::PlatformSpecific,
+        Id, Mode, Position,
+    },
+    Event::{Keyboard, Window}, Point, Size, Subscription, Task,
+};
 use std::process::exit;
 use std::time::Duration;
 use tray_icon::TrayIcon;
@@ -223,29 +224,29 @@ impl App {
 
                 let item = (modifier, key);
 
-                if self.config.hotkey_map.updating != KeyTypes::None {
-                    match self.config.hotkey_map.updating {
+                if self.config.shortcuts.updating != KeyTypes::None {
+                    match self.config.shortcuts.updating {
                         KeyTypes::Pause => {
-                            self.config.hotkey_map.pause = item
+                            self.config.shortcuts.pause = item
                         }
                         KeyTypes::Record => {
-                            self.config.hotkey_map.record = item
+                            self.config.shortcuts.record = item
                         }
                         KeyTypes::BlankScreen => {
-                            self.config.hotkey_map.blank_screen = item
+                            self.config.shortcuts.blank_screen = item
                         }
                         KeyTypes::Close => {
-                            self.config.hotkey_map.end_session = item
+                            self.config.shortcuts.end_session = item
                         }
                         _ => {}
                     }
                     Task::none()
                 } else {
-                    if item == self.config.hotkey_map.pause || item == self.config.hotkey_map.record {
+                    if item == self.config.shortcuts.pause || item == self.config.shortcuts.record {
                         Task::done(AppEvent::CasterToggleStreaming)
-                    } else if item == self.config.hotkey_map.blank_screen {
+                    } else if item == self.config.shortcuts.blank_screen {
                         Task::done(AppEvent::BlankScreen)
-                    } else if item == self.config.hotkey_map.end_session {
+                    } else if item == self.config.shortcuts.end_session {
                         Task::done(AppEvent::ExitApp)
                     } else { Task::none() }
                 }
@@ -256,7 +257,6 @@ impl App {
                 }
                 self.config.reset_mode();
                 self.config.sos.cancel();
-                self.config.close();
                 exit(0)
             }
             AppEvent::Ignore => {

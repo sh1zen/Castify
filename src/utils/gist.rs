@@ -30,9 +30,7 @@ pub fn create_stream_pipeline(monitor: &str, tx_processed: Sender<Buffer>, use_r
                 .property("use-damage", false)
                 .property("show-pointer", true)
         }
-        _ => {
-            ElementFactory::make("appsrc")
-        }
+        _ => { unreachable!("TargetOS not supported") }
     }
         .name("src")
         .build()?;

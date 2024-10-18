@@ -8,9 +8,8 @@ use crate::gui::widget::{horizontal_space, vertical_space, Container, Element, R
 use crate::gui::windows::main::{MainWindow, MainWindowEvent};
 use iced::widget::Image;
 use iced::{Alignment, Length};
-use iced_core::image::Handle;
-use iced_core::keyboard::{Key, Modifiers};
-use iced_core::{alignment, Padding};
+use iced::keyboard::{Key, Modifiers};
+use iced::{alignment, Padding};
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -20,7 +19,7 @@ pub enum Message {
 pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a, MainWindowEvent> {
     let header = crate::row![
             Row::new()
-                .push(Image::new(Handle::from_bytes(ICON_BYTES)).width(58).height(58))
+                .push(Image::new(iced::widget::image::Handle::from_bytes(ICON_BYTES)).width(58).height(58))
                 .push(Space::with_width(16))
                 .push(Text::new(app_name()).size(42).font(FONT_FAMILY_BOLD))
                 .align_y(alignment::Vertical::Center),
@@ -101,10 +100,10 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
              crate::column![
                 Text::new("Shortcuts:").size(16).font(FONT_FAMILY_BOLD),
                 vertical_space().height(15),
-                shortcuts(config.hotkey_map.record.clone(), "Record"),
-                shortcuts(config.hotkey_map.pause.clone(), "Pause"),
-                shortcuts(config.hotkey_map.blank_screen.clone(), "Blank Screen"),
-                shortcuts(config.hotkey_map.end_session.clone(), "End Session"),
+                shortcuts(config.shortcuts.record.clone(), "Record"),
+                shortcuts(config.shortcuts.pause.clone(), "Pause"),
+                shortcuts(config.shortcuts.blank_screen.clone(), "Blank Screen"),
+                shortcuts(config.shortcuts.end_session.clone(), "End Session"),
             ]
             .width(Length::Fill)
             .padding(10),

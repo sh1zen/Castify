@@ -2,7 +2,7 @@ use crate::gui::style::theme::palette::Palette;
 use crate::rgba8;
 use iced::application::{Appearance, DefaultStyle};
 use iced_anim::Animate;
-use iced_core::Color;
+use iced::Color;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

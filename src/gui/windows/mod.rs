@@ -7,7 +7,7 @@ use crate::gui::windows::area_selector::{ASWindow, ASWindowEvent};
 use crate::gui::windows::main::{MainWindow, MainWindowEvent};
 use crate::utils::bimap::{BiMap, Either};
 use iced::window::Id;
-use iced_runtime::Task;
+use iced::Task;
 use std::collections::hash_map::Iter;
 use std::collections::HashMap;
 use std::hash::Hash;

@@ -1,10 +1,14 @@
+use std::future::Future;
 use crate::assets::FRAME_RATE;
+use crate::utils::net::common::find_caster;
+use crate::utils::net::webrtc::{ManualSdp, WebRTCClient};
 use crate::utils::result_to_option;
 use crate::utils::sos::SignalOfStop;
 use crate::workers::save_stream::SaveStream;
 use crate::workers::WorkerClose;
 use gstreamer::Pipeline;
 use std::net::SocketAddr;
+use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -14,13 +18,7 @@ pub struct Receiver {
     caster_addr: Option<SocketAddr>,
     save_rx: Option<Arc<Mutex<tokio::sync::mpsc::Receiver<gstreamer::Buffer>>>>,
     local_sos: SignalOfStop,
-}
-
-impl WorkerClose for Receiver {
-    fn close(&mut self) {
-        self.save_stop();
-        self.local_sos.cancel();
-    }
+    handler: Arc<Mutex<WebRTCClient>>,
 }
 
 impl Receiver {
@@ -30,7 +28,8 @@ impl Receiver {
             save_stream: None,
             caster_addr: None,
             save_rx: None,
-            local_sos: sos,
+            local_sos: sos.clone(),
+            handler: Arc::new(Mutex::new(WebRTCClient::new())),
         }
     }
 
@@ -39,20 +38,36 @@ impl Receiver {
     }
 
     pub fn launch(&mut self) -> Option<Pipeline> {
-        let caster_addr = self.caster_addr;
-
         let (save_tx, save_rx) = tokio::sync::mpsc::channel(FRAME_RATE as usize);
 
         self.save_rx = Some(Arc::new(Mutex::new(save_rx)));
 
-        let sos = self.local_sos.clone();
-
         let pipeline: Option<Pipeline> = {
             let (tx, rx) = tokio::sync::mpsc::channel(1);
-            let is_streaming = self.is_streaming.clone();
+
+            let is_streaming = Arc::clone(&self.is_streaming);
+            let mut caster_addr = self.caster_addr;
+            let handler = Arc::clone(&self.handler);
+
             tokio::spawn(async move {
-                *is_streaming.lock().await = crate::utils::net::webrtc::receiver(caster_addr, tx, sos).await;
+                if caster_addr.is_none() {
+                    caster_addr = find_caster();
+                }
+
+                if let Some(socket_addr) = caster_addr {
+                    let addr: &str = &format!("ws://{}", &(socket_addr.to_string()));
+
+                    println!("Connecting to caster at {:?}", addr);
+
+                    let _ = handler.lock().await.connect(addr).await;
+
+                    if handler.lock().await.is_connected() {
+                        *is_streaming.lock().await = true;
+                        handler.lock().await.receive_video(tx).await;
+                    }
+                }
             });
+
             result_to_option(crate::utils::gist::create_view_pipeline(rx, save_tx))
         };
 
@@ -83,5 +98,30 @@ impl Receiver {
         if let Some(mut save_stream) = self.save_stream.take() {
             save_stream.stop();
         }
+    }
+}
+
+
+impl WorkerClose for Receiver {
+    fn close(&mut self) {
+        self.save_stop();
+        let handler = Arc::clone(&self.handler);
+        tokio::spawn(async move {
+            handler.lock().await.close().await;
+        });
+        self.local_sos.cancel();
+    }
+}
+
+impl ManualSdp for Receiver {
+
+    fn get_sdp(&self) -> String {
+       String::new()
+    }
+
+
+    fn set_remote_sdp(&mut self, sdp: String) -> bool {
+        //self.handler.blocking_lock()..set_sdp(sdp)
+        false
     }
 }

@@ -1,8 +1,8 @@
 use crate::gui::common::messages::AppEvent;
+use iced::keyboard::key::Named;
 use iced::keyboard::Key as icedKey;
+use iced::keyboard::{Key, Modifiers};
 use iced::{futures::{SinkExt, Stream}, stream};
-use iced_core::keyboard::key::Named;
-use iced_core::keyboard::{Key, Modifiers};
 use rdev::{listen, EventType, Key as RdevKey};
 use tokio::sync::mpsc::channel;
 

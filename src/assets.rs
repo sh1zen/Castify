@@ -1,5 +1,5 @@
-use iced_core::font::{Family, Stretch, Style, Weight};
-use iced_core::Font;
+use iced::font::{Family, Stretch, Style, Weight};
+use iced::Font;
 
 pub const FRAME_RATE: i32 = 30;
 pub const FRAME_WITH: i32 = 1920;
