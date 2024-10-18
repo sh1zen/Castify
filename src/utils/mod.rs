@@ -1,11 +1,12 @@
-use iced_core::Point;
-
+use iced::Point;
 pub mod gist;
 pub mod net;
 pub mod sos;
 pub mod bimap;
 pub mod path;
 pub mod text;
+pub mod ipc;
+pub mod flags;
 
 pub fn get_string_after(s: String, c: char) -> String {
     let index = s.find(c);

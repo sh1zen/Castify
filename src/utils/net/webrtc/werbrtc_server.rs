@@ -5,7 +5,6 @@ use crate::utils::sos::SignalOfStop;
 use async_tungstenite::tokio::{accept_async, TokioAdapter};
 use async_tungstenite::tungstenite::Message;
 use async_tungstenite::WebSocketStream;
-use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
 use std::ops::Add;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -86,8 +85,8 @@ impl WebRTCServer {
         // like NACK this needs to be called.
         sos.spawn(async move {
             let mut rtcp_buf = vec![0u8; 1500];
-            while let Ok((x, _)) = rtp_sender.read(&mut rtcp_buf).await {
-                println!("info:::: {:?}", x);
+            while let Ok((_x, _)) = rtp_sender.read(&mut rtcp_buf).await {
+                //println!("info:::: {:?}", x);
             }
         });
 
@@ -197,7 +196,7 @@ impl WebRTCServer {
                 let slice = map.as_slice();
 
                 let sample = webrtc::media::Sample {
-                    data: Bytes::copy_from_slice(slice),
+                    data: slice.to_vec().into(),
                     duration,
                     timestamp,
                     ..Default::default()

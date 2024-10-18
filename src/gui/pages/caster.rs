@@ -25,7 +25,11 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
         content = content
             .push(
                 Container::new(
-                    row![Text::new(format_seconds(caster.streaming_time).to_string()).font(FONT_FAMILY_BOLD)]
+                    row![
+                        Icon::Clock.to_text(),
+                        horizontal_space().width(7),
+                        Text::new(format_seconds(caster.streaming_time).to_string()).font(FONT_FAMILY_BOLD)
+                    ]
                 ).width(Length::Fill).height(Length::Fill)
                     .align_x(Horizontal::Center)
                     .align_y(Vertical::Center).height(80).class(ContainerType::Standard)

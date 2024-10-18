@@ -1,5 +1,5 @@
 use crate::assets::FONT_FAMILY_BOLD;
-use crate::config::version;
+use crate::config::app_version;
 use crate::gui::common::icons::Icon;
 use crate::gui::style::button::ButtonType;
 use crate::gui::style::container::ContainerType;
@@ -17,7 +17,7 @@ pub fn footer<'a>() -> Container<'a, MainWindowEvent> {
         .width(Length::Fill)
         .spacing(5)
         .push(
-            Text::new(version()).font(FONT_FAMILY_BOLD).size(12.0)
+            Text::new(app_version()).font(FONT_FAMILY_BOLD).size(12.0)
         );
 
     let footer_row = Row::new()

@@ -2,11 +2,12 @@ use crate::gui::common::messages::AppEvent;
 use iced::keyboard::Key as icedKey;
 use iced::{futures::{SinkExt, Stream}, stream};
 use iced_core::keyboard::key::Named;
+use iced_core::keyboard::{Key, Modifiers};
 use rdev::{listen, EventType, Key as RdevKey};
 use tokio::sync::mpsc::channel;
 
 pub fn global_key_listener() -> impl Stream<Item=AppEvent> {
-    let (sender, mut receiver) = channel(10);
+    let (sender, mut receiver) = channel(20);
 
     std::thread::spawn(move || {
         listen(move |event| {
@@ -20,13 +21,12 @@ pub fn global_key_listener() -> impl Stream<Item=AppEvent> {
         loop {
             if let Some(event) = receiver.recv().await {
                 if let Some((modifier, key)) = handler.mapping(event) {
-                    output.send(AppEvent::KeyPressed(modifier, key)).await.unwrap_or_default();
+                    output.send(AppEvent::KeyEvent(modifier, key)).await.unwrap_or_default();
                 }
             }
         }
     })
 }
-
 
 
 struct KeyState {
@@ -46,29 +46,26 @@ impl KeyState {
         }
     }
 
-    pub fn mapping(&mut self, event: rdev::Event) -> Option<(iced::keyboard::Modifiers, icedKey)> {
+    pub fn mapping(&mut self, event: rdev::Event) -> Option<(Modifiers, icedKey)> {
         match event.event_type {
-            EventType::KeyPress(key) => match key {
-                RdevKey::Alt => {
-                    self.alt = true;
-                    Some((self.to_modifiers(), icedKey::Unidentified))
+            EventType::KeyPress(key) => {
+                match key {
+                    RdevKey::Alt => {
+                        self.alt = true;
+                    }
+                    RdevKey::ShiftLeft | RdevKey::ShiftRight => {
+                        self.shift = true;
+                    }
+                    RdevKey::ControlLeft | RdevKey::ControlRight => {
+                        self.control = true;
+                    }
+                    RdevKey::MetaLeft | RdevKey::MetaRight => {
+                        self.logo = true;
+                    }
+                    _ => {}
                 }
-                RdevKey::ShiftLeft | RdevKey::ShiftRight => {
-                    self.shift = true;
-                    Some((self.to_modifiers(), icedKey::Unidentified))
-                }
-                RdevKey::ControlLeft | RdevKey::ControlRight => {
-                    self.control = true;
-                    Some((self.to_modifiers(), icedKey::Unidentified))
-                }
-                RdevKey::MetaLeft | RdevKey::MetaRight => {
-                    self.logo = true;
-                    Some((self.to_modifiers(), icedKey::Unidentified))
-                }
-                _ => {
-                    Some((self.to_modifiers(), self.to_iced(key)))
-                }
-            },
+                None
+            }
             EventType::KeyRelease(key) => match key {
                 RdevKey::Alt => {
                     self.alt = false;
@@ -86,7 +83,7 @@ impl KeyState {
                     self.logo = false;
                     None
                 }
-                _ => None,
+                _ => Some((self.to_modifiers(), self.to_iced(key))),
             },
             _ => None,
         }
@@ -157,17 +154,32 @@ impl KeyState {
         }
     }
 
-    fn to_modifiers(&self) -> iced::keyboard::Modifiers {
-        let mut modifiers = iced::keyboard::Modifiers::empty();
+    fn to_modifiers(&self) -> Modifiers {
+        let mut modifiers = Modifiers::empty();
         if self.alt {
-            modifiers |= iced::keyboard::Modifiers::ALT;
+            modifiers |= Modifiers::ALT;
         }
         if self.control {
-            modifiers |= iced::keyboard::Modifiers::CTRL;
+            modifiers |= Modifiers::CTRL;
         }
         if self.shift {
-            modifiers |= iced::keyboard::Modifiers::SHIFT;
+            modifiers |= Modifiers::SHIFT;
         }
         modifiers
+    }
+}
+
+
+pub fn valid_iced_key(key: Key) -> bool {
+    match key {
+        Key::Character(_) => true,
+        Key::Named(Named::F1 | Named::F2 | Named::F3) => true,
+        Key::Named(Named::F4 | Named::F5 | Named::F6) => true,
+        Key::Named(Named::F7 | Named::F8 | Named::F9) => true,
+        Key::Named(Named::F10 | Named::F11 | Named::F12) => true,
+
+        Key::Named(Named::Pause | Named::Enter | Named::Escape) => true,
+
+        _ => false
     }
 }

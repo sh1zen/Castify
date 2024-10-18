@@ -7,7 +7,7 @@ use crate::workers::WorkerClose;
 use display_info::DisplayInfo;
 use glib::prelude::ObjectExt;
 use gstreamer::prelude::{ElementExt, ElementExtManual, GObjectExtManualGst, GstBinExt};
-use gstreamer::Pipeline;
+use gstreamer::{Pipeline, State};
 use gstreamer_app::gst;
 use std::collections::HashMap;
 
@@ -34,6 +34,7 @@ pub struct Caster {
     monitors: HashMap<u32, XMonitor>,
     server: WebRTCServer,
     sos: SignalOfStop,
+    locked: bool,
 }
 
 impl WorkerClose for Caster {
@@ -63,43 +64,42 @@ impl Caster {
             monitor: main,
             sos,
             server: WebRTCServer::new(),
+            locked: false,
         }
     }
 
     pub fn resize_rec_area(&mut self, rect: ScreenRect) -> bool {
         self.lazy_init();
 
-        let state = self.pipeline.current_state();
+        if let Ok(state) = self.lock() {
+            let start_pos_x = rect.x as i32;
+            let start_pos_y = rect.y as i32;
 
-        if self.pipeline.set_state(gst::State::Paused).is_err() {
-            return false;
+            let mon = self.monitors.get_mut(&self.monitor).unwrap();
+
+            let right = if rect.width > 0.0 {
+                mon.width as i32 - start_pos_x - rect.width as i32
+            } else {
+                0
+            };
+
+            let bottom = if rect.height > 0.0 {
+                mon.height as i32 - start_pos_y - rect.height as i32
+            } else {
+                0
+            };
+
+            let videobox = self.pipeline.by_name("videobox").unwrap();
+
+            videobox.set_property("left", start_pos_x);
+            videobox.set_property("top", start_pos_y);
+            videobox.set_property("right", right);
+            videobox.set_property("bottom", bottom);
+
+            self.unlock(state)
+        } else {
+            false
         }
-
-        let start_pos_x = rect.x as i32;
-        let start_pos_y = rect.y as i32;
-
-        let mon = self.monitors.get_mut(&self.monitor).unwrap();
-
-        let right = if rect.width > 0.0 {
-            mon.width as i32 - start_pos_x - rect.width as i32
-        } else {
-            0
-        };
-
-        let bottom = if rect.height > 0.0 {
-            mon.height as i32 - start_pos_y - rect.height as i32
-        } else {
-            0
-        };
-
-        let videobox = self.pipeline.by_name("videobox").unwrap();
-
-        videobox.set_property("left", start_pos_x);
-        videobox.set_property("top", start_pos_y);
-        videobox.set_property("right", right);
-        videobox.set_property("bottom", bottom);
-
-        self.pipeline.set_state(state).is_err()
     }
 
     pub fn change_monitor(&mut self, id: u32) -> bool {
@@ -107,15 +107,12 @@ impl Caster {
             return false;
         }
 
-        let state = self.pipeline.current_state();
-
-        if self.pipeline.set_state(gst::State::Paused).is_err() {
-            return false;
+        if let Ok(state) = self.lock() {
+            self.monitor = id;
+            self.unlock(state)
+        } else {
+            false
         }
-
-        self.monitor = id;
-
-        self.pipeline.set_state(state).is_err()
     }
 
     pub fn get_monitor(&self) -> Option<&XMonitor> {
@@ -128,7 +125,7 @@ impl Caster {
 
     pub fn cast(&mut self) {
         self.lazy_init();
-        self.streaming = !self.pipeline.set_state(gst::State::Playing).is_err();
+        self.streaming = self.pipeline.set_state(State::Playing).is_ok();
     }
 
     fn lazy_init(&mut self) {
@@ -156,37 +153,36 @@ impl Caster {
 
     pub fn pause(&mut self) -> bool {
         self.streaming = false;
-        self.pipeline.set_state(gst::State::Paused).is_err()
+        self.pipeline.set_state(State::Paused).is_ok()
     }
 
     pub fn toggle_blank_screen(&mut self) -> bool {
-        let state = self.pipeline.current_state();
+        if let Ok(state) = self.lock() {
+            self.blank_screen = !self.blank_screen;
 
-        if self.pipeline.set_state(gst::State::Paused).is_err() {
-            return false;
+            let videobox = self.pipeline.by_name("videobox").unwrap();
+
+            if self.blank_screen {
+                let mon = self.monitors.get(&self.monitor).unwrap();
+
+                videobox.set_property("left", mon.width as i32);
+                videobox.set_property("top", mon.height as i32);
+                videobox.set_property("right", mon.width as i32);
+                videobox.set_property("bottom", mon.height as i32);
+                videobox.set_property_from_str("fill", "5");
+            } else {
+                videobox.set_property("left", 0i32);
+                videobox.set_property("top", 0i32);
+                videobox.set_property("right", 0i32);
+                videobox.set_property("bottom", 0i32);
+                videobox.set_property_from_str("fill", "0");
+            }
+
+            self.unlock(state)
         }
-
-        self.blank_screen = !self.blank_screen;
-
-        let videobox = self.pipeline.by_name("videobox").unwrap();
-
-        if self.blank_screen {
-            let mon = self.monitors.get(&self.monitor).unwrap();
-
-            videobox.set_property("left", mon.width as i32);
-            videobox.set_property("top", mon.height as i32);
-            videobox.set_property("right", mon.width as i32);
-            videobox.set_property("bottom", mon.height as i32);
-            videobox.set_property_from_str("fill", "5");
-        } else {
-            videobox.set_property("left", 0i32);
-            videobox.set_property("top", 0i32);
-            videobox.set_property("right", 0i32);
-            videobox.set_property("bottom", 0i32);
-            videobox.set_property_from_str("fill", "0");
+        else {
+            false
         }
-
-        self.pipeline.set_state(state).is_err()
     }
 
     pub fn toggle_streaming(&mut self) {
@@ -196,6 +192,7 @@ impl Caster {
             self.cast();
         }
     }
+
     pub fn has_monitor(&self, id: u32) -> bool {
         self.monitors.contains_key(&id)
     }
@@ -249,5 +246,25 @@ impl Caster {
         }
 
         (monitors, main)
+    }
+
+    fn lock(&mut self) -> Result<State, bool> {
+        if self.locked {
+            return Err(false);
+        }
+        self.locked = true;
+        let state = self.pipeline.current_state();
+
+        if self.pipeline.set_state(State::Paused).is_err() {
+            Err(false)
+        } else {
+            Ok(state)
+        }
+    }
+
+    fn unlock(&mut self, state: State) -> bool {
+        let res = self.pipeline.set_state(state).is_err();
+        self.locked = false;
+        res
     }
 }

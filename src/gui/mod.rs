@@ -1,4 +1,6 @@
 use crate::assets::{FONT_AWESOME_BYTES, FONT_BASE_BYTES, FONT_FAMILY_BASE};
+use crate::config::app_id;
+use crate::utils::flags::Flags;
 
 pub mod app;
 pub mod components;
@@ -30,18 +32,22 @@ macro_rules! row {
     );
 }
 
-pub fn run() {
-
+pub fn run(flags: Flags) {
     let app = iced::daemon(App::title, App::update, App::view)
+        .settings(iced::Settings {
+            id: Some(app_id()),
+            ..Default::default()
+        })
         .style(App::style)
         .theme(App::theme)
         .antialiasing(true)
         .font(FONT_AWESOME_BYTES)
         .font(FONT_BASE_BYTES)
         .default_font(FONT_FAMILY_BASE)
+        .scale_factor(|_, _| 1.0)
         .subscription(App::subscription);
 
-    if let Err(e) = app.run_with(App::new) {
+    if let Err(e) = app.run_with(|| { App::new(flags) }) {
         eprintln!("Failed to initialize GUI: {e:?}");
 
         if let Err(e) = native_dialog::MessageDialog::new()

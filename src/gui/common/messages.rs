@@ -29,7 +29,7 @@ pub enum AppEvent
     /// Connection Error
     ConnectionError,
     /// Hotkeys support
-    KeyPressed(Modifiers, Key),
+    KeyEvent(Modifiers, Key),
     /// Request for area selection page
     OpenAreaSelectionWindow,
     /// Messages for handling area selection, set to 0 to restore default screen size

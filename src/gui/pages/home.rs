@@ -83,7 +83,7 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
                     .push(
                         IconButton::new()
                             .label_if_else(main_window.theme.target().get_palette().is_nightly(), "Light".to_string(), "Dark".to_string())
-                            .icon(Icon::LightDarkMode).build()
+                            .icon_if_else(main_window.theme.target().get_palette().is_nightly(), Icon::Circle, Icon::HalfCircle).build()
                             .on_press(MainWindowEvent::ThemeUpdate(main_window.theme.target().toggle().into()))
                     )
                 .align_y(Alignment::Center)

@@ -2,7 +2,7 @@
 name = "castify"
 version = "1.0.0"
 authors = ["Andrea Frolli <dev.andrea.frolli@outlook.it>, Pietro Bella, Mario De Paola"]
-description = "A simple cross-platform screen caster tool"
+description = "A simple cross-platform screen caster tool."
 keywords = ["screen", "capture", "cast", "stream", "castify"]
 documentation = ""
 homepage = ""
@@ -10,38 +10,46 @@ license = "GPL-v3.0"
 readme = "README.md"
 edition = "2021"
 build = "build.rs"
+exclude = ["target", "Cargo.lock"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# system
+interprocess = { version = "2.2.1", features = ["tokio"] }
 native-dialog = "0.7.0"
 tray-icon = "0.19.1"
+rdev = { version = "0.5.3"} #rdev = { git = "https://github.com/fufesou/rdev" }
+ctrlc = "3.4.5"
+# utils
+regex = "1.11.0"
 display-info = "0.5.1"
-rdev = { version = "0.5.3", features = ["unstable_grab"]} #rdev = { git = "https://github.com/fufesou/rdev" }
 tokio = { version = "1.40.0", features = ["full"] }
 chrono = "0.4.38"
+futures-util = { version = "0.3.31" }
+serde = { version = "1.0.210", features = ["derive"] }
+serde_json = "1.0.129"
+clap = { version = "4.5.20", features = ["derive"] }
+# gui
 iced = { version = "0.13.1", features = ["lazy", "tokio", "wgpu", "image", "canvas"] }
 iced_runtime = "0.13.2"
 iced_core = "0.13.2"
 iced_wgpu = "0.13.5"
 iced_graphics = "0.13.0"
 iced_anim = { version = "0.1.3", features = ["derive", "serde"] }
-regex = "1.11.0"
-ctrlc = "3.4.5"
-serde = { version = "1.0.210", features = ["derive"] }
-serde_json = "1.0.128"
+# video
 gstreamer = "0.23.2"
 gstreamer-app = "0.23.2"
 gstreamer-rtp = "0.23.2"
 glib = "0.20.4"
-bytes = "1.7.2"
+# networking
 public-ip = "0.2.2"
 local-ip-address = "0.6.3"
 webrtc = "0.11.0"
 mdns-sd = "0.11.5"
 natpmp = "0.4.0"
 async-tungstenite = { version = "0.28.0", features = ["tokio-runtime"] }
-futures-util = { version = "0.3.31" }
+
 
 [target.'cfg( target_os = "linux" )'.dependencies]
 gtk = "0.18.1"
@@ -73,4 +81,4 @@ out-dir = "target/packages"
 
 [package.metadata.winresource]
 ProductName = "Castify"
-FileDescription = "Cross-platform screen caster app"
+FileDescription = "Castify"

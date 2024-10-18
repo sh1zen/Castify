@@ -1,4 +1,4 @@
-use crate::config::{app_name, version};
+use crate::config::{app_name, app_version};
 use crate::gui::common::icons::Icon;
 use crate::gui::components::button::IconButton;
 use crate::gui::widget::{Column, Container, Element};
@@ -10,7 +10,7 @@ use iced::Length;
 pub fn info_page<'a>() -> Element<'a, MainWindowEvent> {
     let content = Column::new()
         .push(vertical_space().height(Length::Fill))
-        .push(IconButton::new().icon(Icon::Version).label(version().to_string()).build().width(240).height(40))
+        .push(IconButton::new().icon(Icon::Version).label(app_version().to_string()).build().width(240).height(40))
         .push(IconButton::new().icon(Icon::Copyright).label(app_name().to_string()).build().width(240).height(40))
         .push(vertical_space().height(10))
         .push(

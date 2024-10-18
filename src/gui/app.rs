@@ -5,14 +5,16 @@ use crate::gui::pages::hotkeys::KeyTypes;
 use crate::gui::style::theme::csx::StyleType;
 use crate::gui::widget::Element;
 use crate::gui::windows::{WindowType, Windows};
-use crate::workers::key_listener::global_key_listener;
+use crate::utils::flags::Flags;
+use crate::utils::ipc::ipc;
 use crate::utils::open_link;
+use crate::workers::key_listener::{global_key_listener, valid_iced_key};
 use crate::workers::tray_icon::{tray_icon, tray_icon_listener, tray_menu_listener};
 use iced::application::Appearance;
 use iced::widget::horizontal_space;
 use iced::Event::Window;
 use iced::{window, Subscription};
-use iced_core::keyboard::{Event, Key};
+use iced_core::keyboard::{Event, Key, Modifiers};
 use iced_core::window::settings::PlatformSpecific;
 use iced_core::window::{Id, Mode, Position};
 use iced_core::Event::Keyboard;
@@ -30,11 +32,11 @@ pub struct App {
 }
 
 impl App {
-    pub fn new() -> (Self, Task<AppEvent>) {
+    pub fn new(flags: Flags) -> (Self, Task<AppEvent>) {
         let tray_icon = tray_icon();
         (
             Self {
-                config: Config::new(),
+                config: Config::new(flags),
                 windows: Windows::new(),
                 tray_icon,
             },
@@ -53,7 +55,7 @@ impl App {
                         min_size: Some(Size { width: 680f32, height: 460f32 }),
                         max_size: None,
                         visible: true,
-                        resizable: true,
+                        resizable: false,
                         decorations: true,
                         transparent: false,
                         icon: Some(
@@ -161,7 +163,6 @@ impl App {
                         .discard()
                         .chain(window::gain_focus(id))
                         .chain(window::change_mode(id, Mode::Fullscreen))
-                    //.chain(window::enable_mouse_passthrough(id))
                 } else {
                     Task::none()
                 }
@@ -214,10 +215,11 @@ impl App {
                 }
                 Task::none()
             }
-            AppEvent::KeyPressed(modifier, key) => {
+            AppEvent::KeyEvent(modifier, key) => {
                 if key == Key::Unidentified {
                     return Task::none();
                 }
+                println!("KeyEvent {:?} {:?}", modifier, key);
 
                 let item = (modifier, key);
 
@@ -254,6 +256,7 @@ impl App {
                 }
                 self.config.reset_mode();
                 self.config.sos.cancel();
+                self.config.close();
                 exit(0)
             }
             AppEvent::Ignore => {
@@ -295,27 +298,30 @@ impl App {
     }
 
     pub fn subscription(&self) -> Subscription<AppEvent> {
-        let tray_menu_listener = Subscription::run(tray_menu_listener);
-        let tray_icon_listener = Subscription::run(tray_icon_listener);
+        let mut batch = Vec::new();
 
-        let time_listener = iced::time::every(Duration::from_secs(1)).map(|_| AppEvent::TimeTick);
+        batch.push(Subscription::run(tray_menu_listener));
+        batch.push(Subscription::run(tray_icon_listener));
+        batch.push(iced::time::every(Duration::from_secs(1)).map(|_| AppEvent::TimeTick));
+        batch.push(Subscription::run(ipc));
+        batch.push(self.keyboard_subscription());
+        batch.push(self.window_subscription());
 
-        let global_key_listener = Subscription::run(global_key_listener);
+        if !self.config.multi_instance {
+            batch.push(Subscription::run(global_key_listener));
+        }
 
-        Subscription::batch([
-            time_listener,
-            tray_menu_listener,
-            tray_icon_listener,
-            global_key_listener,
-            self.keyboard_subscription(),
-            self.window_subscription()
-        ])
+        Subscription::batch(batch)
     }
 
     fn keyboard_subscription(&self) -> Subscription<AppEvent> {
         iced::event::listen_with(|event, _status, _id| match event {
-            Keyboard(Event::KeyPressed { key, modifiers, .. }) => {
-                Some(AppEvent::KeyPressed(modifiers, key))
+            Keyboard(Event::KeyReleased { key, modifiers, .. }) => {
+                if modifiers == Modifiers::empty() && !valid_iced_key(key.clone()) {
+                    None
+                } else {
+                    Some(AppEvent::KeyEvent(modifiers, key))
+                }
             }
             _ => None,
         })
@@ -333,3 +339,4 @@ impl App {
         })
     }
 }
+

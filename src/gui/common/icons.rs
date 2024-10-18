@@ -22,7 +22,7 @@ pub enum Icon {
     Screen,
     Area,
     Banned,
-    LightDarkMode,
+    HalfCircle,
     Auto,
     Connect,
     Pencil,
@@ -38,6 +38,7 @@ pub enum Icon {
     User,
     Version,
     Copyright,
+    Clock,
 }
 
 impl Icon {
@@ -63,7 +64,7 @@ impl Icon {
             Icon::Screen => '\u{f26c}',
             Icon::Area => '\u{f065}',
             Icon::Banned => '\u{f05e}',
-            Icon::LightDarkMode => '\u{f042}',
+            Icon::HalfCircle => '\u{f042}',
             Icon::Pencil => '\u{f303}',
             Icon::Eraser => '\u{f12d}',
             Icon::Square => '\u{f0c8}',
@@ -76,7 +77,8 @@ impl Icon {
             Icon::CircleHalf => '\u{f042}',
             Icon::User => '\u{f007}',
             Icon::Version => '\u{f386}',
-            Icon::Copyright => '\u{f1f9}'
+            Icon::Copyright => '\u{f1f9}',
+            Icon::Clock => '\u{f2f2}',
         }
     }
 

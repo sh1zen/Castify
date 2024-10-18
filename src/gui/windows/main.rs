@@ -75,6 +75,7 @@ pub enum MainWindowEvent {
     ShowAnnotationWindow,
     /// program info
     OpenInfo,
+    /// Ignore the event
     Ignore,
 }
 

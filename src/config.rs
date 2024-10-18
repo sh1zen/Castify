@@ -1,10 +1,12 @@
 use crate::gui::pages::hotkeys::KeyTypes;
+use crate::utils::flags::Flags;
 use crate::utils::path::default_saving_path;
 use crate::utils::sos::SignalOfStop;
 use crate::utils::text::capitalize_first_letter;
 use crate::workers::caster::Caster;
 use crate::workers::receiver::Receiver;
 use crate::workers::WorkerClose;
+use chrono::Local;
 use iced_core::keyboard::key::Named;
 use iced_core::keyboard::{Key, Modifiers};
 use iced_core::Size;
@@ -12,7 +14,6 @@ use local_ip_address::local_ip;
 use native_dialog::FileDialog;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::{Arc, Mutex};
-use chrono::Local;
 
 pub enum Mode {
     Caster(Caster),
@@ -57,10 +58,11 @@ pub struct Config {
     pub public_ip: Arc<Mutex<Option<Ipv4Addr>>>,
     pub local_ip: Option<Ipv4Addr>,
     pub sos: SignalOfStop,
+    pub multi_instance: bool,
 }
 
 impl Config {
-    pub fn new() -> Self {
+    pub fn new(flags: Flags) -> Self {
         let conf = Config {
             hotkey_map: Default::default(),
             window_size: Size { width: 680f32, height: 460f32 },
@@ -74,6 +76,7 @@ impl Config {
                     None
                 }),
             sos: SignalOfStop::new(),
+            multi_instance: flags.multi,
         };
 
         let public_ip = Arc::clone(&conf.public_ip);
@@ -91,6 +94,10 @@ impl Config {
             let mut mode = self.mode.take().unwrap();
             mode.close();
         }
+    }
+
+    pub fn close(&mut self) {
+        //std::fs::remove_file().unwrap_or_default();
     }
 }
 
@@ -111,7 +118,7 @@ pub fn saving_path() -> String {
 }
 
 /// Returns a version as specified in Cargo.toml
-pub fn version() -> &'static str {
+pub fn app_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 

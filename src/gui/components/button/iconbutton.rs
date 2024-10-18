@@ -1,10 +1,10 @@
 use crate::assets::FONT_FAMILY_BOLD;
 use crate::gui::common::icons::Icon;
 use crate::gui::style::button::ButtonType;
+use crate::gui::style::text::TextType;
 use crate::gui::widget::{Button, Container, IcedParentExt, Row, Space, Text};
 use iced_core::alignment::{Horizontal, Vertical};
 use iced_core::{Color, Length, Padding};
-use crate::gui::style::text::TextType;
 
 pub struct IconButton {
     label: Option<String>,
@@ -67,6 +67,15 @@ impl IconButton {
 
     pub fn icon(mut self, icon: Icon) -> Self {
         self.icon = Some(icon);
+        self
+    }
+
+    pub fn icon_if_else(mut self, condition: bool, if_icon: Icon, else_label: Icon) -> Self {
+        if condition {
+            self.icon = Some(if_icon);
+        } else {
+            self.icon = Some(else_label);
+        }
         self
     }
 
