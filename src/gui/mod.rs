@@ -12,6 +12,7 @@ mod pages;
 
 use self::app::App;
 
+// todo move into widget
 #[macro_export]
 macro_rules! column {
     () => (

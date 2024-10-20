@@ -45,16 +45,14 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
                         .label(String::from("Hotkeys"))
                         .icon(Icon::Settings)
                         .style(ButtonType::Standard)
-                        .dim(Dimensions::Auto)
                         .build()
-                        .width(150)
+                        .width(130)
                         .on_press(MainWindowEvent::HotkeysPage),
                     horizontal_space().width(10),
                     IconButton::new()
                         .label(String::from("Receiver"))
                         .icon(Icon::Connection)
                         .style(ButtonType::Standard)
-                        .dim(Dimensions::Auto)
                         .build()
                         .width(150)
                         .on_press(MainWindowEvent::Mode(Message::ButtonReceiver)),
@@ -63,7 +61,6 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
                         .label(String::from("Caster"))
                         .icon(Icon::Cast)
                         .style(ButtonType::Standard)
-                        .dim(Dimensions::Auto)
                         .build()
                         .width(150)
                         .on_press(MainWindowEvent::Mode(Message::ButtonCaster)),

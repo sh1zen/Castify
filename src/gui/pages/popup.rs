@@ -3,7 +3,7 @@ use crate::gui::common::hotkeys::KeyTypes;
 use crate::gui::common::icons::Icon;
 use crate::gui::components::button::{Dimensions, IconButton, Key4Board};
 use crate::gui::style::container::ContainerType;
-use crate::gui::widget::{Column, Container, Element, IcedParentExt, Row, Space, Stack, Text, TextInput};
+use crate::gui::widget::{vertical_space, Column, Container, Element, IcedButtonExt, IcedParentExt, Row, Space, Stack, Text, TextInput};
 use crate::gui::windows::main::MainWindowEvent;
 use iced::keyboard::Key;
 use iced::Length;
@@ -119,7 +119,7 @@ pub fn show_popup<'a>(popup: &Popup, config: &Config, body: Container<'a, MainWi
     )
 }
 
-fn hotkey_update<'a>(popup: &Popup, config: &Config) -> Container<'a, MainWindowEvent> {
+fn hotkey_update<'a>(popup: &Popup, config: &Config) -> Element<'a, MainWindowEvent> {
     let updating_key = match get_popup_data(popup, PopupType::HotkeyUpdate) {
         PopupContent::HotKey(key) => {
             key
@@ -137,28 +137,26 @@ fn hotkey_update<'a>(popup: &Popup, config: &Config) -> Container<'a, MainWindow
 
     let ok_button = IconButton::new().label(String::from("Ok")).build().on_press(MainWindowEvent::ClosePopup);
 
-    let content = popup_base(None)
-        .push(
+    AwPopup::new()
+        .content(
             Text::new(
                 format!("Updating hotkey for: {:?}",
                         updating_key
                 )
             ).size(20))
-        .push(
+        .content(
             Row::new()
                 .push(Key4Board::from_command(c_key.0).build())
                 .push(Key4Board::from_key(c_key.1).build())
                 .spacing(5)
         )
-        .push(Text::new("Press any desired key.").height(20).size(12))
-        .push(
+        .content(Text::new("Press any desired key.").height(20).size(12))
+        .content(
             ok_button
-        );
-
-    Container::new(content.width(500).height(300)).class(ContainerType::Modal)
+        ).build()
 }
 
-fn show_text<'a>(popup: &Popup) -> Container<'a, MainWindowEvent> {
+fn show_text<'a>(popup: &Popup) -> Element<'a, MainWindowEvent> {
     let text = if let Some(PopupContent::String(text)) = &popup.popups.get(&PopupType::ShowSDP) {
         text
     } else { "" };
@@ -167,22 +165,12 @@ fn show_text<'a>(popup: &Popup) -> Container<'a, MainWindowEvent> {
         .on_input(|_| MainWindowEvent::Ignore)
         .padding([8, 12]);
 
-    let content = popup_base(Some("Copy and share this to the other party."))
-        .push(input)
-        .push(
-            Row::new().spacing(12)
-                .push(
-                    IconButton::new().label(String::from("Close"))
-                        .icon(Icon::Close)
-                        .build()
-                        .on_press(MainWindowEvent::ClosePopup)
-                )
-        );
-
-    Container::new(content.width(500).height(300)).class(ContainerType::Modal)
+    AwPopup::new().title("Copy and share this to the other party.")
+        .content(input)
+        .build()
 }
 
-fn ip_popup<'a>(popup: &Popup) -> Container<'a, MainWindowEvent> {
+fn ip_popup<'a>(popup: &Popup) -> Element<'a, MainWindowEvent> {
     let mut entered_ip = match get_popup_data(popup, PopupType::IP) {
         PopupContent::String(str) => {
             str
@@ -200,15 +188,15 @@ fn ip_popup<'a>(popup: &Popup) -> Container<'a, MainWindowEvent> {
         .padding([8, 12])
         .id(iced::widget::text_input::Id::new("ip_text_input"));
 
-    let mut button = IconButton::new().label(String::from("Connect")).icon(Icon::Connect).dim(Dimensions::Large).build();
+    let button =
+        IconButton::new().label(String::from("Connect")).icon(Icon::Connect).dim(Dimensions::Large)
+            .build()
+            .on_press_if(!entered_ip.is_empty(), || MainWindowEvent::ConnectToCaster(entered_ip.clone()));
 
-    if !entered_ip.is_empty() {
-        button = button.on_press(MainWindowEvent::ConnectToCaster(entered_ip.clone()));
-    }
-
-    let content = popup_base(Some("Enter Receiver IP Address:"))
-        .push(input)
-        .push(
+    AwPopup::new()
+        .title("Enter Receiver IP Address:")
+        .content(input)
+        .content(
             Row::new().spacing(12)
                 .push(button)
                 .push(IconButton::new().label(String::from("Auto")).icon(Icon::Auto).build().on_press(MainWindowEvent::ConnectToCaster("auto".parse().unwrap())))
@@ -218,16 +206,8 @@ fn ip_popup<'a>(popup: &Popup) -> Container<'a, MainWindowEvent> {
                         .build()
                         .on_press(MainWindowEvent::Home)
                 )
-        );
-
-    Container::new(content.width(500).height(300)).class(ContainerType::Modal)
-}
-
-fn popup_base<Message>(title: Option<&str>) -> Column<Message> {
-    Column::new()
-        .spacing(10)
-        .padding(20)
-        .push_if(title.is_some(), || Text::new(title.unwrap()).size(20))
+        )
+        .build()
 }
 
 fn get_popup_data(popup: &Popup, popup_type: PopupType) -> PopupContent {
@@ -240,16 +220,20 @@ fn get_popup_data(popup: &Popup, popup_type: PopupType) -> PopupContent {
 
 pub struct AwPopup<'a, Message> {
     title: Option<&'a str>,
-    content: Option<Element<'a, Message>>,
+    content: Vec<Element<'a, Message>>,
     on_close: Option<Message>,
+    width: f32,
+    height: f32,
 }
 
-impl<'a, Message: 'a> AwPopup<'a, Message> {
+impl<'a, Message: 'a + Clone> AwPopup<'a, Message> {
     pub fn new() -> Self {
         AwPopup {
             title: None,
-            content: None,
+            content: Vec::new(),
             on_close: None,
+            width: 500.0,
+            height: 300.0,
         }
     }
 
@@ -258,8 +242,8 @@ impl<'a, Message: 'a> AwPopup<'a, Message> {
         self
     }
 
-    pub fn content(mut self, content: Element<'a, Message>) -> Self {
-        self.content = Some(content);
+    pub fn content(mut self, content: impl Into<Element<'a, Message>>) -> Self {
+        self.content.push(content.into());
         self
     }
 
@@ -268,11 +252,36 @@ impl<'a, Message: 'a> AwPopup<'a, Message> {
         self
     }
 
+    pub fn width(mut self, width: f32) -> Self {
+        self.width = width;
+        self
+    }
+
+    pub fn height(mut self, height: f32) -> Self {
+        self.height = height;
+        self
+    }
+
     pub fn build(&mut self) -> Element<'a, Message> {
-        if let Some(content) = self.content.take() {
-            Container::new(content).into()
-        } else {
-            Space::new(0, 0).into()
+        let items = std::mem::take(&mut self.content);
+        let mut content = Column::new().spacing(12);
+
+        for element in items.into_iter() {
+            content = content.push(element);
         }
+
+        let items = Column::new()
+            .spacing(10)
+            .padding(20)
+            .push_if(self.title.is_some(), || Text::new(self.title.unwrap()).size(20))
+            .push(vertical_space().height(5))
+            .push(content)
+            .push(vertical_space().height(5))
+            .push_if(
+                self.on_close.is_some(),
+                || IconButton::new().icon(Icon::Close).label("Close".to_string()).build().on_press(self.on_close.clone().unwrap()),
+            ).width(self.width).height(self.height);
+
+        Container::new(items).class(ContainerType::Modal).into()
     }
 }
