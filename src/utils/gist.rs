@@ -244,16 +244,19 @@ pub fn create_view_pipeline(mut rx_processed: Receiver<Packet>, saver: Sender<Bu
                         // Convert  packet RTP in a GStreamer buffer
                         let mut buffer = Buffer::from_slice(packet.marshal().unwrap_or_default());
                         {
-                            let buffer_ref = buffer.get_mut().unwrap();
-                            let mut rtp_packet = RTPBuffer::from_buffer_writable(buffer_ref).unwrap();
+                            let Some(buffer_ref) = buffer.get_mut() else {
+                                return;
+                            };
 
-                            rtp_packet.set_marker(packet.header.marker);
-                            rtp_packet.set_seq(packet.header.sequence_number);
-                            rtp_packet.set_ssrc(packet.header.ssrc);
-                            rtp_packet.set_timestamp(packet.header.timestamp);
+                            if let  Ok(mut rtp_packet) = RTPBuffer::from_buffer_writable(buffer_ref) {
+                                rtp_packet.set_marker(packet.header.marker);
+                                rtp_packet.set_seq(packet.header.sequence_number);
+                                rtp_packet.set_ssrc(packet.header.ssrc);
+                                rtp_packet.set_timestamp(packet.header.timestamp);
+                            }
                         }
 
-                        saver.try_send(buffer.clone()).unwrap_or_default();
+                        let _ = saver.try_send(buffer.clone());
 
                         // Invia il buffer a GStreamer
                         if let Err(e) = appsrc.push_buffer(buffer) {

@@ -40,41 +40,41 @@ impl From<u64> for Position {
 }
 
 pub struct Internal {
-    pub(crate) id: u64,
+    pub id: u64,
 
-    pub(crate) bus: gst::Bus,
-    pub(crate) source: Pipeline,
+    pub bus: gst::Bus,
+    source: Pipeline,
 
-    pub(crate) width: i32,
-    pub(crate) height: i32,
-    pub(crate) framerate: f64,
-    pub(crate) duration: std::time::Duration,
+    pub width: i32,
+    pub height: i32,
+    pub framerate: f64,
+    pub duration: std::time::Duration,
 
-    pub(crate) frame: Arc<Mutex<Vec<u8>>>,
-    pub(crate) upload_frame: Arc<AtomicBool>,
-    pub(crate) paused: bool,
-    pub(crate) muted: bool,
-    pub(crate) looping: bool,
-    pub(crate) is_eos: bool,
-    pub(crate) restart_stream: bool,
-    pub(crate) next_redraw: Instant,
+    pub frame: Arc<Mutex<Vec<u8>>>,
+    pub upload_frame: Arc<AtomicBool>,
+    pub paused: bool,
+    pub muted: bool,
+    pub looping: bool,
+    pub is_eos: bool,
+    pub restart_stream: bool,
+    pub next_redraw: Instant,
 }
 
 impl Internal {
-    pub(crate) fn seek(&self, position: impl Into<Position>) {
+    pub fn seek(&self, position: impl Into<Position>) {
         self.source.seek_simple(
             gst::SeekFlags::FLUSH,
             gst::GenericFormattedValue::from(position.into()),
         ).expect("Cannot seek into desired position");
     }
 
-    pub(crate) fn restart_stream(&mut self) {
+    pub fn restart_stream(&mut self) {
         self.is_eos = false;
         self.set_paused(false);
         self.seek(0);
     }
 
-    pub(crate) fn set_paused(&mut self, paused: bool) {
+    pub fn set_paused(&mut self, paused: bool) {
         self.source
             .set_state(if paused {
                 gst::State::Paused
@@ -92,7 +92,7 @@ impl Internal {
 }
 
 /// A multimedia video loaded from a URI (e.g., a local file path or HTTP stream).
-pub struct Video(pub(crate) RefCell<Internal>);
+pub struct Video(pub RefCell<Internal>);
 
 impl Drop for Video {
     fn drop(&mut self) {

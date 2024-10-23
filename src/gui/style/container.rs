@@ -12,6 +12,7 @@ pub enum ContainerType {
     Video,
     Footer,
     DarkFilter,
+    Line,
 }
 
 impl Catalog for StyleType {
@@ -25,7 +26,7 @@ impl Catalog for StyleType {
         let palette = self.get_palette();
         Style {
             background: Some(match class {
-                ContainerType::Video => Background::Color(Color::BLACK),
+                ContainerType::Video | ContainerType::Line => Background::Color(Color::BLACK),
                 ContainerType::Standard | ContainerType::Footer => Background::Color(palette.primary_darker),
                 ContainerType::Modal => {
                     Background::Color(palette.primary_darker)

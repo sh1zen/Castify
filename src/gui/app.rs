@@ -56,7 +56,7 @@ impl App {
                         min_size: Some(Size { width: 680f32, height: 460f32 }),
                         max_size: None,
                         visible: true,
-                        resizable: false,
+                        resizable: true,
                         decorations: true,
                         transparent: false,
                         icon: Some(
@@ -220,8 +220,7 @@ impl App {
                 if key == Key::Unidentified {
                     return Task::none();
                 }
-                println!("KeyEvent {:?} {:?}", modifier, key);
-
+                //println!("KeyEvent {:?} {:?}", modifier, key);
                 let item = (modifier, key);
 
                 if self.config.shortcuts.updating != KeyTypes::None {
@@ -263,7 +262,7 @@ impl App {
                 Task::none()
             }
             _ => {
-                println!("Command not yet implemented!");
+                //println!("Command not yet implemented!");
                 Task::none()
             }
         }
@@ -303,6 +302,9 @@ impl App {
         batch.push(Subscription::run(tray_menu_listener));
         batch.push(Subscription::run(tray_icon_listener));
         batch.push(iced::time::every(Duration::from_secs(1)).map(|_| AppEvent::TimeTick));
+        if self.config.fps.is_some() {
+            batch.push(iced::time::every(Duration::from_millis(self.config.fps.unwrap())).map(|_| AppEvent::TimeTickFPS));
+        }
         batch.push(Subscription::run(ipc));
         batch.push(self.keyboard_subscription());
         batch.push(self.window_subscription());

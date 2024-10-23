@@ -9,6 +9,7 @@ pub mod common;
 mod widget;
 mod windows;
 mod pages;
+mod popup;
 
 use self::app::App;
 

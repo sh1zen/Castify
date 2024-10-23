@@ -8,7 +8,7 @@ use std::time::Duration;
 
 const LOCAL_DISCOVERY_SERVICE_NAME: &'static str = "_screen_caster._tcp.local.";
 
-pub(crate) fn find_caster() -> Option<SocketAddr> {
+pub fn find_caster() -> Option<SocketAddr> {
     // Create a daemon
     let mdns = ServiceDaemon::new().expect("Failed to create daemon");
     // Browse for a service type.
@@ -21,7 +21,7 @@ pub(crate) fn find_caster() -> Option<SocketAddr> {
         match event {
             ServiceEvent::ServiceResolved(info) => {
                 let ip_addr = info.get_addresses_v4().iter().next()?.to_string();
-                println!("Resolved a new service: {:?}", ip_addr);
+                println!("Resolved caster service at: {:?}", ip_addr);
                 addr = Option::from(SocketAddr::new(ip_addr.parse().unwrap(), info.get_port()));
                 break;
             }
@@ -33,7 +33,7 @@ pub(crate) fn find_caster() -> Option<SocketAddr> {
     addr
 }
 
-pub(crate) fn caster_discover_service() -> ServiceDaemon {
+pub fn caster_discover_service() -> Result<ServiceDaemon, Box<dyn std::error::Error>> {
     let mdns = ServiceDaemon::new().expect("Failed to create daemon");
     let ip = local_ip().expect("No internet connection");
     let host_name = String::from(ip.to_string()) + ".local.";
@@ -46,30 +46,26 @@ pub(crate) fn caster_discover_service() -> ServiceDaemon {
         ip,
         CAST_SERVICE_PORT,
         &properties[..],
-    ).unwrap();
+    )?;
 
-    mdns.register(my_service).expect("Failed to register our service");
+    mdns.register(my_service)?;
 
-    println!("Caster running and registered on mDNS");
-
-    mdns
+    Ok(mdns)
 }
 
-pub(crate) fn port_forwarding() -> Result<(), Box<dyn std::error::Error>> {
+pub fn port_forwarding() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize NAT-PMP with the router's IP address
     let mut natpmp = Natpmp::new()?;
 
     // Send a request to create a port mapping
-    natpmp.send_port_mapping_request(natpmp::Protocol::UDP, CAST_SERVICE_PORT, 8080, 3600)?;
+    natpmp.send_port_mapping_request(natpmp::Protocol::UDP, CAST_SERVICE_PORT, CAST_SERVICE_PORT + 1, 7200)?;
 
     sleep(Duration::from_millis(250));
 
     // Handle response (wait for a while for the response to come back)
     let mapping = natpmp.read_response_or_retry()?;
-    println!("Got response: {:?}", mapping);
-
-    println!("Port forwarding setup complete!");
+    println!("Port forwarding setup complete: {:?}", mapping);
 
     Ok(())
 }

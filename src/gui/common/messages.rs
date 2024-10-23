@@ -36,4 +36,6 @@ pub enum AppEvent
     AreaSelected(ScreenRect),
     /// Handle Caster Rec/Pause actions
     CasterToggleStreaming,
+    /// TimeTick for custom fps
+    TimeTickFPS,
 }

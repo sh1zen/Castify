@@ -1,35 +1,34 @@
-use std::future::Future;
 use crate::assets::FRAME_RATE;
 use crate::utils::net::common::find_caster;
-use crate::utils::net::webrtc::{ManualSdp, WebRTCClient};
+use crate::utils::net::webrtc::WebRTCReceiver;
 use crate::utils::result_to_option;
 use crate::utils::sos::SignalOfStop;
 use crate::workers::save_stream::SaveStream;
 use crate::workers::WorkerClose;
 use gstreamer::Pipeline;
 use std::net::SocketAddr;
-use std::pin::Pin;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub struct Receiver {
-    is_streaming: Arc<Mutex<bool>>,
+    is_streaming: Arc<AtomicBool>,
     save_stream: Option<SaveStream>,
     caster_addr: Option<SocketAddr>,
     save_rx: Option<Arc<Mutex<tokio::sync::mpsc::Receiver<gstreamer::Buffer>>>>,
     local_sos: SignalOfStop,
-    handler: Arc<Mutex<WebRTCClient>>,
+    handler: Arc<WebRTCReceiver>,
 }
 
 impl Receiver {
     pub fn new(sos: SignalOfStop) -> Self {
         Receiver {
-            is_streaming: Arc::new(Mutex::new(false)),
+            is_streaming: Arc::new(AtomicBool::new(false)),
             save_stream: None,
             caster_addr: None,
             save_rx: None,
             local_sos: sos.clone(),
-            handler: Arc::new(Mutex::new(WebRTCClient::new())),
+            handler: Arc::new(WebRTCReceiver::new()),
         }
     }
 
@@ -37,7 +36,7 @@ impl Receiver {
         self.caster_addr = Some(addr);
     }
 
-    pub fn launch(&mut self) -> Option<Pipeline> {
+    pub fn launch(&mut self, auto: bool) -> Option<Pipeline> {
         let (save_tx, save_rx) = tokio::sync::mpsc::channel(FRAME_RATE as usize);
 
         self.save_rx = Some(Arc::new(Mutex::new(save_rx)));
@@ -50,21 +49,25 @@ impl Receiver {
             let handler = Arc::clone(&self.handler);
 
             tokio::spawn(async move {
-                if caster_addr.is_none() {
-                    caster_addr = find_caster();
+                if auto {
+                    if caster_addr.is_none() {
+                        caster_addr = find_caster();
+                    }
+
+                    if let Some(socket_addr) = caster_addr {
+                        let addr: &str = &format!("ws://{}", &(socket_addr.to_string()));
+
+                        println!("Connecting to caster at {:?}", addr);
+
+                        if handler.connect(addr).await.is_err() {
+                            // todo handle error
+                        }
+                    }
                 }
 
-                if let Some(socket_addr) = caster_addr {
-                    let addr: &str = &format!("ws://{}", &(socket_addr.to_string()));
-
-                    println!("Connecting to caster at {:?}", addr);
-
-                    let _ = handler.lock().await.connect(addr).await;
-
-                    if handler.lock().await.is_connected() {
-                        *is_streaming.lock().await = true;
-                        handler.lock().await.receive_video(tx).await;
-                    }
+                if handler.is_connected().await {
+                    is_streaming.store(true, std::sync::atomic::Ordering::Relaxed);
+                    handler.receive_video(tx).await;
                 }
             });
 
@@ -83,7 +86,7 @@ impl Receiver {
     }
 
     pub fn is_streaming(&self) -> bool {
-        *self.is_streaming.blocking_lock()
+        self.is_streaming.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn save_stream(&mut self, path: String) {
@@ -99,6 +102,10 @@ impl Receiver {
             save_stream.stop();
         }
     }
+
+    pub fn get_connection_handler(&self) -> Arc<WebRTCReceiver> {
+        Arc::clone(&self.handler)
+    }
 }
 
 
@@ -107,21 +114,8 @@ impl WorkerClose for Receiver {
         self.save_stop();
         let handler = Arc::clone(&self.handler);
         tokio::spawn(async move {
-            handler.lock().await.close().await;
+            handler.close().await;
         });
         self.local_sos.cancel();
-    }
-}
-
-impl ManualSdp for Receiver {
-
-    fn get_sdp(&self) -> String {
-       String::new()
-    }
-
-
-    fn set_remote_sdp(&mut self, sdp: String) -> bool {
-        //self.handler.blocking_lock()..set_sdp(sdp)
-        false
     }
 }

@@ -10,9 +10,9 @@ pub fn global_key_listener() -> impl Stream<Item=AppEvent> {
     let (sender, mut receiver) = channel(20);
 
     std::thread::spawn(move || {
-        listen(move |event| {
-            sender.blocking_send(event.clone()).unwrap_or_default();
-        }).unwrap_or_default();
+        let _ = listen(move |event| {
+            let _ = sender.blocking_send(event.clone());
+        });
     });
 
     stream::channel(10, move |mut output| async move {
@@ -21,7 +21,7 @@ pub fn global_key_listener() -> impl Stream<Item=AppEvent> {
         loop {
             if let Some(event) = receiver.recv().await {
                 if let Some((modifier, key)) = handler.mapping(event) {
-                    output.send(AppEvent::KeyEvent(modifier, key)).await.unwrap_or_default();
+                    let _ = output.send(AppEvent::KeyEvent(modifier, key)).await;
                 }
             }
         }

@@ -12,12 +12,12 @@ use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
 use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSample;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct SignalMessage {
+pub struct SignalMessage {
     pub sdp: Option<RTCSessionDescription>,
     pub candidate: Option<RTCIceCandidateInit>,
 }
 
-pub(crate) fn create_webrtc_api() -> Arc<API> {
+pub fn create_webrtc_api() -> Arc<API> {
     let mut media_engine = MediaEngine::default();
     media_engine.register_default_codecs().unwrap();
 
@@ -32,7 +32,7 @@ pub(crate) fn create_webrtc_api() -> Arc<API> {
     Arc::new(api)
 }
 
-pub(crate) async fn create_peer_connection(api: &Arc<API>) -> Result<Arc<RTCPeerConnection>, Box<dyn std::error::Error>> {
+pub async fn create_peer_connection(api: &Arc<API>) -> Result<Arc<RTCPeerConnection>, Box<dyn std::error::Error>> {
     let config = RTCConfiguration {
         ice_servers: vec![
             webrtc::ice_transport::ice_server::RTCIceServer {
@@ -51,7 +51,7 @@ pub(crate) async fn create_peer_connection(api: &Arc<API>) -> Result<Arc<RTCPeer
     Ok(Arc::new(peer_connection))
 }
 
-pub(crate) fn create_video_track() -> Arc<TrackLocalStaticSample> {
+pub fn create_video_track() -> Arc<TrackLocalStaticSample> {
     Arc::new(TrackLocalStaticSample::new(
         RTCRtpCodecCapability {
             mime_type: "video/H264".to_string(),

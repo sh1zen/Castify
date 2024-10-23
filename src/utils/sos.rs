@@ -5,8 +5,9 @@ use tokio::sync::Notify;
 
 #[derive(Debug, Default)]
 pub struct SignalOfStop {
-    shared: Arc<SharedState>,
+    internal: Arc<SharedState>,
 }
+
 
 #[derive(Debug, Default)]
 struct SharedState {
@@ -19,7 +20,7 @@ struct SharedState {
 impl SignalOfStop {
     pub fn new() -> SignalOfStop {
         SignalOfStop {
-            shared: Arc::new(SharedState {
+            internal: Arc::new(SharedState {
                 closing: AtomicBool::new(false),
                 notify: Notify::new(),
                 mutex: Mutex::new(()),
@@ -29,18 +30,25 @@ impl SignalOfStop {
     }
 
     pub fn cancel(&self) {
-        self.shared.closing.store(true, Ordering::Relaxed);
+        self.internal.closing.store(true, Ordering::Relaxed);
 
-        self.shared.notify.notify_waiters();
+        self.internal.notify.notify_waiters();
 
         // tread safety
-        let _guard = self.shared.mutex.lock().unwrap();
-        // Notify all waiting threads that they should wake up and check the condition
-        self.shared.condvar.notify_all();
+        if let Ok(_) = self.internal.mutex.lock() {
+            // Notify all waiting threads that they should wake up and check the condition
+            self.internal.condvar.notify_all();
+        }
+    }
+
+    pub fn restore(&self) {
+        if let Ok(_) = self.internal.mutex.lock() {
+            self.internal.closing.store(false, Ordering::Relaxed);
+        }
     }
 
     pub fn cancelled(&self) -> bool {
-        self.shared.closing.load(Ordering::Relaxed)
+        self.internal.closing.load(Ordering::Relaxed)
     }
 
     pub async fn wait(&self) -> bool {
@@ -50,7 +58,7 @@ impl SignalOfStop {
         }
 
         // Otherwise, await notification of cancellation.
-        self.shared.notify.notified().await;
+        self.internal.notify.notified().await;
 
         // After being notified, check if we were cancelled.
         self.cancelled()
@@ -58,10 +66,10 @@ impl SignalOfStop {
 
     pub fn wait_cancellation(&self) {
         // Only lock the mutex while checking and waiting on the condition variable
-        let mut guard = self.shared.mutex.lock().unwrap();
+        let mut guard = self.internal.mutex.lock().unwrap();
 
         while !self.cancelled() {
-            guard = self.shared.condvar.wait(guard).unwrap();
+            guard = self.internal.condvar.wait(guard).unwrap();
         }
     }
 
@@ -95,7 +103,7 @@ impl SignalOfStop {
 impl Clone for SignalOfStop {
     fn clone(&self) -> SignalOfStop {
         SignalOfStop {
-            shared: Arc::clone(&self.shared),
+            internal: Arc::clone(&self.internal),
         }
     }
 }

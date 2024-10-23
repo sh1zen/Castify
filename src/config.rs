@@ -2,7 +2,7 @@ use crate::gui::common::hotkeys::KeyTypes;
 use crate::utils::flags::Flags;
 use crate::utils::path::default_saving_path;
 use crate::utils::sos::SignalOfStop;
-use crate::utils::text::capitalize_first_letter;
+use crate::utils::string::capitalize_first_letter;
 use crate::workers::caster::Caster;
 use crate::workers::receiver::Receiver;
 use crate::workers::WorkerClose;
@@ -59,6 +59,7 @@ pub struct Config {
     pub local_ip: Option<Ipv4Addr>,
     pub sos: SignalOfStop,
     pub multi_instance: bool,
+    pub fps: Option<u64>
 }
 
 impl Config {
@@ -77,6 +78,7 @@ impl Config {
                 }),
             sos: SignalOfStop::new(),
             multi_instance: flags.multi_instance,
+            fps: None,
         };
 
         let public_ip = Arc::clone(&conf.public_ip);

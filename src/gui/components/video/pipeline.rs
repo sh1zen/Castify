@@ -217,7 +217,7 @@ impl VideoPipeline {
             queue.write_buffer(buffer, 0, unsafe {
                 std::slice::from_raw_parts(
                     &uniforms as *const _ as *const u8,
-                    std::mem::size_of::<Uniforms>(),
+                    size_of::<Uniforms>(),
                 )
             });
         }
@@ -262,7 +262,7 @@ impl VideoPipeline {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct VideoPrimitive {
+pub struct VideoPrimitive {
     video_id: u64,
     frame: Arc<Mutex<Vec<u8>>>,
     size: (u32, u32),

@@ -45,7 +45,7 @@ pub trait GuiWindow {
 }
 
 impl WindowManager {
-    pub(crate) fn title(&self) -> String {
+    pub fn title(&self) -> String {
         match self {
             Self::Main(window) => window.title(),
             Self::AreaSelector(window) => window.title(),
@@ -53,7 +53,7 @@ impl WindowManager {
         }
     }
 
-    pub(crate) fn update(&mut self, id: Id, message: WindowMessage, config: &mut Config) -> Task<AppEvent> {
+    pub fn update(&mut self, id: Id, message: WindowMessage, config: &mut Config) -> Task<AppEvent> {
         match self {
             Self::Main(window) => {
                 let WindowMessage::Main(message) = message else {
@@ -76,7 +76,7 @@ impl WindowManager {
         }
     }
 
-    pub(crate) fn view(&self, config: &Config) -> Element<WindowMessage> {
+    pub fn view(&self, config: &Config) -> Element<WindowMessage> {
         match self {
             Self::Main(window) => window.view(config).map(move |message| WindowMessage::Main(message)),
             Self::AreaSelector(window) => window.view(config).map(move |message| WindowMessage::AreaSelector(message)),
@@ -84,7 +84,7 @@ impl WindowManager {
         }
     }
 
-    pub(crate) fn theme(&self) -> StyleType {
+    pub fn theme(&self) -> StyleType {
         match self {
             Self::Main(window) => window.theme(),
             Self::AreaSelector(window) => window.theme(),
@@ -107,8 +107,8 @@ impl From<WindowType> for Either<Id, WindowType> {
 
 pub struct Windows {
     windows: HashMap<Id, WindowManager>,
-    w_type: BiMap<Id, WindowType>,
     persistent: HashMap<WindowType, WindowManager>,
+    w_type: BiMap<Id, WindowType>,
 }
 
 impl Windows {
@@ -222,7 +222,7 @@ impl Windows {
         }
     }
 
-    pub(crate) fn iter(&self) -> Iter<'_, Id, WindowType> {
+    pub fn iter(&self) -> Iter<'_, Id, WindowType> {
         self.w_type.iter()
     }
 }

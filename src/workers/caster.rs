@@ -1,7 +1,7 @@
 use crate::assets::FRAME_RATE;
 use crate::gui::common::datastructure::ScreenRect;
 use crate::utils::gist::create_stream_pipeline;
-use crate::utils::net::webrtc::{ManualSdp, WebRTCServer};
+use crate::utils::net::webrtc::WebRTCServer;
 use crate::utils::sos::SignalOfStop;
 use crate::workers::WorkerClose;
 use display_info::DisplayInfo;
@@ -10,7 +10,7 @@ use gstreamer::prelude::{ElementExt, ElementExtManual, GObjectExtManualGst, GstB
 use gstreamer::{Pipeline, State};
 use gstreamer_app::gst;
 use std::collections::HashMap;
-use std::future::Future;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -33,24 +33,10 @@ pub struct Caster {
     blank_screen: bool,
     monitor: u32,
     monitors: HashMap<u32, XMonitor>,
-    server: WebRTCServer,
+    server: Arc<WebRTCServer>,
     sos: SignalOfStop,
     locked: bool,
 }
-
-impl WorkerClose for Caster {
-    fn close(&mut self) {
-        if self.init {
-            self.pause();
-            self.server.close();
-            let _ = self.pipeline.set_state(gst::State::Null).is_err();
-            self.init = false;
-            self.blank_screen = false;
-            self.pipeline = Default::default();
-        }
-    }
-}
-
 
 impl Caster {
     pub fn new(sos: SignalOfStop) -> Self {
@@ -140,15 +126,17 @@ impl Caster {
 
             self.sos.spawn(async move {
                 // used for auto caster discovery
-                crate::utils::net::common::caster_discover_service();
+                if crate::utils::net::common::caster_discover_service().is_ok() {
+                    println!("Caster running and registered on mDNS");
+                }
 
                 if let Err(e) = crate::utils::net::common::port_forwarding() {
                     println!("Failed to setup port forwarding: {}", e)
                 }
             });
 
-            self.server.run();
-            self.server.send_video_frames(rx_processed);
+            Arc::clone(&self.server).run();
+            self.server.get_handler().send_video_frames(rx_processed);
         }
     }
 
@@ -267,5 +255,21 @@ impl Caster {
         self.locked = false;
         res
     }
+
+    pub fn get_connection_handler(&self) -> Arc<WebRTCServer> {
+        Arc::clone(&self.server)
+    }
 }
 
+impl WorkerClose for Caster {
+    fn close(&mut self) {
+        if self.init {
+            self.pause();
+            self.server.close();
+            let _ = self.pipeline.set_state(gst::State::Null).is_err();
+            self.init = false;
+            self.blank_screen = false;
+            self.pipeline = Default::default();
+        }
+    }
+}

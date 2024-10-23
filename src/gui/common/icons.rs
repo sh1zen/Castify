@@ -40,6 +40,9 @@ pub enum Icon {
     Copyright,
     Clock,
     Sync,
+    Copy,
+    Paste,
+    Ok,
 }
 
 impl Icon {
@@ -80,7 +83,10 @@ impl Icon {
             Icon::Version => '\u{f386}',
             Icon::Copyright => '\u{f1f9}',
             Icon::Clock => '\u{f2f2}',
-            Icon::Sync => '\u{f2f1}'
+            Icon::Sync => '\u{f2f1}',
+            Icon::Copy => '\u{f0c5}',
+            Icon::Paste => '\u{f0ea}',
+            Icon::Ok => '\u{f058}'
         }
     }
 

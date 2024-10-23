@@ -1,6 +1,5 @@
-use iced::advanced::Widget;
 use crate::gui::style::theme::csx::StyleType as Theme;
-use iced::widget as w;
+use iced::{widget as w, Length};
 
 pub type IcedRenderer = iced::Renderer;
 
@@ -12,20 +11,20 @@ pub type Column<'a, Message> = w::Column<'a, Message, Theme, IcedRenderer>;
 
 pub type Text<'a> = iced::advanced::widget::Text<'a, Theme, IcedRenderer>;
 pub type TextInput<'a, Message> = w::TextInput<'a, Message, Theme, IcedRenderer>;
-pub type TextEditor<'a, Message> = w::TextEditor<'a, Message, Theme, IcedRenderer>;
+//pub type TextEditor<'a, Message> = w::TextEditor<'a, Message, Theme, IcedRenderer>;
 pub type Button<'a, Message> = w::Button<'a, Message, Theme, IcedRenderer>;
 pub type Stack<'a, Message> = w::Stack<'a, Message, Theme, IcedRenderer>;
 
 pub type PickList<'a, T, L, V, Message> = w::PickList<'a, T, L, V, Message, Theme, IcedRenderer>;
-//pub type Scrollable<'a, Message> = w::Scrollable<'a, Message, Theme, IcedRenderer>;
+pub type Scrollable<'a, Message> = w::Scrollable<'a, Message, Theme, IcedRenderer>;
 //pub type Slider<'a, T, Message> = w::Slider<'a, T, Message, Theme>;
 pub type Canvas<P, Message> = w::Canvas<P, Message, Theme, IcedRenderer>;
 
 
+use crate::gui::style::container::ContainerType;
 pub use w::horizontal_space;
 pub use w::vertical_space;
 pub use w::Space;
-
 
 pub trait IcedParentExt<'a, Message> {
     fn push_if<E>(self, condition: bool, element: impl FnOnce() -> E) -> Self
@@ -60,15 +59,25 @@ impl<'a, Message> IcedParentExt<'a, Message> for Row<'a, Message> {
 }
 
 pub trait IcedButtonExt<'a, Message> {
-    fn on_press_if(self, condition: bool, msg: impl FnOnce() -> Message) -> Self;
+    fn on_press_if(self, condition: bool, msg: impl Fn() -> Message + 'a) -> Self;
 }
 
 impl<'a, Message> IcedButtonExt<'a, Message> for Button<'a, Message> {
-    fn on_press_if(self, condition: bool, msg: impl FnOnce() -> Message) -> Self {
+    fn on_press_if(self, condition: bool, msg: impl Fn() -> Message + 'a) -> Self {
         if condition {
-            self.on_press(msg())
+            self.on_press_with(msg)
         } else {
             self
         }
     }
+}
+
+pub fn horizontal_line<'a, Message>() -> Container<'a, Message>
+where
+    Message: 'a,
+{
+    Container::new(Column::new())
+        .height(Length::Fixed(1.0))
+        .width(Length::Fill)
+        .class(ContainerType::Line)
 }

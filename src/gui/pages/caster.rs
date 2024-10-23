@@ -38,8 +38,8 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
                 Container::new(
                     row![
                             IconButton::new().label(String::from("Annotations")).icon(Icon::Image).build().width(180).on_press(MainWindowEvent::ShowAnnotationWindow),
-                            IconButton::new().label(String::from("Manual connection")).icon(Icon::Sync).build().width(180).on_press(MainWindowEvent::ShowSDP)
-                        ]
+                            IconButton::new().label(String::from("Manual SDP")).icon(Icon::Sync).build().width(180).on_press(MainWindowEvent::ShowSDP)
+                    ].spacing(5)
                 ).width(Length::Fill).height(Length::Fill)
                     .align_x(Horizontal::Center)
                     .align_y(Vertical::Center).height(80).class(ContainerType::Standard)
