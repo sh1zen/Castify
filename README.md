@@ -2,6 +2,8 @@
 
 A simple cross-platform screen caster tool made in Rust
 
+![ScreeShoot](./resources/screen.png)
+
 ## ✨ Features
 - FullScreen, ScreenCrop, SaveCapture
 - Multi-monitor support
@@ -9,6 +11,7 @@ A simple cross-platform screen caster tool made in Rust
 - Beautiful minimalistic UI
 
 ## 📥 Installation
+- ### Fulfill these [requirements](#requirements).
 - ### Cargo
   Install Rust and Run the following command
     ```
@@ -16,10 +19,15 @@ A simple cross-platform screen caster tool made in Rust
     ```
 
 ## 📋 Requirements Run
+<a id="requirements"></a>
+- **Windows**
+    - Install [GStreamer](https://github.com/GStreamer/gstreamer)
 - **Mac OS**
+    - Install [GStreamer](https://github.com/GStreamer/gstreamer)
     - Grant Access to Accessibility API: Add `Castify` to **System Preferences > Security & Privacy > Privacy > Accessibility**
     - Maybe disable Firewall for the Caster
-
+- **Linux**
+    - Install [GStreamer](https://github.com/GStreamer/gstreamer)
 
 ## 💻 Requirements Dev
 - **Linux**
