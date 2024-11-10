@@ -37,8 +37,8 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
             .push(
                 Container::new(
                     row![
-                            IconButton::new().label(String::from("Annotations")).icon(Icon::Image).build().width(180).on_press(MainWindowEvent::ShowAnnotationWindow),
-                            IconButton::new().label(String::from("Manual SDP")).icon(Icon::Sync).build().width(180).on_press(MainWindowEvent::ShowSDP)
+                            IconButton::new().label("Annotations").icon(Icon::Image).build().width(180).on_press(MainWindowEvent::ShowAnnotationWindow),
+                            IconButton::new().label("Manual SDP").icon(Icon::Sync).build().width(180).on_press(MainWindowEvent::ShowSDP)
                     ].spacing(5)
                 ).width(Length::Fill).height(Length::Fill)
                     .align_x(Horizontal::Center)
@@ -54,14 +54,14 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
                 Container::new(
                     row![
                         IconButton::new()
-                            .label(String::from("Full Screen"))
+                            .label("Full Screen")
                             .icon(Icon::Screen)
                             .dim(Dimensions::Large)
                             .build()
                             .on_press(MainWindowEvent::AreaSelectedFullScreen),
                         horizontal_space().width(10),
                         IconButton::new()
-                            .label(String::from("Select Area"))
+                            .label("Select Area")
                             .icon(Icon::Area)
                             .dim(Dimensions::Large)
                             .build()
@@ -72,7 +72,7 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
             .push(
                 Container::new(
                     row![
-                        IconButton::new().label(String::from("Home"))
+                        IconButton::new().label("Home")
                             .icon(Icon::Home)
                             .build()
                             .on_press(MainWindowEvent::Home)

@@ -1,29 +1,15 @@
 use crate::assets::FRAME_RATE;
 use crate::gui::common::datastructure::ScreenRect;
 use crate::utils::gist::create_stream_pipeline;
+use crate::utils::monitors::{Monitors, XMonitor};
 use crate::utils::net::webrtc::WebRTCServer;
 use crate::utils::sos::SignalOfStop;
 use crate::workers::WorkerClose;
-use display_info::DisplayInfo;
 use glib::prelude::ObjectExt;
 use gstreamer::prelude::{ElementExt, ElementExtManual, GObjectExtManualGst, GstBinExt};
 use gstreamer::{Pipeline, State};
 use gstreamer_app::gst;
-use std::collections::HashMap;
 use std::sync::Arc;
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct XMonitor {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
-    primary: bool,
-    device_identifier: String,
-}
-
-unsafe impl Send for XMonitor {}
 
 pub struct Caster {
     init: bool,
@@ -31,8 +17,7 @@ pub struct Caster {
     pipeline: Pipeline,
     streaming: bool,
     blank_screen: bool,
-    monitor: u32,
-    monitors: HashMap<u32, XMonitor>,
+    monitors: Monitors,
     server: Arc<WebRTCServer>,
     sos: SignalOfStop,
     locked: bool,
@@ -40,15 +25,13 @@ pub struct Caster {
 
 impl Caster {
     pub fn new(sos: SignalOfStop) -> Self {
-        let (monitors, main) = Self::setup_monitors();
         Self {
             init: false,
             streaming_time: 0,
             pipeline: Default::default(),
             streaming: false,
-            monitors,
+            monitors: Monitors::new(),
             blank_screen: false,
-            monitor: main,
             sos,
             server: WebRTCServer::new(),
             locked: false,
@@ -62,7 +45,7 @@ impl Caster {
             let start_pos_x = rect.x as i32;
             let start_pos_y = rect.y as i32;
 
-            let mon = self.monitors.get_mut(&self.monitor).unwrap();
+            let mon = self.monitors.get_monitor().unwrap();
 
             let right = if rect.width > 0.0 {
                 mon.width as i32 - start_pos_x - rect.width as i32
@@ -89,25 +72,29 @@ impl Caster {
         }
     }
 
+    pub fn get_monitor(&self) -> Option<&XMonitor> {
+        self.monitors.get_monitor()
+    }
+
+    pub fn get_monitors(&self) -> Vec<u32> {
+        self.monitors.get_monitors()
+    }
+
     pub fn change_monitor(&mut self, id: u32) -> bool {
-        if !self.has_monitor(id) {
+        if !self.monitors.has_monitor(id) {
             return false;
         }
 
         if let Ok(state) = self.lock() {
-            self.monitor = id;
+            self.monitors.change_monitor(id);
             self.unlock(state)
         } else {
             false
         }
     }
 
-    pub fn get_monitor(&self) -> Option<&XMonitor> {
-        self.monitors.get(&self.monitor)
-    }
-
     pub fn current_monitor_id(&self) -> u32 {
-        self.monitor
+        self.monitors.get_monitor_id()
     }
 
     pub fn cast(&mut self) {
@@ -122,7 +109,7 @@ impl Caster {
             let (tx_processed, rx_processed) = tokio::sync::mpsc::channel(FRAME_RATE as usize);
 
             // process screens
-            self.pipeline = create_stream_pipeline(&(self.monitors.get(&self.monitor).unwrap().device_identifier), tx_processed, false).unwrap();
+            self.pipeline = create_stream_pipeline(&(self.monitors.get_monitor().unwrap().dev_id), tx_processed, false).unwrap();
 
             self.sos.spawn(async move {
                 // used for auto caster discovery
@@ -152,7 +139,7 @@ impl Caster {
             let videobox = self.pipeline.by_name("videobox").unwrap();
 
             if self.blank_screen {
-                let mon = self.monitors.get(&self.monitor).unwrap();
+                let mon = self.monitors.get_monitor().unwrap();
 
                 videobox.set_property("left", mon.width as i32);
                 videobox.set_property("top", mon.height as i32);
@@ -181,59 +168,8 @@ impl Caster {
         }
     }
 
-    pub fn has_monitor(&self, id: u32) -> bool {
-        self.monitors.contains_key(&id)
-    }
-
-    pub fn get_monitors(&self) -> Vec<u32> {
-        let mut monitors = Vec::new();
-
-        for x in self.monitors.iter() {
-            monitors.push(x.0.clone());
-        }
-
-        monitors
-    }
-
     pub fn is_streaming(&self) -> bool {
         self.streaming
-    }
-
-    fn setup_monitors() -> (HashMap<u32, XMonitor>, u32) {
-        let mut monitors = HashMap::new();
-        let mut main = 0;
-
-        if let Ok(vec_display) = DisplayInfo::all() {
-            for display in vec_display {
-                monitors.insert(display.id, XMonitor {
-                    x: display.x,
-                    y: display.y,
-                    height: display.height,
-                    width: display.width,
-                    primary: display.is_primary,
-                    #[cfg(target_os = "windows")]
-                    device_identifier: display.raw_handle.0.to_string(),
-                    #[cfg(target_os = "macos")]
-                    device_identifier: display.raw_handle.id.to_string(),
-                    #[cfg(target_os = "linux")]
-                    device_identifier: format!(":{}", &{
-                        let input = display.name;
-                        let re = regex::Regex::new(r"\d+$").unwrap(); // Match one or more digits
-                        if let Some(m) = re.find(&input) {
-                            m.as_str().parse().unwrap()
-                        } else {
-                            display.id.to_string()
-                        }
-                    }),
-                });
-
-                if display.is_primary {
-                    main = display.id;
-                }
-            }
-        }
-
-        (monitors, main)
     }
 
     fn lock(&mut self) -> Result<State, bool> {

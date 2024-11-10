@@ -10,19 +10,19 @@ use iced::Length;
 pub fn info_page<'a>() -> Element<'a, MainWindowEvent> {
     let content = Column::new()
         .push(vertical_space().height(Length::Fill))
-        .push(IconButton::new().icon(Icon::Version).label(app_version().to_string()).build().width(240).height(40))
-        .push(IconButton::new().icon(Icon::Copyright).label(app_name().to_string()).build().width(240).height(40))
+        .push(IconButton::new().icon(Icon::Version).label(app_version()).build().width(240).height(40))
+        .push(IconButton::new().icon(Icon::Copyright).label(&app_name()).build().width(240).height(40))
         .push(vertical_space().height(10))
         .push(
-            IconButton::new().icon(Icon::User).label("Andrea Frolli".to_string()).build().width(240).height(40).on_press(
+            IconButton::new().icon(Icon::User).label("Andrea Frolli").build().width(240).height(40).on_press(
                 MainWindowEvent::OpenWebPage("https://github.com/sh1zen".parse().unwrap())
             )
         )
         .push(
-            IconButton::new().icon(Icon::User).label("Mario De Paola".to_string()).build().width(240).height(40)
+            IconButton::new().icon(Icon::User).label("Mario De Paola").build().width(240).height(40)
         )
         .push(
-            IconButton::new().icon(Icon::User).label("Pietro Bella".to_string()).build().width(240).height(40)
+            IconButton::new().icon(Icon::User).label("Pietro Bella").build().width(240).height(40)
         )
         .spacing(8)
         .push(vertical_space().height(Length::Fill));

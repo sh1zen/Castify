@@ -49,7 +49,7 @@ impl GuiInterface for IPModal {
         let ip = self.ip.clone();
 
         let button =
-            IconButton::new().label(String::from("Connect")).icon(Icon::Connect).dim(Dimensions::Large)
+            IconButton::new().label("Connect").icon(Icon::Connect).dim(Dimensions::Large)
                 .build()
                 .on_press_if(!ip.is_empty(), move || MainWindowEvent::ConnectToCaster(ip.clone()));
 
@@ -60,14 +60,14 @@ impl GuiInterface for IPModal {
                 Row::new().spacing(12)
                     .push(button)
                     .push(
-                        IconButton::new().label(String::from("Manual")).icon(Icon::Sync).build().on_press(MainWindowEvent::ShowSDP)
+                        IconButton::new().label("Manual").icon(Icon::Sync).build().on_press(MainWindowEvent::ShowSDP)
                     )
                     .push(
-                        IconButton::new().label(String::from("Auto")).icon(Icon::Auto).build().on_press(MainWindowEvent::ConnectToCaster("auto".parse().unwrap()))
+                        IconButton::new().label("Auto").icon(Icon::Auto).build().on_press(MainWindowEvent::ConnectToCaster("auto".parse().unwrap()))
                     )
             )
             .push(
-                IconButton::new().label(String::from("Home")).icon(Icon::Home).build().on_press(MainWindowEvent::Home)
+                IconButton::new().label("Home").icon(Icon::Home).build().on_press(MainWindowEvent::Home)
             )
             .into()
     }

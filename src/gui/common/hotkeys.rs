@@ -30,14 +30,14 @@ pub fn hotkeys<'a>() -> Element<'a, MainWindowEvent> {
                 .align_y(Alignment::Center).spacing(15)
                 .push(
                     IconButton::new()
-                        .label(String::from("Pause"))
+                        .label("Pause")
                         .icon(Icon::Pause)
                         .build().width(160)
                         .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::Pause))
                 )
                 .push(
                     IconButton::new()
-                        .label(String::from("Record"))
+                        .label("Record")
                         .icon(Icon::Video)
                         .build().width(160)
                         .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::Record))
@@ -47,14 +47,14 @@ pub fn hotkeys<'a>() -> Element<'a, MainWindowEvent> {
                 .align_y(Alignment::Center).spacing(15)
                 .push(
                     IconButton::new()
-                        .label(String::from("Terminate"))
+                        .label("Terminate")
                         .icon(Icon::Stop)
                         .build().width(160)
                         .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::Close))
                 )
                 .push(
                     IconButton::new()
-                        .label(String::from("Blank Screen"))
+                        .label("Blank Screen")
                         .icon(Icon::Banned)
                         .build().width(160)
                         .on_press(MainWindowEvent::HotkeysTypePage(KeyTypes::BlankScreen))
@@ -69,7 +69,7 @@ pub fn hotkeys<'a>() -> Element<'a, MainWindowEvent> {
         crate::row![
             horizontal_space().width(Length::Fill),
             IconButton::new()
-                .label(String::from("Home"))
+                .label("Home")
                 .icon(Icon::Home)
                 .build()
                 .on_press(MainWindowEvent::Home),

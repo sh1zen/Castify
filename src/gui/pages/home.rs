@@ -24,7 +24,7 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
                 .push(Text::new(app_name()).size(42).font(FONT_FAMILY_BOLD))
                 .align_y(alignment::Vertical::Center),
             horizontal_space(),
-            IconButton::new().label(String::from("Exit")).style(ButtonType::Danger).build()
+            IconButton::new().label("Exit").style(ButtonType::Danger).build()
                 .on_press(MainWindowEvent::ExitApp)
                 .height(40)
                 .width(100),
@@ -42,7 +42,7 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
                 crate::row![
                     horizontal_space(),
                     IconButton::new()
-                        .label(String::from("Hotkeys"))
+                        .label("Hotkeys")
                         .icon(Icon::Settings)
                         .style(ButtonType::Standard)
                         .build()
@@ -50,7 +50,7 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
                         .on_press(MainWindowEvent::HotkeysPage),
                     horizontal_space().width(10),
                     IconButton::new()
-                        .label(String::from("Receiver"))
+                        .label("Receiver")
                         .icon(Icon::Connection)
                         .style(ButtonType::Standard)
                         .build()
@@ -58,7 +58,7 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
                         .on_press(MainWindowEvent::Mode(Message::ButtonReceiver)),
                     horizontal_space().width(10),
                     IconButton::new()
-                        .label(String::from("Caster"))
+                        .label("Caster")
                         .icon(Icon::Cast)
                         .style(ButtonType::Standard)
                         .build()
@@ -78,7 +78,7 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
                     .push( horizontal_space().width(Length::Fill))
                     .push(
                         IconButton::new()
-                            .label_if_else(main_window.theme.target().get_palette().is_nightly(), "Light".to_string(), "Dark".to_string())
+                            .label_if_else(main_window.theme.target().get_palette().is_nightly(), "Light", "Dark")
                             .icon_if_else(main_window.theme.target().get_palette().is_nightly(), Icon::Circle, Icon::HalfCircle).build()
                             .on_press(MainWindowEvent::ThemeUpdate(main_window.theme.target().toggle().into()))
                     )

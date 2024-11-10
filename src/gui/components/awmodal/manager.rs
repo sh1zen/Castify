@@ -69,7 +69,7 @@ where
             .push(vertical_space().height(5))
             .push_if(
                 gui.on_close().is_some(),
-                || IconButton::new().icon(Icon::Close).label("Close".to_string()).build().on_press(gui.on_close().unwrap()),
+                || IconButton::new().icon(Icon::Close).label("Close").build().on_press(gui.on_close().unwrap()),
             )
             .width(Length::Fill)
             .height(Length::Fill);

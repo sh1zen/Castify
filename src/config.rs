@@ -59,7 +59,7 @@ pub struct Config {
     pub local_ip: Option<Ipv4Addr>,
     pub sos: SignalOfStop,
     pub multi_instance: bool,
-    pub fps: Option<u64>
+    pub fps: Option<u64>,
 }
 
 impl Config {

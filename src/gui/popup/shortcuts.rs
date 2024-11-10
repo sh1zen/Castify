@@ -53,7 +53,7 @@ impl GuiInterface for ShortcutModal {
             )
             .push(Text::new("Press any desired key.").height(20).size(12))
             .push(
-                IconButton::new().label(String::from("Ok")).build().on_press(MainWindowEvent::ClosePopup(None))
+                IconButton::new().label("Ok").build().on_press(MainWindowEvent::ClosePopup(None))
             )
             .into()
     }

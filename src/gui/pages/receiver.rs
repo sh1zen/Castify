@@ -24,20 +24,20 @@ where
         .push(
             if client.is_saving() {
                 IconButton::new()
-                    .label(String::from("Stop"))
+                    .label("Stop")
                     .icon(Icon::Save)
                     .build()
                     .on_press(MainWindowEvent::SaveCaptureStop)
             } else {
                 IconButton::new()
-                    .label(String::from("Save"))
+                    .label("Save")
                     .icon(Icon::Download)
                     .build()
                     .on_press(MainWindowEvent::SaveCapture)
             }
         )
         .push({
-            let mut button = IconButton::new().label(String::from("Exit"))
+            let mut button = IconButton::new().label("Exit")
                 .icon(Icon::Stop)
                 .build();
             if !client.is_saving() {

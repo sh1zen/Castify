@@ -36,8 +36,8 @@ impl IconButton {
         }
     }
 
-    pub fn label(mut self, label: String) -> Self {
-        self.label = Some(label);
+    pub fn label(mut self, label: &str) -> Self {
+        self.label = Some(String::from(label));
         self
     }
 
@@ -48,11 +48,11 @@ impl IconButton {
         self
     }
 
-    pub fn label_if_else(mut self, condition: bool, if_label: String, else_label: String) -> Self {
+    pub fn label_if_else(mut self, condition: bool, if_label: &str, else_label: &str) -> Self {
         if condition {
-            self.label = Some(if_label);
+            self.label = Some(String::from(if_label));
         } else {
-            self.label = Some(else_label);
+            self.label = Some(String::from(else_label));
         }
         self
     }

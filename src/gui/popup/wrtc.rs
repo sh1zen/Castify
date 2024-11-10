@@ -101,14 +101,14 @@ impl WrtcModal {
                 Row::new()
                     .spacing(12)
                     .push(
-                        IconButton::new().label(String::from("Copy")).icon(Icon::Copy).build()
+                        IconButton::new().label("Copy").icon(Icon::Copy).build()
                             .on_press_with(move || {
                                 local_sdp.watcher.cancel();
                                 MainWindowEvent::CopyToClipboard(local_sdp.sdp.clone())
                             })
                     )
                     .push(
-                        IconButton::new().label(String::from("Abort")).icon(Icon::Close).build()
+                        IconButton::new().label("Abort").icon(Icon::Close).build()
                             .on_press(MainWindowEvent::ClosePopup(if receiver { Some(Page::Home) } else { None }))
                     )
             )
@@ -133,14 +133,14 @@ impl WrtcModal {
                 Row::new()
                     .spacing(12)
                     .push(
-                        IconButton::new().label(String::from("Ok")).icon(Icon::Ok).build()
+                        IconButton::new().label("Ok").icon(Icon::Ok).build()
                             .on_press_if(!self.remote_sdp.sdp.is_empty(), move || {
                                 rsdp_watcher.cancel();
                                 MainWindowEvent::Ignore
                             })
                     )
                     .push(
-                        IconButton::new().label(String::from("Abort")).icon(Icon::Close).build()
+                        IconButton::new().label("Abort").icon(Icon::Close).build()
                             .on_press(MainWindowEvent::ClosePopup(if receiver { Some(Page::Home) } else { None }))
                     )
             )
@@ -182,7 +182,7 @@ impl GuiInterface for WrtcModal {
             400 => {
                 Column::new()
                     .push(Text::new("Invalid Remote SDP").size(20).font(FONT_FAMILY_BOLD).align_x(alignment::Alignment::Center))
-                    .push(IconButton::new().label(String::from("Retry")).build().on_press(MainWindowEvent::ShowSDP))
+                    .push(IconButton::new().label("Retry").build().on_press(MainWindowEvent::ShowSDP))
                     .width(Length::Fill)
                     .into()
             }
