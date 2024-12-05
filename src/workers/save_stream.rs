@@ -26,7 +26,9 @@ impl SaveStream {
         let pipeline = create_save_pipeline(path).unwrap();
 
         if let Some(appsrc) = pipeline.by_name("appsrc").and_then(|elem| elem.downcast::<AppSrc>().ok()) {
-            pipeline.set_state(gst::State::Playing).expect("Failed starting save_pipeline");
+            if pipeline.set_state(gst::State::Playing).is_err() {
+                return;
+            }
             *self.pipeline.blocking_lock() = pipeline;
             *self.is_saving.blocking_lock() = true;
 

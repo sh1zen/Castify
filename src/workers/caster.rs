@@ -1,4 +1,4 @@
-use crate::assets::FRAME_RATE;
+use crate::assets::{FRAME_RATE, TARGET_OS};
 use crate::gui::common::datastructure::ScreenRect;
 use crate::utils::gist::create_stream_pipeline;
 use crate::utils::monitors::{Monitors, XMonitor};
@@ -81,12 +81,36 @@ impl Caster {
     }
 
     pub fn change_monitor(&mut self, id: u32) -> bool {
+        self.lazy_init();
+
         if !self.monitors.has_monitor(id) {
             return false;
         }
 
-        if let Ok(state) = self.lock() {
+        if let Ok(state) = self.hard_lock() {
             self.monitors.change_monitor(id);
+
+            let element = self.pipeline.by_name("src").unwrap();
+            let mon = self.monitors.get_monitor().unwrap();
+
+            println!("changing mon: {:?}", mon);
+
+            match TARGET_OS {
+                "windows" => {
+                    element.set_property_from_str("monitor-handle", &*mon.dev_id);
+                }
+                "macos" => {
+                    element.set_property_from_str("device-index", &*mon.dev_id);
+                }
+                "linux" => {
+                    element.set_property("startx", mon.x as u32);
+                    element.set_property("starty", mon.y as u32);
+                    element.set_property("endx", mon.width + mon.x as u32 - 1);
+                    element.set_property("endy", mon.height + mon.y as u32 - 1);
+                }
+                _ => { unreachable!("TargetOS not supported") }
+            }
+
             self.unlock(state)
         } else {
             false
@@ -109,12 +133,17 @@ impl Caster {
             let (tx_processed, rx_processed) = tokio::sync::mpsc::channel(FRAME_RATE as usize);
 
             // process screens
-            self.pipeline = create_stream_pipeline(&(self.monitors.get_monitor().unwrap().dev_id), tx_processed, false).unwrap();
+            self.pipeline = create_stream_pipeline(self.monitors.get_monitor().unwrap(), tx_processed, false).unwrap();
 
             self.sos.spawn(async move {
                 // used for auto caster discovery
-                if crate::utils::net::common::caster_discover_service().is_ok() {
-                    println!("Caster running and registered on mDNS");
+                match crate::utils::net::common::caster_discover_service() {
+                    Ok(_) => {
+                        println!("Caster running and registered on mDNS");
+                    }
+                    Err(e) => {
+                        println!("mDNS Error:: {}", e);
+                    }
                 }
 
                 if let Err(e) = crate::utils::net::common::port_forwarding() {
@@ -183,6 +212,18 @@ impl Caster {
             Err(false)
         } else {
             Ok(state)
+        }
+    }
+
+    fn hard_lock(&mut self) -> Result<State, bool> {
+        if let Ok(state) = self.lock() {
+            if self.pipeline.set_state(State::Ready).is_err() {
+                Err(false)
+            } else {
+                Ok(state)
+            }
+        } else {
+            Err(false)
         }
     }
 

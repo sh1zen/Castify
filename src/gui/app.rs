@@ -1,3 +1,5 @@
+#[cfg(target_os = "linux")]
+use crate::app_id;
 use crate::assets::ICON_BYTES;
 use crate::config::Config;
 use crate::gui::common::hotkeys::KeyTypes;

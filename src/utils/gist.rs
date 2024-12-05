@@ -1,4 +1,5 @@
 use crate::assets::{FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, TARGET_OS};
+use crate::utils::monitors::XMonitor;
 use gstreamer as gst;
 use gstreamer::prelude::*;
 use gstreamer::{Buffer, Element, ElementFactory, Fraction, Pipeline};
@@ -9,24 +10,27 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use webrtc::rtp::packet::Packet;
 use webrtc::util::Marshal;
 
-pub fn create_stream_pipeline(monitor: &str, tx_processed: Sender<Buffer>, use_rtp: bool) -> Result<Pipeline, Box<dyn Error>> {
+pub fn create_stream_pipeline(monitor: &XMonitor, tx_processed: Sender<Buffer>, use_rtp: bool) -> Result<Pipeline, Box<dyn Error>> {
     let pipeline = Pipeline::new();
 
     let src = match TARGET_OS {
         "windows" => {
             ElementFactory::make("d3d11screencapturesrc")
-                .property_from_str("monitor-handle", monitor)
+                .property_from_str("monitor-handle", &*monitor.dev_id)
                 .property("show-cursor", true)
         }
         "macos" => {
             ElementFactory::make("avfvideosrc")
-                .property_from_str("device-index", monitor)
+                .property_from_str("device-index", &*monitor.dev_id)
                 .property("capture-screen", true)
                 .property("capture-screen-cursor", true)
         }
         "linux" => {
             ElementFactory::make("ximagesrc")
-                .property_from_str("display-name", monitor)
+                .property("startx", monitor.x as u32)
+                .property("starty", monitor.y as u32)
+                .property("endx", monitor.width + monitor.x as u32 - 1)
+                .property("endy", monitor.height + monitor.y as u32 - 1)
                 .property("use-damage", false)
                 .property("show-pointer", true)
         }
@@ -248,7 +252,7 @@ pub fn create_view_pipeline(mut rx_processed: Receiver<Packet>, saver: Sender<Bu
                                 return;
                             };
 
-                            if let  Ok(mut rtp_packet) = RTPBuffer::from_buffer_writable(buffer_ref) {
+                            if let Ok(mut rtp_packet) = RTPBuffer::from_buffer_writable(buffer_ref) {
                                 rtp_packet.set_marker(packet.header.marker);
                                 rtp_packet.set_seq(packet.header.sequence_number);
                                 rtp_packet.set_ssrc(packet.header.ssrc);

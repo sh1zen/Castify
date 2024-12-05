@@ -1,8 +1,8 @@
 use crate::gui::style::theme::palette::Palette;
 use crate::rgba8;
 use iced::application::{Appearance, DefaultStyle};
-use iced_anim::Animate;
 use iced::Color;
+use iced_anim::Animate;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -93,5 +93,13 @@ impl Animate for StyleType {
 
     fn distance_to(&self, end: &Self) -> Vec<f32> {
         self.get_palette().distance_to(&end.get_palette())
+    }
+
+    fn lerp(&mut self, start: &Self, end: &Self, progress: f32) {
+        let start = start.get_palette();
+        let end = end.get_palette();
+        let mut palette = start;
+        palette.lerp(&start, &end, progress);
+        *self = StyleType::Custom(palette);
     }
 }

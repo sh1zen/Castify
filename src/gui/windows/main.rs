@@ -25,7 +25,7 @@ use crate::workers::caster::Caster;
 use crate::workers::receiver::Receiver;
 use arboard::Clipboard;
 use iced::{window::Id, Length, Task};
-use iced_anim::{Animation, Spring, SpringEvent};
+use iced_anim::{Animated, Animation};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -73,7 +73,7 @@ pub enum MainWindowEvent {
     /// Open the supplied web page
     OpenWebPage(String),
     /// Handle animated style change
-    ThemeUpdate(SpringEvent<StyleType>),
+    ThemeUpdate(iced_anim::event::Event<StyleType>),
     /// handle the launch of annotation window
     ShowAnnotationWindow,
     /// program info
@@ -87,7 +87,7 @@ pub enum MainWindowEvent {
 }
 
 pub struct MainWindow {
-    pub theme: Spring<StyleType>,
+    pub theme: Animated<StyleType>,
     page: Page,
     prev_page: Page,
     popup: AwModalManager<PopupType>,
@@ -97,7 +97,7 @@ pub struct MainWindow {
 impl MainWindow {
     pub fn new() -> Self {
         Self {
-            theme: Spring::new(StyleType::default()),
+            theme: Animated::new(StyleType::default(), iced_anim::animated::Mode::Spring(iced_anim::spring::Motion::SMOOTH)),
             page: Page::Home,
             popup: AwModalManager::new(),
             video: Video::new(),

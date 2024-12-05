@@ -1,6 +1,6 @@
 use crate::assets::CAST_SERVICE_PORT;
 use local_ip_address::local_ip;
-use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
+use mdns_sd::{IfKind, ServiceDaemon, ServiceEvent, ServiceInfo};
 use natpmp::Natpmp;
 use std::net::SocketAddr;
 use std::thread::sleep;
@@ -34,10 +34,12 @@ pub fn find_caster() -> Option<SocketAddr> {
 }
 
 pub fn caster_discover_service() -> Result<ServiceDaemon, Box<dyn std::error::Error>> {
-    let mdns = ServiceDaemon::new().expect("Failed to create daemon");
-    let ip = local_ip().expect("No internet connection");
-    let host_name = String::from(ip.to_string()) + ".local.";
-    let properties = [("screen_caster", CAST_SERVICE_PORT)];
+    let mdns = ServiceDaemon::new()?;
+    mdns.disable_interface(IfKind::IPv6).unwrap();
+
+    let ip = local_ip()?;
+    let host_name = format!("{}.local.", ip);
+    let properties = [("port", CAST_SERVICE_PORT)];
 
     let my_service = ServiceInfo::new(
         LOCAL_DISCOVERY_SERVICE_NAME,

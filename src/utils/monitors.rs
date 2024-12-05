@@ -74,15 +74,7 @@ impl Monitors {
                     #[cfg(target_os = "macos")]
                     dev_id: display.raw_handle.id.to_string(),
                     #[cfg(target_os = "linux")]
-                    dev_id: format!(":{}", &{
-                        let input = display.name;
-                        let re = regex::Regex::new(r"\d+$").unwrap(); // Match one or more digits
-                        if let Some(m) = re.find(&input) {
-                            m.as_str().parse().unwrap()
-                        } else {
-                            display.id.to_string()
-                        }
-                    }),
+                    dev_id: format!("{}:{}", display.name.to_lowercase(), display.id),
                 });
 
                 if display.is_primary {
