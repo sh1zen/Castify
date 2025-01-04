@@ -10,7 +10,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use webrtc::rtp::packet::Packet;
 use webrtc::util::Marshal;
 
-pub fn create_stream_pipeline(monitor: &XMonitor, tx_processed: Sender<Buffer>, use_rtp: bool) -> Result<Pipeline, Box<dyn Error>> {
+pub fn create_stream_pipeline(monitor: &XMonitor, tx_processed: Sender<Buffer>) -> Result<Pipeline, Box<dyn Error>> {
     let pipeline = Pipeline::new();
 
     let src = match TARGET_OS {
@@ -21,7 +21,7 @@ pub fn create_stream_pipeline(monitor: &XMonitor, tx_processed: Sender<Buffer>, 
         }
         "macos" => {
             ElementFactory::make("avfvideosrc")
-                .property_from_str("device-index", &*monitor.dev_id)
+                //.property_from_str("device-index", &*monitor.dev_id)
                 .property("capture-screen", true)
                 .property("capture-screen-cursor", true)
         }
@@ -41,6 +41,10 @@ pub fn create_stream_pipeline(monitor: &XMonitor, tx_processed: Sender<Buffer>, 
 
     let videobox = ElementFactory::make("videobox")
         .name("videobox")
+        .build()?;
+
+    let videofilter = ElementFactory::make("videobalance")
+        .name("videofilter")
         .build()?;
 
     let video_convert = ElementFactory::make("videoconvert")
@@ -87,39 +91,19 @@ pub fn create_stream_pipeline(monitor: &XMonitor, tx_processed: Sender<Buffer>, 
         .property("pt", 96u32)
         .build()?;
 
-    let sink = if use_rtp {
-        ElementFactory::make("appsink")
-            .name("appsink")
-            .property("sync", false)
-            .property("emit-signals", true)
-            .property("caps",
-                      &gst::Caps::builder("application/x-rtp")
-                          .field("stream-format", "byte-stream")
-                          .field("alignment", "au")
-                          .field("media", "video")
-                          .field("clock-rate", 90000)
-                          .field("encoding-name", "H264")
-                          .field("payload", 96i32)
-                          .build(),
-            ).build()?
-    } else {
-        ElementFactory::make("appsink")
-            .name("appsink")
-            .property("sync", &false)
-            .property("emit-signals", &true)
-            .property("caps",
-                      &gst::Caps::builder("video/x-h264")
-                          .field("stream-format", "byte-stream")
-                          .field("alignment", "au")
-                          .build(),
-            ).build()?
-    };
+    let sink = ElementFactory::make("appsink")
+        .name("appsink")
+        .property("sync", &false)
+        .property("emit-signals", &true)
+        .property("caps",
+                  &gst::Caps::builder("video/x-h264")
+                      .field("stream-format", "byte-stream")
+                      .field("alignment", "au")
+                      .build(),
+        ).build()?;
 
-    let video_elements: Vec<&Element> = if use_rtp {
-        vec![&src, &videobox, &video_convert, &videoscale, &videoscale_capsfilter, &video_encoder, &h264parse, &video_queue, &rtph264pay, &sink]
-    } else {
-        vec![&src, &videobox, &video_convert, &videoscale, &videoscale_capsfilter, &video_encoder, &h264parse, &video_queue, &sink]
-    };
+    let video_elements: Vec<&Element> =
+        vec![&src, &videofilter, &videobox, &video_convert, &videoscale, &videoscale_capsfilter, &video_encoder, &h264parse, &video_queue, &sink];
 
     // Add elements to pipeline
     pipeline.add_many(&video_elements[..])?;

@@ -133,7 +133,7 @@ impl Caster {
             let (tx_processed, rx_processed) = tokio::sync::mpsc::channel(FRAME_RATE as usize);
 
             // process screens
-            self.pipeline = create_stream_pipeline(self.monitors.get_monitor().unwrap(), tx_processed, false).unwrap();
+            self.pipeline = create_stream_pipeline(self.monitors.get_monitor().unwrap(), tx_processed).unwrap();
 
             self.sos.spawn(async move {
                 // used for auto caster discovery
@@ -165,22 +165,18 @@ impl Caster {
         if let Ok(state) = self.lock() {
             self.blank_screen = !self.blank_screen;
 
-            let videobox = self.pipeline.by_name("videobox").unwrap();
+            let videobox = self.pipeline.by_name("videofilter").unwrap();
 
             if self.blank_screen {
-                let mon = self.monitors.get_monitor().unwrap();
-
-                videobox.set_property("left", mon.width as i32);
-                videobox.set_property("top", mon.height as i32);
-                videobox.set_property("right", mon.width as i32);
-                videobox.set_property("bottom", mon.height as i32);
-                videobox.set_property_from_str("fill", "5");
+                videobox.set_property("saturation", 0f64);
+                videobox.set_property("contrast", 0f64);
+                videobox.set_property("brightness", 1f64);
+                videobox.set_property("hue", 0f64);
             } else {
-                videobox.set_property("left", 0i32);
-                videobox.set_property("top", 0i32);
-                videobox.set_property("right", 0i32);
-                videobox.set_property("bottom", 0i32);
-                videobox.set_property_from_str("fill", "0");
+                videobox.set_property("saturation", 1f64);
+                videobox.set_property("contrast", 1f64);
+                videobox.set_property("brightness", 0f64);
+                videobox.set_property("hue", 0f64);
             }
 
             self.unlock(state)

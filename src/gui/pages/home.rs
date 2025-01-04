@@ -46,7 +46,7 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
                         .icon(Icon::Settings)
                         .style(ButtonType::Standard)
                         .build()
-                        .width(130)
+                        .width(150)
                         .on_press(MainWindowEvent::HotkeysPage),
                     horizontal_space().width(10),
                     IconButton::new()

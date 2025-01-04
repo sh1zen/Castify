@@ -60,7 +60,7 @@ impl GuiInterface for IPModal {
                 Row::new().spacing(12)
                     .push(button)
                     .push(
-                        IconButton::new().label("Manual").icon(Icon::Sync).build().on_press(MainWindowEvent::ShowSDP)
+                        IconButton::new().label("Manual").icon(Icon::Sync).dim(Dimensions::Large).build().on_press(MainWindowEvent::ShowSDP)
                     )
                     .push(
                         IconButton::new().label("Auto").icon(Icon::Auto).build().on_press(MainWindowEvent::ConnectToCaster("auto".parse().unwrap()))

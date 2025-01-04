@@ -60,7 +60,7 @@ impl App {
                         visible: true,
                         resizable: true,
                         decorations: true,
-                        transparent: false,
+                        transparent: true,
                         icon: Some(
                             window::icon::from_file_data(
                                 ICON_BYTES,
