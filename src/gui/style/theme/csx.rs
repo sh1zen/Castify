@@ -74,7 +74,7 @@ impl DefaultStyle for StyleType {
     fn default_style(&self) -> Appearance {
         let colors = self.get_palette();
         Appearance {
-            background_color: colors.primary,
+            background_color: colors.background,
             text_color: colors.text,
         }
     }

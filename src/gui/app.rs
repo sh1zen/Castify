@@ -60,7 +60,7 @@ impl App {
                         visible: true,
                         resizable: true,
                         decorations: true,
-                        transparent: true,
+                        transparent: false,
                         icon: Some(
                             window::icon::from_file_data(
                                 ICON_BYTES,
@@ -112,6 +112,12 @@ impl App {
                             skip_taskbar: true,
                             undecorated_shadow: false,
                         },
+                        #[cfg(target_os = "macos")]
+                        platform_specific: PlatformSpecific {
+                            title_hidden: true,
+                            titlebar_transparent: true,
+                            fullsize_content_view: true,
+                        },
                         #[cfg(target_os = "linux")]
                         platform_specific: PlatformSpecific {
                             application_id: String::from(app_id()),
@@ -153,6 +159,12 @@ impl App {
                             drag_and_drop: false,
                             skip_taskbar: true,
                             undecorated_shadow: false,
+                        },
+                        #[cfg(target_os = "macos")]
+                        platform_specific: PlatformSpecific {
+                            title_hidden: true,
+                            titlebar_transparent: true,
+                            fullsize_content_view: true,
                         },
                         #[cfg(target_os = "linux")]
                         platform_specific: PlatformSpecific {

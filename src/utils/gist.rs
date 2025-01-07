@@ -86,11 +86,6 @@ pub fn create_stream_pipeline(monitor: &XMonitor, tx_processed: Sender<Buffer>) 
         .property("config-interval", -1) // Send SPS/PPS with every keyframe
         .build()?;
 
-    let rtph264pay = ElementFactory::make("rtph264pay")
-        .property("config-interval", -1)
-        .property("pt", 96u32)
-        .build()?;
-
     let sink = ElementFactory::make("appsink")
         .name("appsink")
         .property("sync", &false)

@@ -42,7 +42,7 @@ pub fn run(flags: Flags) {
         })
         .style(App::style)
         .theme(App::theme)
-        .antialiasing(true)
+        .antialiasing(false)
         .font(FONT_AWESOME_BYTES)
         .font(FONT_BASE_BYTES)
         .default_font(FONT_FAMILY_BASE)
