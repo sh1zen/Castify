@@ -61,10 +61,11 @@ impl Caster {
 
             let videobox = self.pipeline.by_name("videobox").unwrap();
 
-            videobox.set_property("left", start_pos_x);
-            videobox.set_property("top", start_pos_y);
-            videobox.set_property("right", right);
-            videobox.set_property("bottom", bottom);
+            let sc  = self.monitors.get_monitor().unwrap();
+            videobox.set_property("left", (start_pos_x as f32 * sc.sc) as i32);
+            videobox.set_property("top",(start_pos_y as f32* sc.sc) as i32);
+            videobox.set_property("right", (right as f32* sc.sc) as i32);
+            videobox.set_property("bottom", (bottom as f32*sc.sc) as i32);
 
             self.unlock(state)
         } else {

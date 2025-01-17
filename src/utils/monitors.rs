@@ -10,6 +10,7 @@ pub struct XMonitor {
     pub height: u32,
     primary: bool,
     pub dev_id: String,
+    pub sc: f32,
 }
 
 unsafe impl Send for XMonitor {}
@@ -64,10 +65,11 @@ impl Monitors {
         if let Ok(vec_display) = DisplayInfo::all() {
             for display in vec_display {
                 monitors.insert(display.id, XMonitor {
-                    x: display.x,
-                    y: display.y,
-                    height: display.height,
-                    width: display.width,
+                    x: (display.x as f32 / display.scale_factor) as i32,
+                    y: (display.y as f32 / display.scale_factor) as i32,
+                    height: (display.height as f32 / display.scale_factor) as u32,
+                    width: (display.width as f32 / display.scale_factor) as u32,
+                    sc: display.scale_factor,
                     primary: display.is_primary,
                     #[cfg(target_os = "windows")]
                     dev_id: display.raw_handle.0.to_string(),
