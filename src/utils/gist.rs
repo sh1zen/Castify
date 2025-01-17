@@ -20,8 +20,10 @@ pub fn create_stream_pipeline(monitor: &XMonitor, tx_processed: Sender<Buffer>) 
                 .property("show-cursor", true)
         }
         "macos" => {
+            let device_index = monitor.dev_id.parse::<i32>().unwrap_or(0);
             ElementFactory::make("avfvideosrc")
-                //.property_from_str("device-index", &*monitor.dev_id)
+                // .property_from_str("device-index", &*monitor.dev_id)
+                .property("device-index",device_index)
                 .property("capture-screen", true)
                 .property("capture-screen-cursor", true)
         }
