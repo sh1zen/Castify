@@ -96,8 +96,8 @@ impl App {
 
                     let (id, open_task) = window::open(window::Settings {
                         size: monitor.map_or(Size { width: 1920.0, height: 1080.0 }, |mon| Size {
-                            width: mon.width as f32 -1.0,
-                            height: mon.height as f32 -1.0,
+                            width: mon.width as f32 - 1.0,
+                            height: mon.height as f32 - 1.0,
                         }),
                         position: Position::Specific(monitor.map_or(Point::default(), |mon| Point {
                             x: mon.x as f32,
@@ -126,13 +126,16 @@ impl App {
                         ..Default::default()
                     });
                     self.windows.insert(id, WindowType::AreaSelector);
-                    open_task
-                        .discard()
-                        .chain(window::gain_focus(id))
-
-                        //Fixed iced error on full screen
-                        //.chain(window::change_mode(id, Mode::Fullscreen))
-
+                    if cfg!(target_os = "macos") || cfg!(target_os = "windows") {
+                        open_task
+                            .discard()
+                            .chain(window::gain_focus(id))
+                    } else {
+                        open_task
+                            .discard()
+                            .chain(window::gain_focus(id))
+                            .chain(window::change_mode(id, Mode::Fullscreen))
+                    }
                 } else {
                     Task::none()
                 }
@@ -147,8 +150,8 @@ impl App {
 
                     let (id, open_task) = window::open(window::Settings {
                         size: monitor.map_or(Size { width: 1920.0, height: 1080.0 }, |mon| Size {
-                            width: mon.width as f32,
-                            height: mon.height as f32,
+                            width: mon.width as f32 - 1.0,
+                            height: mon.height as f32 - 1.0,
                         }),
                         position: Position::Specific(monitor.map_or(Point::default(), |mon| Point {
                             x: mon.x as f32,
@@ -177,10 +180,16 @@ impl App {
                         ..Default::default()
                     });
                     self.windows.insert(id, WindowType::Annotation);
-                    open_task
-                        .discard()
-                        .chain(window::gain_focus(id))
-                        .chain(window::change_mode(id, Mode::Fullscreen))
+                    if cfg!(target_os = "macos") || cfg!(target_os = "windows") {
+                        open_task
+                            .discard()
+                            .chain(window::gain_focus(id))
+                    } else {
+                        open_task
+                            .discard()
+                            .chain(window::gain_focus(id))
+                            .chain(window::change_mode(id, Mode::Fullscreen))
+                    }
                 } else {
                     Task::none()
                 }
@@ -358,4 +367,3 @@ impl App {
         })
     }
 }
-

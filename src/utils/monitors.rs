@@ -62,32 +62,26 @@ impl Monitors {
         let mut monitors = HashMap::new();
         let mut main = 0;
 
-        let mut mac_index = 0; // Indice sequenziale per macOS
-
         if let Ok(vec_display) = DisplayInfo::all() {
-            for display in vec_display {
+            for (_mon_index, display) in vec_display.iter().enumerate() {
                 monitors.insert(display.id, XMonitor {
-                    x: (display.x as f32 / display.scale_factor) as i32,
-                    y: (display.y as f32 / display.scale_factor) as i32,
-                    height: (display.height as f32 / display.scale_factor) as u32,
-                    width: (display.width as f32 / display.scale_factor) as u32,
+                    x: display.x,
+                    y: display.y,
+                    height: display.height ,
+                    width: display.width,
                     sc: display.scale_factor,
                     primary: display.is_primary,
                     #[cfg(target_os = "windows")]
                     dev_id: display.raw_handle.0.to_string(),
                     #[cfg(target_os = "macos")]
                     //dev_id: display.raw_handle.id.to_string(),
-                    dev_id: mac_index.to_string(),
+                    dev_id: _mon_index.to_string(),
                     #[cfg(target_os = "linux")]
                     dev_id: format!("{}:{}", display.name.to_lowercase(), display.id),
                 });
 
                 if display.is_primary {
                     main = display.id;
-                }
-                #[cfg(target_os = "macos")]
-                {
-                    mac_index += 1; // Incrementa per ogni monitor trovato
                 }
             }
         }

@@ -94,7 +94,7 @@ impl WrtcModal {
                 Container::new(
                     Scrollable::new(
                         Text::new(local_sdp.sdp.clone()).size(12)
-                    )
+                    ).height(Length::FillPortion(50))
                 ).class(ContainerType::Standard)
             )
             .push(

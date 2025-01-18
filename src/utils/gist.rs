@@ -3,7 +3,6 @@ use crate::utils::monitors::XMonitor;
 use gstreamer as gst;
 use gstreamer::prelude::*;
 use gstreamer::{Buffer, Element, ElementFactory, Fraction, Pipeline};
-use gstreamer_rtp::RTPBuffer;
 use std::error::Error;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -227,19 +226,7 @@ pub fn create_view_pipeline(mut rx_processed: Receiver<Packet>, saver: Sender<Bu
                 match rx_processed.blocking_recv() {
                     Some(packet) => {
                         // Convert  packet RTP in a GStreamer buffer
-                        let mut buffer = Buffer::from_slice(packet.marshal().unwrap_or_default());
-                        {
-                            let Some(buffer_ref) = buffer.get_mut() else {
-                                return;
-                            };
-
-                            if let Ok(mut rtp_packet) = RTPBuffer::from_buffer_writable(buffer_ref) {
-                                rtp_packet.set_marker(packet.header.marker);
-                                rtp_packet.set_seq(packet.header.sequence_number);
-                                rtp_packet.set_ssrc(packet.header.ssrc);
-                                rtp_packet.set_timestamp(packet.header.timestamp);
-                            }
-                        }
+                        let buffer = Buffer::from_slice(packet.marshal().unwrap_or_default());
 
                         let _ = saver.try_send(buffer.clone());
 
