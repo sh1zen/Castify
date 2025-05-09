@@ -6,6 +6,7 @@ use clap::{Arg, Command};
 use interprocess::local_socket::traits::Stream;
 use interprocess::local_socket::{GenericNamespaced, ToNsName};
 use std::{panic, process};
+use native_dialog::DialogBuilder;
 
 pub mod gui;
 pub mod utils;
@@ -63,10 +64,10 @@ fn main() {
     }).expect("Error setting Ctrl-C handler");
 
     if !os_supported {
-        if let Err(e) = native_dialog::MessageDialog::new()
-            .set_type(native_dialog::MessageType::Error)
+        if let Err(e) = DialogBuilder::message()
             .set_text("OS not yet supported.")
-            .show_alert()
+            .alert()
+            .show()
         {
             eprintln!("Failed to display error dialog: {e:?}");
         }

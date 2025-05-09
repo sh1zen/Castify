@@ -11,7 +11,7 @@ use iced::keyboard::key::Named;
 use iced::keyboard::{Key, Modifiers};
 use iced::Size;
 use local_ip_address::local_ip;
-use native_dialog::FileDialog;
+use native_dialog::DialogBuilder;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::{Arc, Mutex};
 
@@ -102,12 +102,14 @@ impl Config {
 pub fn saving_path() -> String {
     let default_path = default_saving_path();
 
-    if let Ok(Some(path)) = FileDialog::new()
+    let save_p = DialogBuilder::file()
         .set_location(&default_path)
         .set_filename(&*Local::now().format("%Y-%m-%d_%H-%M-%S").to_string())
-        .set_title("Update Directory")
+        .set_title("Save")
         .add_filter("Video", &["mp4", "mov"])
-        .show_save_single_file()
+        .save_single_file().show().unwrap();
+
+    if let Some(path) = save_p
     {
         path.into_os_string().into_string().unwrap()
     } else {
