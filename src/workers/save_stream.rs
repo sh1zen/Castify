@@ -1,6 +1,5 @@
 use crate::utils::gist::create_save_pipeline;
-use glib::prelude::*;
-use gstreamer::prelude::{ElementExt, GstBinExt};
+use gstreamer::prelude::{Cast, ElementExt, GstBinExt};
 use gstreamer::{ClockTime, FlowSuccess, MessageView, Pipeline, StateChangeSuccess};
 use gstreamer_app::{gst, AppSrc};
 use std::sync::Arc;

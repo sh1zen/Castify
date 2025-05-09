@@ -15,7 +15,7 @@ where
     video: &'a Video,
     on_end_of_stream: Option<Message>,
     on_new_frame: Option<Message>,
-    on_error: Option<Box<dyn Fn(&glib::Error) -> Message + 'a>>,
+    on_error: Option<Box<dyn Fn(&gstreamer::message::Error) -> Message + 'a>>,
     _phantom: PhantomData<(Theme, Renderer)>,
 }
 
@@ -52,7 +52,7 @@ where
 
     pub fn on_error<F>(self, on_error: F) -> Self
     where
-        F: 'a + Fn(&glib::Error) -> Message,
+        F: 'a + Fn(&gstreamer::message::Error) -> Message,
     {
         VideoPlayer {
             on_error: Some(Box::new(on_error)),
@@ -148,7 +148,7 @@ where
                         gst::MessageView::Error(err) => {
                             eprintln!("bus returned an error: {err}");
                             if let Some(ref on_error) = self.on_error {
-                                shell.publish(on_error(&err.error()))
+                                shell.publish(on_error(err))
                             };
                         }
                         gst::MessageView::Eos(_eos) => {

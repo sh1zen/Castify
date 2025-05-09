@@ -1,15 +1,15 @@
 use crate::config::Config;
-use crate::gui::common::anybox::AnyBox;
 use crate::gui::widget::{Column, Element};
-use std::any::Any;
+use castbox::AnyRef;
 use iced::Length;
+use std::any::Any;
 
 pub trait GuiInterface {
     type Message;
 
     fn title(&self) -> String;
 
-    fn update(&mut self, _value: AnyBox, _config: &Config) {}
+    fn update(&mut self, _value: AnyRef, _config: &Config) {}
 
     fn view<'a, 'b>(&'a self, _config: &Config) -> Element<'b, Self::Message>
     where

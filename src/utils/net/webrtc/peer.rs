@@ -1,9 +1,9 @@
 use crate::utils::net::webrtc::common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
 use crate::utils::sos::SignalOfStop;
 use async_tungstenite::tokio::ConnectStream;
-use async_tungstenite::tungstenite::Message;
+use async_tungstenite::tungstenite::{Message, Utf8Bytes};
 use async_tungstenite::WebSocketStream;
-use futures_util::{SinkExt, StreamExt};
+use futures_util::{StreamExt};
 use iced::futures::executor::block_on;
 use once_cell::sync::Lazy;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -146,7 +146,7 @@ impl WRTCPeer {
                 sdp: Some(offer),
                 candidate: None,
             };
-            ws_sender.lock().await.send(Message::Text(serde_json::to_string(&offer_message)?)).await?;
+            ws_sender.lock().await.send(Message::Text(Utf8Bytes::from(serde_json::to_string(&offer_message)?))).await?;
         } else {
             let peer_clone = Arc::clone(&self);
             let ws_stream_clone = Arc::clone(&ws_sender);
@@ -161,7 +161,7 @@ impl WRTCPeer {
                                 candidate: Some(candidate.to_json().unwrap_or_default()),
                             }).unwrap_or_default();
 
-                            if ws_sender_clone.lock().await.send(Message::Text(candidate_str)).await.is_err() {
+                            if ws_sender_clone.lock().await.send(Message::Text(Utf8Bytes::from(candidate_str))).await.is_err() {
                                 eprintln!("Failed to send ICE candidate to client");
                                 peer_clone.disconnect().await;
                             }
@@ -184,10 +184,10 @@ impl WRTCPeer {
                             };
                             ws_sender.lock().await.send(
                                 Message::Text(
-                                    serde_json::to_string(&SignalMessage {
+                                    Utf8Bytes::from(serde_json::to_string(&SignalMessage {
                                         sdp: Some(answer),
                                         candidate: None,
-                                    }).unwrap_or_default()
+                                    }).unwrap_or_default())
                                 )
                             ).await?;
                         }

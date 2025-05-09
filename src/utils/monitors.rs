@@ -72,7 +72,7 @@ impl Monitors {
                     sc: display.scale_factor,
                     primary: display.is_primary,
                     #[cfg(target_os = "windows")]
-                    dev_id: display.raw_handle.0.to_string(),
+                    dev_id: format!("{:?}", display.raw_handle.0),
                     #[cfg(target_os = "macos")]
                     //dev_id: display.raw_handle.id.to_string(),
                     dev_id: _mon_index.to_string(),

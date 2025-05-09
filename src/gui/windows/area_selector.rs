@@ -75,7 +75,7 @@ impl GuiWindow for ASWindow {
         }
     }
 
-    fn view(&self, _config: &Config) -> Element<Self::Message> {
+    fn view(&self, _config: &Config) -> Element<'_, Self::Message> {
         let text_hint = if self.invalid {
             "Invalid selection"
         } else if let Some(_) = self.area {
