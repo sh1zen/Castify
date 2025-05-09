@@ -1,6 +1,7 @@
 use crate::assets::{FONT_AWESOME_BYTES, FONT_BASE_BYTES, FONT_FAMILY_BASE};
 use crate::config::app_id;
 use crate::utils::flags::Flags;
+use native_dialog::{DialogBuilder, MessageLevel};
 
 mod app;
 mod components;
@@ -52,10 +53,11 @@ pub fn run(flags: Flags) {
     if let Err(e) = app.run_with(|| { App::new(flags) }) {
         eprintln!("Failed to initialize GUI: {e:?}");
 
-        if let Err(e) = native_dialog::MessageDialog::new()
-            .set_type(native_dialog::MessageType::Error)
+        if let Err(e) = DialogBuilder::message()
+            .set_title("Gui error")
             .set_text(e.to_string().as_str())
-            .show_alert()
+            .set_level(MessageLevel::Warning)
+            .alert().show()
         {
             eprintln!("Failed to display error dialog: {e:?}");
         }
