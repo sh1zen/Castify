@@ -1,9 +1,9 @@
 use crate::assets::{FRAME_HEIGHT, FRAME_RATE, FRAME_WITH, TARGET_OS};
 use crate::utils::monitors::XMonitor;
 use gstreamer as gst;
-use gstreamer::prelude::*;
 use gstreamer::{Buffer, Element, ElementFactory, Fraction, Pipeline};
 use std::error::Error;
+use gstreamer::prelude::{Cast, ElementExt, GstBinExtManual};
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{Receiver, Sender};
 use webrtc::rtp::packet::Packet;
