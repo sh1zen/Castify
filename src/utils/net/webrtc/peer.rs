@@ -3,7 +3,7 @@ use crate::utils::sos::SignalOfStop;
 use async_tungstenite::tokio::ConnectStream;
 use async_tungstenite::tungstenite::{Message, Utf8Bytes};
 use async_tungstenite::WebSocketStream;
-use futures_util::{SinkExt, StreamExt};
+use futures_util::{StreamExt};
 use iced::futures::executor::block_on;
 use once_cell::sync::Lazy;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};

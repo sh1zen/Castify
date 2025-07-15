@@ -1,5 +1,5 @@
-use gst::prelude::*;
 use gstreamer as gst;
+use gstreamer::prelude::{Cast, ElementExt, ElementExtManual, GstBinExt, ObjectExt};
 use gstreamer::Pipeline;
 use gstreamer_app as gst_app;
 use std::cell::RefCell;
