@@ -40,7 +40,7 @@ pub trait GuiWindow {
     type Message;
     fn title(&self) -> String;
     fn update(&mut self, id: Id, message: Self::Message, config: &mut Config) -> Task<AppEvent>;
-    fn view(&self, config: &Config) -> Element<Self::Message>;
+    fn view(&self, config: &Config) -> Element<'_, Self::Message>;
     fn theme(&self) -> StyleType;
 }
 
@@ -76,7 +76,7 @@ impl WindowManager {
         }
     }
 
-    pub fn view(&self, config: &Config) -> Element<WindowMessage> {
+    pub fn view(&self, config: &Config) -> Element<'_, WindowMessage> {
         match self {
             Self::Main(window) => window.view(config).map(move |message| WindowMessage::Main(message)),
             Self::AreaSelector(window) => window.view(config).map(move |message| WindowMessage::AreaSelector(message)),

@@ -1,6 +1,5 @@
 use crate::assets::FONT_FAMILY_BOLD;
 use crate::config::Config;
-use crate::gui::common::anybox::AnyBox;
 use crate::gui::common::icons::Icon;
 use crate::gui::components::awmodal::GuiInterface;
 use crate::gui::components::button::IconButton;
@@ -13,6 +12,7 @@ use crate::utils::status::Status;
 use iced::Length;
 use iced_wgpu::core::alignment;
 use std::sync::Arc;
+use castbox::{AnyRef, Downcast};
 use tokio::sync::Mutex;
 
 struct HandleSDP {
@@ -124,7 +124,7 @@ impl WrtcModal {
                 TextInput::new("Paste here the remote SDP.", &self.remote_sdp.sdp)
                     .on_input(move |new_value| {
                         MainWindowEvent::PopupMessage(
-                            AnyBox::new(new_value)
+                            AnyRef::new(new_value)
                         )
                     })
                     .padding([8, 12])
@@ -155,8 +155,8 @@ impl GuiInterface for WrtcModal {
         String::from("Manual SDP sharing.")
     }
 
-    fn update(&mut self, value: AnyBox, _config: &Config) {
-        self.remote_sdp.sdp = value.downcast::<String>().unwrap().clone();
+    fn update(&mut self, value: AnyRef, _config: &Config) {
+        self.remote_sdp.sdp = value.try_downcast_ref::<String>().unwrap().clone();
     }
 
     fn view<'a, 'b>(&'a self, _config: &Config) -> Element<'b, Self::Message>
