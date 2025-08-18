@@ -6,6 +6,7 @@ use crate::utils::string::capitalize_first_letter;
 use crate::workers::caster::Caster;
 use crate::workers::receiver::Receiver;
 use crate::workers::WorkerClose;
+use castbox::Arw;
 use chrono::Local;
 use iced::keyboard::key::Named;
 use iced::keyboard::{Key, Modifiers};
@@ -13,7 +14,7 @@ use iced::Size;
 use local_ip_address::local_ip;
 use native_dialog::DialogBuilder;
 use std::net::{IpAddr, Ipv4Addr};
-use std::sync::{Arc, Mutex};
+use std::ops::DerefMut;
 
 pub enum Mode {
     Caster(Caster),
@@ -55,7 +56,7 @@ pub struct Config {
     pub window_size: Size,
     pub e_time: u64,
     pub mode: Option<Mode>,
-    pub public_ip: Arc<Mutex<Option<Ipv4Addr>>>,
+    pub public_ip: Arw<Option<Ipv4Addr>>,
     pub local_ip: Option<Ipv4Addr>,
     pub sos: SignalOfStop,
     pub multi_instance: bool,
@@ -69,7 +70,7 @@ impl Config {
             window_size: Size { width: 680f32, height: 460f32 },
             e_time: 0,
             mode: None,
-            public_ip: Arc::new(Mutex::new(None)),
+            public_ip: Arw::new(None),
             local_ip: local_ip().ok().and_then(|ip|
                 if let IpAddr::V4(ip) = ip {
                     Some(ip)
@@ -81,10 +82,10 @@ impl Config {
             fps: None,
         };
 
-        let public_ip = Arc::clone(&conf.public_ip);
+        let public_ip = Arw::clone(&conf.public_ip);
         tokio::spawn(async move {
             if let Some(ip) = public_ip::addr_v4().await {
-                public_ip.lock().unwrap().replace(ip);
+                public_ip.as_mut().deref_mut().replace(ip);
             }
         });
 

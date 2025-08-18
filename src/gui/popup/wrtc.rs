@@ -1,6 +1,5 @@
 use crate::assets::FONT_FAMILY_BOLD;
 use crate::config::Config;
-use crate::gui::common::anybox::AnyBox;
 use crate::gui::common::icons::Icon;
 use crate::gui::components::awmodal::GuiInterface;
 use crate::gui::components::button::IconButton;
@@ -10,10 +9,11 @@ use crate::gui::windows::main::{MainWindowEvent, Page};
 use crate::utils::net::webrtc::SDPICEExchangeWRTC;
 use crate::utils::sos::SignalOfStop;
 use crate::utils::status::Status;
+use castbox::{AnyRef, Arw};
 use iced::Length;
 use iced_wgpu::core::alignment;
+use std::ops::Deref;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 struct HandleSDP {
     sdp: String,
@@ -30,7 +30,7 @@ impl Clone for HandleSDP {
 }
 
 pub struct WrtcModal {
-    sdp_provider: Arc<Mutex<Option<Arc<dyn SDPICEExchangeWRTC>>>>,
+    sdp_provider: Arw<Option<Arc<dyn SDPICEExchangeWRTC>>>,
     doing_offer: bool,
     status: Status,
     local_sdp: HandleSDP,
@@ -42,7 +42,7 @@ impl WrtcModal {
         let status = Status::new(0);
 
         WrtcModal {
-            sdp_provider: Arc::new(Mutex::new(None)),
+            sdp_provider: Arw::new(None),
             doing_offer,
             status,
             local_sdp: HandleSDP {
@@ -57,17 +57,17 @@ impl WrtcModal {
     }
 
     pub async fn set_sdp_provider(&mut self, sdp: Arc<dyn SDPICEExchangeWRTC>) {
-        self.sdp_provider.lock().await.replace(sdp);
+        self.sdp_provider.as_mut().replace(sdp.clone());
     }
 
     pub async fn handle_sdp_negotiation(&mut self, offering: bool) {
         if self.doing_offer == offering {
-            self.local_sdp.sdp = self.sdp_provider.lock().await.as_ref().unwrap().as_ref().get_sdp().await;
+            self.local_sdp.sdp = self.sdp_provider.as_ref().deref().as_ref().unwrap().get_sdp().await;
             self.local_sdp.watcher.wait().await;
         } else {
             loop {
                 self.remote_sdp.watcher.wait().await;
-                let res = self.sdp_provider.lock().await.as_ref().unwrap().as_ref().set_remote_sdp(self.remote_sdp.sdp.clone()).await;
+                let res = self.sdp_provider.as_ref().deref().as_ref().unwrap().set_remote_sdp(self.remote_sdp.sdp.clone()).await;
                 if res {
                     break;
                 } else {
@@ -124,7 +124,7 @@ impl WrtcModal {
                 TextInput::new("Paste here the remote SDP.", &self.remote_sdp.sdp)
                     .on_input(move |new_value| {
                         MainWindowEvent::PopupMessage(
-                            AnyBox::new(new_value)
+                            AnyRef::new(new_value)
                         )
                     })
                     .padding([8, 12])
@@ -155,8 +155,8 @@ impl GuiInterface for WrtcModal {
         String::from("Manual SDP sharing.")
     }
 
-    fn update(&mut self, value: AnyBox, _config: &Config) {
-        self.remote_sdp.sdp = value.downcast::<String>().unwrap().clone();
+    fn update(&mut self, value: AnyRef, _config: &Config) {
+        self.remote_sdp.sdp = value.try_downcast_ref::<String>().unwrap().clone();
     }
 
     fn view<'a, 'b>(&'a self, _config: &Config) -> Element<'b, Self::Message>

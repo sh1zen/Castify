@@ -1,6 +1,5 @@
 use crate::assets::{CAST_SERVICE_PORT, FRAME_HEIGHT, FRAME_RATE, FRAME_WITH};
 use crate::config::{app_name, saving_path, Config, Mode};
-use crate::gui::common::anybox::AnyBox;
 use crate::gui::common::datastructure::ScreenRect;
 use crate::gui::common::hotkeys::{hotkeys, KeyTypes};
 use crate::gui::common::messages::AppEvent;
@@ -24,6 +23,7 @@ use crate::utils::net::webrtc::SDPICEExchangeWRTC;
 use crate::workers::caster::Caster;
 use crate::workers::receiver::Receiver;
 use arboard::Clipboard;
+use castbox::AnyRef;
 use iced::{window::Id, Length, Task};
 use iced_anim::{Animated, Animation};
 use std::net::SocketAddr;
@@ -51,7 +51,7 @@ pub enum MainWindowEvent {
     /// Set Caster monitor
     CasterMonitor(u32),
     /// handle popup messages
-    PopupMessage(AnyBox),
+    PopupMessage(AnyRef),
     /// close any popup
     ClosePopup(Option<Page>),
     /// Connect to caster, passing caster ip as String
@@ -223,7 +223,7 @@ impl GuiWindow for MainWindow {
                             client.set_caster_addr(caster_socket_addr);
                         }
                         Err(_) => {
-                            self.popup.get_mut_ref().unwrap().as_mut_gui().update(AnyBox::new(String::from("")), config);
+                            self.popup.get_mut_ref().unwrap().as_mut_gui().update(AnyRef::new(String::from("")), config);
                             return Task::none();
                         }
                     }
@@ -274,7 +274,7 @@ impl GuiWindow for MainWindow {
         }
     }
 
-    fn view(&self, config: &Config) -> Element<MainWindowEvent> {
+    fn view(&self, config: &Config) -> Element<'_, MainWindowEvent> {
         let body = match self.page {
             Page::Home => {
                 initial_page(&self, config)

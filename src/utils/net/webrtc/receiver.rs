@@ -6,6 +6,7 @@ use async_tungstenite::tokio::{connect_async, ConnectStream};
 use async_tungstenite::tungstenite::handshake::client::Response;
 use async_tungstenite::tungstenite::Error;
 use async_tungstenite::WebSocketStream;
+use castbox::Arw;
 use std::sync::Arc;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::Mutex;
@@ -16,24 +17,24 @@ use webrtc::track::track_remote::TrackRemote;
 
 pub struct WebRTCReceiver {
     sos: SignalOfStop,
-    peer: Arc<Mutex<Option<Arc<WRTCPeer>>>>,
-    manual_handler: Arc<Mutex<Option<SDPICEExchange>>>,
+    peer: Arw<Option<Arc<WRTCPeer>>>,
+    manual_handler: Arw<Option<SDPICEExchange>>,
 }
 
 impl WebRTCReceiver {
     pub fn new() -> WebRTCReceiver {
         WebRTCReceiver {
             sos: SignalOfStop::new(),
-            peer: Arc::new(Mutex::new(None)),
-            manual_handler: Arc::new(Mutex::new(None)),
+            peer: Arw::new(None),
+            manual_handler: Arw::new(None),
         }
     }
 
     async fn get_lazy_peer(&self) -> Arc<WRTCPeer> {
-        if self.peer.lock().await.is_none() {
-            self.peer.lock().await.replace(WRTCPeer::new().await.unwrap());
+        if self.peer.as_ref().is_none() {
+            self.peer.as_mut().replace(WRTCPeer::new().await.unwrap());
         }
-        self.peer.lock().await.as_ref().unwrap().clone()
+        self.peer.as_ref().as_ref().unwrap().clone()
     }
 
     pub async fn connect(&self, ws_server_url: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -101,11 +102,11 @@ impl WebRTCReceiver {
 #[async_trait]
 impl SDPICEExchangeWRTC for WebRTCReceiver {
     async fn get_sdp(&self) -> String {
-        if self.manual_handler.lock().await.is_none() {
+        if self.manual_handler.as_ref().is_none() {
             return String::from("Wrong manual SDP negotiation!");
         }
 
-        self.manual_handler.lock().await.as_ref().unwrap().pack().unwrap()
+        self.manual_handler.as_ref().as_ref().unwrap().pack().unwrap()
     }
 
     async fn set_remote_sdp(&self, remote_sdp: String) -> bool {
@@ -115,14 +116,14 @@ impl SDPICEExchangeWRTC for WebRTCReceiver {
 
         let peer = self.get_lazy_peer().await;
 
-        self.manual_handler.lock().await.replace(SDPICEExchange::new());
+        self.manual_handler.as_mut().replace(SDPICEExchange::new());
 
-        let exchanger_clone = Arc::clone(&self.manual_handler);
+        let exchanger_clone = Arw::clone(&self.manual_handler);
         peer.get_connection().on_ice_candidate(Box::new(move |candidate| {
-            let exchanger_clone = Arc::clone(&exchanger_clone);
+            let exchanger_clone = Arw::clone(&exchanger_clone);
             Box::pin(async move {
                 if let Some(candidate) = candidate {
-                    exchanger_clone.lock().await.as_mut().unwrap().add_ice_candidate(candidate);
+                    exchanger_clone.as_mut().as_mut().unwrap().add_ice_candidate(candidate);
                 }
             })
         }));
@@ -133,7 +134,7 @@ impl SDPICEExchangeWRTC for WebRTCReceiver {
         ).await.is_ok();
 
         if res {
-            self.manual_handler.lock().await.as_mut().unwrap().set_sdp(peer.get_connection().local_description().await.unwrap());
+            self.manual_handler.as_mut().as_mut().unwrap().set_sdp(peer.get_connection().local_description().await.unwrap());
         }
 
         res

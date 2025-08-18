@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use crate::assets::{FONT_FAMILY_BOLD, ICON_BYTES};
 use crate::config::{app_name, Config};
 use crate::gui::common::icons::Icon;
@@ -115,7 +116,7 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
                     }
                 }),
                 footer_row(String::from("Public IP"), {
-                    match *config.public_ip.lock().unwrap() {
+                    match config.public_ip.as_ref().deref() {
                         Some(ip) => ip.to_string(),
                         _ => String::from("-------"),
                     }

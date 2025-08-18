@@ -36,7 +36,7 @@ impl AnnotationWindow {
         }
     }
 
-    fn toolbar(&self) -> Element<AnnotationWindowEvent> {
+    fn toolbar(&self) -> Element<'_, AnnotationWindowEvent> {
         let panel = |row| {
             Container::new(row)
                 .align_x(alignment::Horizontal::Center)
@@ -214,7 +214,7 @@ impl GuiWindow for AnnotationWindow {
         }
     }
 
-    fn view(&self, _config: &Config) -> Element<Self::Message> {
+    fn view(&self, _config: &Config) -> Element<'_, Self::Message> {
         let toolbar = if self.show_toolbar {
             self.toolbar()
         } else {

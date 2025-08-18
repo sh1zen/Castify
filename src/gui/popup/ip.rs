@@ -1,10 +1,10 @@
 use crate::config::Config;
-use crate::gui::common::anybox::AnyBox;
 use crate::gui::common::icons::Icon;
 use crate::gui::components::awmodal::GuiInterface;
 use crate::gui::components::button::{Dimensions, IconButton};
 use crate::gui::widget::{Column, Element, IcedButtonExt, Row, TextInput};
 use crate::gui::windows::main::MainWindowEvent;
+use castbox::AnyRef;
 
 pub struct IPModal {
     ip: String,
@@ -29,8 +29,8 @@ impl GuiInterface for IPModal {
         String::from("Enter Receiver IP Address:")
     }
 
-    fn update(&mut self, value: AnyBox, _config: &Config) {
-        self.ip = value.downcast::<String>().unwrap().clone();
+    fn update(&mut self, value: AnyRef, _config: &Config) {
+        self.ip = value.try_downcast_ref::<String>().unwrap().clone();
     }
 
     fn view<'a, 'b>(&'a self, _config: &Config) -> Element<'b, Self::Message>
@@ -41,7 +41,7 @@ impl GuiInterface for IPModal {
         let input = TextInput::new("192.168.1.2", &self.ip)
             .on_input(move |new_value| {
                 MainWindowEvent::PopupMessage(
-                    AnyBox::new(IPModal::parse_ip(new_value))
+                    AnyRef::new(IPModal::parse_ip(new_value))
                 )
             })
             .padding([8, 12]);

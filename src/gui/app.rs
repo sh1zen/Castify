@@ -294,7 +294,7 @@ impl App {
         }
     }
 
-    pub fn view(&self, id: Id) -> Element<AppEvent> {
+    pub fn view(&self, id: Id) -> Element<'_, AppEvent> {
         match self.windows.get_manager(id) {
             Some(window_handler) => window_handler.view(&self.config).map(move |message| AppEvent::WindowEvent(id, message)),
             None => horizontal_space().into(),
