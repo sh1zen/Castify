@@ -12,9 +12,7 @@ pub struct IPModal {
 
 impl IPModal {
     pub fn new() -> Self {
-        IPModal {
-            ip: String::new()
-        }
+        IPModal { ip: String::new() }
     }
 
     fn parse_ip(ip: String) -> String {
@@ -40,34 +38,50 @@ impl GuiInterface for IPModal {
     {
         let input = TextInput::new("192.168.1.2", &self.ip)
             .on_input(move |new_value| {
-                MainWindowEvent::PopupMessage(
-                    AnyRef::new(IPModal::parse_ip(new_value))
-                )
+                MainWindowEvent::PopupMessage(AnyRef::new(IPModal::parse_ip(new_value)))
             })
             .padding([8, 12]);
 
         let ip = self.ip.clone();
 
-        let button =
-            IconButton::new().label("Connect").icon(Icon::Connect).dim(Dimensions::Large)
-                .build()
-                .on_press_if(!ip.is_empty(), move || MainWindowEvent::ConnectToCaster(ip.clone()));
+        let button = IconButton::new()
+            .label("Connect")
+            .icon(Icon::Connect)
+            .dim(Dimensions::Large)
+            .build()
+            .on_press_if(!ip.is_empty(), move || {
+                MainWindowEvent::ConnectToCaster(ip.clone())
+            });
 
         Column::new()
             .spacing(12)
             .push(input)
             .push(
-                Row::new().spacing(12)
+                Row::new()
+                    .spacing(12)
                     .push(button)
                     .push(
-                        IconButton::new().label("Manual").icon(Icon::Sync).dim(Dimensions::Large).build().on_press(MainWindowEvent::ShowSDP)
+                        IconButton::new()
+                            .label("Manual")
+                            .icon(Icon::Sync)
+                            .dim(Dimensions::Large)
+                            .build()
+                            .on_press(MainWindowEvent::ShowSDP),
                     )
                     .push(
-                        IconButton::new().label("Auto").icon(Icon::Auto).build().on_press(MainWindowEvent::ConnectToCaster("auto".parse().unwrap()))
-                    )
+                        IconButton::new()
+                            .label("Auto")
+                            .icon(Icon::Auto)
+                            .build()
+                            .on_press(MainWindowEvent::ConnectToCaster("auto".parse().unwrap())),
+                    ),
             )
             .push(
-                IconButton::new().label("Home").icon(Icon::Home).build().on_press(MainWindowEvent::Home)
+                IconButton::new()
+                    .label("Home")
+                    .icon(Icon::Home)
+                    .build()
+                    .on_press(MainWindowEvent::Home),
             )
             .into()
     }

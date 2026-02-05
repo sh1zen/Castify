@@ -27,25 +27,24 @@ impl Catalog for StyleType {
 
         let rail = Rail {
             backgrounds: (
+                Background::Color(Color { ..palette.primary }),
                 Background::Color(Color {
-                    ..palette.primary
-                }), Background::Color(Color {
                     ..palette.primary_darker
-                })),
+                }),
+            ),
             width: 0.0,
             border: Border {
                 radius: BORDER_RADIUS.into(),
                 width: 0.0,
                 color: Color::TRANSPARENT,
             },
-
         };
 
         Style {
             rail,
             handle: Handle {
-                shape:  HandleShape::Circle { radius: 7.0 },
-                background:  Background::Color(color),
+                shape: HandleShape::Circle { radius: 7.0 },
+                background: Background::Color(color),
                 border_color: Color::TRANSPARENT,
                 border_width: 0.0,
             },

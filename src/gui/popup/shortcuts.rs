@@ -13,7 +13,7 @@ pub struct ShortcutModal {
 impl ShortcutModal {
     pub fn new() -> Self {
         ShortcutModal {
-            key: KeyTypes::None
+            key: KeyTypes::None,
         }
     }
 
@@ -35,25 +35,29 @@ impl GuiInterface for ShortcutModal {
         'b: 'a,
         Self::Message: Clone + 'b,
     {
+        let default = (Modifiers::empty(), Key::Unidentified);
         let c_key = match self.key {
-            KeyTypes::Pause => { config.shortcuts.pause.clone() }
-            KeyTypes::Record => { config.shortcuts.record.clone() }
-            KeyTypes::Close => { config.shortcuts.end_session.clone() }
-            KeyTypes::BlankScreen => { config.shortcuts.blank_screen.clone() }
-            _ => { (Modifiers::empty(), Key::Unidentified) }
+            KeyTypes::Pause => &config.shortcuts.pause,
+            KeyTypes::Record => &config.shortcuts.record,
+            KeyTypes::Close => &config.shortcuts.end_session,
+            KeyTypes::BlankScreen => &config.shortcuts.blank_screen,
+            _ => &default,
         };
 
         Column::new()
             .spacing(12)
             .push(
                 Row::new()
-                    .push(Key4Board::from_command(c_key.0).build())
-                    .push(Key4Board::from_key(c_key.1).build())
-                    .spacing(5)
+                    .push(Key4Board::from_command(&c_key.0).build())
+                    .push(Key4Board::from_key(&c_key.1).build())
+                    .spacing(5),
             )
             .push(Text::new("Press any desired key.").height(20).size(12))
             .push(
-                IconButton::new().label("Ok").build().on_press(MainWindowEvent::ClosePopup(None))
+                IconButton::new()
+                    .label("Ok")
+                    .build()
+                    .on_press(MainWindowEvent::ClosePopup(None)),
             )
             .into()
     }

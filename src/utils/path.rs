@@ -1,18 +1,17 @@
 use crate::config::app_name;
 use std::env::var_os;
 use std::fs::DirBuilder;
-use std::path::{Path, MAIN_SEPARATOR};
+use std::path::Path;
 
 fn home_path() -> Option<String> {
     #[cfg(not(target_os = "windows"))]
     let home = var_os("HOME").map(|home| home.to_string_lossy().to_string());
 
     #[cfg(target_os = "windows")]
-    let home = var_os("HOMEDRIVE").and_then(|drive|
-        var_os("HOMEPATH").map(|home|
-            format!("{}{}", drive.to_string_lossy(), home.to_string_lossy())
-        )
-    );
+    let home = var_os("HOMEDRIVE").and_then(|drive| {
+        var_os("HOMEPATH")
+            .map(|home| format!("{}{}", drive.to_string_lossy(), home.to_string_lossy()))
+    });
 
     home
 }
@@ -33,11 +32,7 @@ pub fn shorten_path(path: String) -> String {
 
 pub fn default_saving_path() -> String {
     let path = if let Some(home) = home_path() {
-        let path = format!(
-            "{}/{}/",
-            home,
-            &app_name()
-        );
+        let path = format!("{}/{}/", home, &app_name());
         DirBuilder::new()
             .recursive(true)
             .create(Path::new(&path))
@@ -47,5 +42,6 @@ pub fn default_saving_path() -> String {
         String::from("./")
     };
 
-    path.replace("/", &MAIN_SEPARATOR.to_string()).replace("\\", &MAIN_SEPARATOR.to_string())
+    path.replace("/", std::path::MAIN_SEPARATOR_STR)
+        .replace("\\", std::path::MAIN_SEPARATOR_STR)
 }

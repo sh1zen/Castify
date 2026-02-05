@@ -1,5 +1,5 @@
-use std::collections::hash_map::Iter;
 use std::collections::HashMap;
+use std::collections::hash_map::Iter;
 
 pub enum Either<L, R> {
     Left(L),
@@ -9,6 +9,16 @@ pub enum Either<L, R> {
 pub struct BiMap<K1, K2> {
     forward_map: HashMap<K1, K2>,
     backward_map: HashMap<K2, K1>,
+}
+
+impl<K1, K2> Default for BiMap<K1, K2>
+where
+    K1: std::hash::Hash + Eq + Clone + Copy,
+    K2: std::hash::Hash + Eq + Clone + Copy,
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<K1, K2> BiMap<K1, K2>

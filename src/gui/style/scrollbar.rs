@@ -1,10 +1,10 @@
 use crate::assets::BORDER_RADIUS;
 use crate::gui::style::theme::color::mix;
 use crate::gui::style::theme::csx::StyleType;
-use iced::widget::scrollable::Scroller;
-use iced::widget::scrollable::{Catalog, Rail, Status, Style};
-use iced::{Background, Border, Color};
 use iced::widget::container;
+use iced::widget::scrollable::Scroller;
+use iced::widget::scrollable::{AutoScroll, Catalog, Rail, Status, Style};
+use iced::{Background, Border, Color, Shadow};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub enum ScrollbarType {
@@ -33,7 +33,7 @@ impl Catalog for StyleType {
                 color: Color::TRANSPARENT,
             },
             scroller: Scroller {
-                color: mix(palette.secondary, palette.primary_darker),
+                background: Background::from(mix(palette.secondary, palette.primary_darker)),
                 border: Border {
                     radius: BORDER_RADIUS.into(),
                     width: 0.0,
@@ -43,21 +43,28 @@ impl Catalog for StyleType {
         };
 
         let base = Style {
-            container: container::Style{
+            container: container::Style {
                 text_color: Some(palette.text),
                 background: Some(Background::Color(palette.disabled(palette.background))),
                 border: Default::default(),
                 shadow: Default::default(),
+                snap: false,
             },
             vertical_rail: rail,
             horizontal_rail: rail,
             gap: None,
+            auto_scroll: AutoScroll {
+                background: Background::Color(Color::TRANSPARENT),
+                border: Default::default(),
+                shadow: Shadow::default(),
+                icon: Color::TRANSPARENT,
+            },
         };
 
         let operative = Style {
             vertical_rail: Rail {
                 scroller: Scroller {
-                    color: palette.secondary,
+                    background: Background::from(palette.secondary),
                     border: Border {
                         radius: BORDER_RADIUS.into(),
                         width: 0.0,
@@ -68,7 +75,7 @@ impl Catalog for StyleType {
             },
             horizontal_rail: Rail {
                 scroller: Scroller {
-                    color: palette.secondary,
+                    background: Background::from(palette.secondary),
                     border: Border {
                         radius: BORDER_RADIUS.into(),
                         width: 0.0,
@@ -81,7 +88,7 @@ impl Catalog for StyleType {
         };
 
         match status {
-            Status::Active => base,
+            Status::Active { .. } => base,
             Status::Hovered { .. } => operative,
             Status::Dragged { .. } => operative,
         }

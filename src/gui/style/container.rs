@@ -3,7 +3,7 @@ use iced::widget::container::{Catalog, Style};
 use iced::{Background, Border, Color, Shadow, Vector};
 
 #[derive(Clone, Copy, Debug, Default)]
-#[allow(dead_code)]
+
 pub enum ContainerType {
     #[default]
     Transparent,
@@ -27,16 +27,15 @@ impl Catalog for StyleType {
         Style {
             background: Some(match class {
                 ContainerType::Video | ContainerType::Line => Background::Color(Color::BLACK),
-                ContainerType::Standard | ContainerType::Footer => Background::Color(palette.primary_darker),
-                ContainerType::Modal => {
+                ContainerType::Standard | ContainerType::Footer => {
                     Background::Color(palette.primary_darker)
                 }
-                ContainerType::DarkFilter => {
-                    Background::Color(Color { a: 0.8, ..Color::BLACK })
-                }
-                _ => {
-                    Background::Color(Color::TRANSPARENT)
-                }
+                ContainerType::Modal => Background::Color(palette.primary_darker),
+                ContainerType::DarkFilter => Background::Color(Color {
+                    a: 0.8,
+                    ..Color::BLACK
+                }),
+                _ => Background::Color(Color::TRANSPARENT),
             }),
             border: Border {
                 radius: match class {
@@ -69,6 +68,7 @@ impl Catalog for StyleType {
                 },
                 _ => Shadow::default(),
             },
+            snap: true,
         }
     }
 }

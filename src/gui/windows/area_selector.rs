@@ -1,16 +1,18 @@
 use crate::assets::FONT_FAMILY_BOLD;
-use crate::config::{app_name, Config};
+use crate::config::{Config, app_name};
 use crate::gui::common::datastructure::ScreenRect;
 use crate::gui::common::messages::AppEvent;
 use crate::gui::components::AreaSelector;
 use crate::gui::style::container::ContainerType;
 use crate::gui::style::theme::csx::StyleType;
-use crate::gui::widget::{horizontal_space, vertical_space, Canvas, Column, Container, Element, Row, Stack, Text};
+use crate::gui::widget::{
+    Canvas, Column, Container, Element, Row, Stack, Text, horizontal_space, vertical_space,
+};
 use crate::gui::windows::GuiWindow;
-use iced::window::Id;
 use iced::Alignment::Center;
 use iced::Length::Fill;
 use iced::Task;
+use iced::window::Id;
 
 pub struct ASWindow {
     area: Option<ScreenRect>,
@@ -59,14 +61,12 @@ impl GuiWindow for ASWindow {
                 self.area = None;
                 Task::none()
             }
-            ASWindowEvent::ExitAbort => {
-                Task::done(AppEvent::CloseWindow(id))
-            }
+            ASWindowEvent::ExitAbort => Task::done(AppEvent::CloseWindow(id)),
             ASWindowEvent::ExitValid => {
                 if !self.invalid && self.area.is_some() {
                     Task::batch(vec![
                         Task::done(AppEvent::AreaSelected(self.area.take().unwrap())),
-                        Task::done(AppEvent::CloseWindow(id))
+                        Task::done(AppEvent::CloseWindow(id)),
                     ])
                 } else {
                     Task::done(AppEvent::CloseWindow(id))
@@ -78,7 +78,7 @@ impl GuiWindow for ASWindow {
     fn view(&self, _config: &Config) -> Element<'_, Self::Message> {
         let text_hint = if self.invalid {
             "Invalid selection"
-        } else if let Some(_) = self.area {
+        } else if self.area.is_some() {
             "Enter to Confirm | Click to Reset"
         } else {
             "Esc to Cancel"
@@ -89,36 +89,39 @@ impl GuiWindow for ASWindow {
                 Canvas::new(
                     AreaSelector::new()
                         .on_release_rect(|rect| {
-                            if rect.height < 50.0 || rect.width == 50.0 {
+                            if rect.height < 50.0 || rect.width < 50.0 {
                                 ASWindowEvent::Invalid
-                            } else if rect.height < 1.0 || rect.width == 1.0 {
+                            } else if rect.height < 1.0 || rect.width < 1.0 {
                                 ASWindowEvent::AreaAbort
                             } else {
                                 ASWindowEvent::AreaSelected(rect)
                             }
                         })
                         .on_esc(ASWindowEvent::ExitAbort)
-                        .on_confirm(ASWindowEvent::ExitValid)
+                        .on_confirm(ASWindowEvent::ExitValid),
                 )
-                    .width(Fill)
-                    .height(Fill))
+                .width(Fill)
+                .height(Fill),
+            )
             .push(
-                Column::new()
-                    .push(vertical_space().height(5))
-                    .push(
-                        Row::new()
-                            .push(horizontal_space().width(Fill))
-                            .push(
-                                Container::new(
-                                    Text::new(text_hint).font(FONT_FAMILY_BOLD).size(15).align_x(Center).align_y(Center)
-                                )
-                                    .class(ContainerType::Standard)
-                                    .padding(10)
+                Column::new().push(vertical_space().height(5)).push(
+                    Row::new()
+                        .push(horizontal_space().width(Fill))
+                        .push(
+                            Container::new(
+                                Text::new(text_hint)
+                                    .font(FONT_FAMILY_BOLD)
+                                    .size(15)
                                     .align_x(Center)
-                                    .align_x(Center)
+                                    .align_y(Center),
                             )
-                            .push(horizontal_space().width(Fill))
-                    )
+                            .class(ContainerType::Standard)
+                            .padding(10)
+                            .align_x(Center)
+                            .align_x(Center),
+                        )
+                        .push(horizontal_space().width(Fill)),
+                ),
             )
             .height(Fill)
             .width(Fill)

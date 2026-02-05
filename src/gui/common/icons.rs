@@ -43,6 +43,8 @@ pub enum Icon {
     Copy,
     Paste,
     Ok,
+    VolumeHigh,
+    VolumeMute,
 }
 
 impl Icon {
@@ -86,7 +88,9 @@ impl Icon {
             Icon::Sync => '\u{f2f1}',
             Icon::Copy => '\u{f0c5}',
             Icon::Paste => '\u{f0ea}',
-            Icon::Ok => '\u{f058}'
+            Icon::Ok => '\u{f058}',
+            Icon::VolumeHigh => '\u{f028}',
+            Icon::VolumeMute => '\u{f6a9}',
         }
     }
 

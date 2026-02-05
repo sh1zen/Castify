@@ -1,12 +1,15 @@
 use crate::gui::common::messages::AppEvent;
-use iced::keyboard::key::Named;
 use iced::keyboard::Key as icedKey;
+use iced::keyboard::key::Named;
 use iced::keyboard::{Key, Modifiers};
-use iced::{futures::{SinkExt, Stream}, stream};
-use rdev::{listen, EventType, Key as RdevKey};
+use iced::{
+    futures::{SinkExt, Stream},
+    stream,
+};
+use rdev::{EventType, Key as RdevKey, listen};
 use tokio::sync::mpsc::channel;
 
-pub fn global_key_listener() -> impl Stream<Item=AppEvent> {
+pub fn global_key_listener() -> impl Stream<Item = AppEvent> {
     let (sender, mut receiver) = channel(20);
 
     std::thread::spawn(move || {
@@ -15,19 +18,21 @@ pub fn global_key_listener() -> impl Stream<Item=AppEvent> {
         });
     });
 
-    stream::channel(10, move |mut output| async move {
-        let mut handler = KeyState::new();
+    stream::channel(
+        10,
+        move |mut output: iced::futures::channel::mpsc::Sender<AppEvent>| async move {
+            let mut handler = KeyState::new();
 
-        loop {
-            if let Some(event) = receiver.recv().await {
-                if let Some((modifier, key)) = handler.mapping(event) {
+            loop {
+                if let Some(event) = receiver.recv().await
+                    && let Some((modifier, key)) = handler.mapping(event)
+                {
                     let _ = output.send(AppEvent::KeyEvent(modifier, key)).await;
                 }
             }
-        }
-    })
+        },
+    )
 }
-
 
 struct KeyState {
     alt: bool,
@@ -49,38 +54,18 @@ impl KeyState {
     pub fn mapping(&mut self, event: rdev::Event) -> Option<(Modifiers, icedKey)> {
         match event.event_type {
             EventType::KeyPress(key) => {
-                match key {
-                    RdevKey::Alt => {
-                        self.alt = true;
-                    }
-                    RdevKey::ShiftLeft | RdevKey::ShiftRight => {
-                        self.shift = true;
-                    }
-                    RdevKey::ControlLeft | RdevKey::ControlRight => {
-                        self.control = true;
-                    }
-                    RdevKey::MetaLeft | RdevKey::MetaRight => {
-                        self.logo = true;
-                    }
-                    _ => {}
-                }
+                self.set_modifier(key, true);
                 None
             }
             EventType::KeyRelease(key) => match key {
-                RdevKey::Alt => {
-                    self.alt = false;
-                    None
-                }
-                RdevKey::ShiftLeft | RdevKey::ShiftRight => {
-                    self.shift = false;
-                    None
-                }
-                RdevKey::ControlLeft | RdevKey::ControlRight => {
-                    self.control = false;
-                    None
-                }
-                RdevKey::MetaLeft | RdevKey::MetaRight => {
-                    self.logo = false;
+                RdevKey::Alt
+                | RdevKey::ShiftLeft
+                | RdevKey::ShiftRight
+                | RdevKey::ControlLeft
+                | RdevKey::ControlRight
+                | RdevKey::MetaLeft
+                | RdevKey::MetaRight => {
+                    self.set_modifier(key, false);
                     None
                 }
                 _ => Some((self.to_modifiers(), self.to_iced(key))),
@@ -89,48 +74,24 @@ impl KeyState {
         }
     }
 
+    fn set_modifier(&mut self, key: RdevKey, is_pressed: bool) {
+        match key {
+            RdevKey::Alt => self.alt = is_pressed,
+            RdevKey::ShiftLeft | RdevKey::ShiftRight => self.shift = is_pressed,
+            RdevKey::ControlLeft | RdevKey::ControlRight => self.control = is_pressed,
+            RdevKey::MetaLeft | RdevKey::MetaRight => self.logo = is_pressed,
+            _ => {}
+        }
+    }
+
     fn to_iced(&self, rdev_key: RdevKey) -> icedKey {
+        if let Some(c) = Self::alpha_key(rdev_key) {
+            return icedKey::Character(c.into());
+        }
+        if let Some(c) = Self::digit_key(rdev_key) {
+            return icedKey::Character(c.into());
+        }
         match rdev_key {
-            // mapping chars
-            RdevKey::KeyA => icedKey::Character("a".into()),
-            RdevKey::KeyB => icedKey::Character("b".into()),
-            RdevKey::KeyC => icedKey::Character("c".into()),
-            RdevKey::KeyD => icedKey::Character("d".into()),
-            RdevKey::KeyE => icedKey::Character("e".into()),
-            RdevKey::KeyF => icedKey::Character("f".into()),
-            RdevKey::KeyG => icedKey::Character("g".into()),
-            RdevKey::KeyH => icedKey::Character("h".into()),
-            RdevKey::KeyI => icedKey::Character("i".into()),
-            RdevKey::KeyJ => icedKey::Character("j".into()),
-            RdevKey::KeyK => icedKey::Character("k".into()),
-            RdevKey::KeyL => icedKey::Character("l".into()),
-            RdevKey::KeyM => icedKey::Character("m".into()),
-            RdevKey::KeyN => icedKey::Character("n".into()),
-            RdevKey::KeyO => icedKey::Character("o".into()),
-            RdevKey::KeyP => icedKey::Character("p".into()),
-            RdevKey::KeyQ => icedKey::Character("q".into()),
-            RdevKey::KeyR => icedKey::Character("r".into()),
-            RdevKey::KeyS => icedKey::Character("s".into()),
-            RdevKey::KeyT => icedKey::Character("t".into()),
-            RdevKey::KeyU => icedKey::Character("u".into()),
-            RdevKey::KeyV => icedKey::Character("v".into()),
-            RdevKey::KeyW => icedKey::Character("w".into()),
-            RdevKey::KeyX => icedKey::Character("x".into()),
-            RdevKey::KeyY => icedKey::Character("y".into()),
-            RdevKey::KeyZ => icedKey::Character("z".into()),
-
-            // mapping NumKeys
-            RdevKey::Num1 => icedKey::Character("1".into()),
-            RdevKey::Num2 => icedKey::Character("2".into()),
-            RdevKey::Num3 => icedKey::Character("3".into()),
-            RdevKey::Num4 => icedKey::Character("4".into()),
-            RdevKey::Num5 => icedKey::Character("5".into()),
-            RdevKey::Num6 => icedKey::Character("6".into()),
-            RdevKey::Num7 => icedKey::Character("7".into()),
-            RdevKey::Num8 => icedKey::Character("8".into()),
-            RdevKey::Num9 => icedKey::Character("9".into()),
-            RdevKey::Num0 => icedKey::Character("0".into()),
-
             // mapping F1..F12 keys
             RdevKey::F1 => icedKey::Named(Named::F1),
             RdevKey::F2 => icedKey::Named(Named::F2),
@@ -154,6 +115,54 @@ impl KeyState {
         }
     }
 
+    fn alpha_key(key: RdevKey) -> Option<&'static str> {
+        match key {
+            RdevKey::KeyA => Some("a"),
+            RdevKey::KeyB => Some("b"),
+            RdevKey::KeyC => Some("c"),
+            RdevKey::KeyD => Some("d"),
+            RdevKey::KeyE => Some("e"),
+            RdevKey::KeyF => Some("f"),
+            RdevKey::KeyG => Some("g"),
+            RdevKey::KeyH => Some("h"),
+            RdevKey::KeyI => Some("i"),
+            RdevKey::KeyJ => Some("j"),
+            RdevKey::KeyK => Some("k"),
+            RdevKey::KeyL => Some("l"),
+            RdevKey::KeyM => Some("m"),
+            RdevKey::KeyN => Some("n"),
+            RdevKey::KeyO => Some("o"),
+            RdevKey::KeyP => Some("p"),
+            RdevKey::KeyQ => Some("q"),
+            RdevKey::KeyR => Some("r"),
+            RdevKey::KeyS => Some("s"),
+            RdevKey::KeyT => Some("t"),
+            RdevKey::KeyU => Some("u"),
+            RdevKey::KeyV => Some("v"),
+            RdevKey::KeyW => Some("w"),
+            RdevKey::KeyX => Some("x"),
+            RdevKey::KeyY => Some("y"),
+            RdevKey::KeyZ => Some("z"),
+            _ => None,
+        }
+    }
+
+    fn digit_key(key: RdevKey) -> Option<&'static str> {
+        match key {
+            RdevKey::Num0 => Some("0"),
+            RdevKey::Num1 => Some("1"),
+            RdevKey::Num2 => Some("2"),
+            RdevKey::Num3 => Some("3"),
+            RdevKey::Num4 => Some("4"),
+            RdevKey::Num5 => Some("5"),
+            RdevKey::Num6 => Some("6"),
+            RdevKey::Num7 => Some("7"),
+            RdevKey::Num8 => Some("8"),
+            RdevKey::Num9 => Some("9"),
+            _ => None,
+        }
+    }
+
     fn to_modifiers(&self) -> Modifiers {
         let mut modifiers = Modifiers::empty();
         if self.alt {
@@ -169,17 +178,14 @@ impl KeyState {
     }
 }
 
-
 pub fn valid_iced_key(key: Key) -> bool {
-    match key {
-        Key::Character(_) => true,
-        Key::Named(Named::F1 | Named::F2 | Named::F3) => true,
-        Key::Named(Named::F4 | Named::F5 | Named::F6) => true,
-        Key::Named(Named::F7 | Named::F8 | Named::F9) => true,
-        Key::Named(Named::F10 | Named::F11 | Named::F12) => true,
-
-        Key::Named(Named::Pause | Named::Enter | Named::Escape) => true,
-
-        _ => false
-    }
+    matches!(
+        key,
+        Key::Character(_)
+            | Key::Named(Named::F1 | Named::F2 | Named::F3)
+            | Key::Named(Named::F4 | Named::F5 | Named::F6)
+            | Key::Named(Named::F7 | Named::F8 | Named::F9)
+            | Key::Named(Named::F10 | Named::F11 | Named::F12)
+            | Key::Named(Named::Pause | Named::Enter | Named::Escape)
+    )
 }

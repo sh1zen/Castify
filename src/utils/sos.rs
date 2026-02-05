@@ -8,7 +8,6 @@ pub struct SignalOfStop {
     internal: Arc<SharedState>,
 }
 
-
 #[derive(Debug, Default)]
 struct SharedState {
     closing: AtomicBool,
@@ -34,15 +33,15 @@ impl SignalOfStop {
 
         self.internal.notify.notify_waiters();
 
-        // tread safety
-        if let Ok(_) = self.internal.mutex.lock() {
+        // thread safety - hold lock while notifying
+        if self.internal.mutex.lock().is_ok() {
             // Notify all waiting threads that they should wake up and check the condition
             self.internal.condvar.notify_all();
         }
     }
 
     pub fn restore(&self) {
-        if let Ok(_) = self.internal.mutex.lock() {
+        if self.internal.mutex.lock().is_ok() {
             self.internal.closing.store(false, Ordering::Relaxed);
         }
     }
@@ -75,7 +74,7 @@ impl SignalOfStop {
 
     pub fn spawn<F>(&self, fut: F)
     where
-        F: Future<Output=()> + Send + 'static,
+        F: Future<Output = ()> + Send + 'static,
     {
         let clone = self.clone();
         tokio::spawn(async move {
@@ -85,7 +84,7 @@ impl SignalOfStop {
 
     pub async fn select<F, T>(&self, fut: F) -> Result<T, ()>
     where
-        F: Future<Output=T> + Send + 'static,
+        F: Future<Output = T> + Send + 'static,
         T: Send + 'static,
     {
         let clone = self.clone();

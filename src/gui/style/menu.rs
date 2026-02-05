@@ -27,6 +27,7 @@ impl Catalog for StyleType {
             },
             selected_text_color: palette.text,
             selected_background: Background::Color(palette.secondary),
+            shadow: Default::default(),
         }
     }
 }

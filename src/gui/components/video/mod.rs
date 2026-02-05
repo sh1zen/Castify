@@ -1,4 +1,7 @@
+//! Video playback components for the receiver UI
+
 mod pipeline;
+#[allow(clippy::module_inception)]
 mod video;
 mod video_player;
 

@@ -1,5 +1,5 @@
 use crate::gui::style::theme::csx::StyleType as Theme;
-use iced::{widget as w, Length};
+use iced::{Length, widget as w};
 
 pub type IcedRenderer = iced::Renderer;
 
@@ -20,11 +20,15 @@ pub type Scrollable<'a, Message> = w::Scrollable<'a, Message, Theme, IcedRendere
 //pub type Slider<'a, T, Message> = w::Slider<'a, T, Message, Theme>;
 pub type Canvas<P, Message> = w::Canvas<P, Message, Theme, IcedRenderer>;
 
-
 use crate::gui::style::container::ContainerType;
-pub use w::horizontal_space;
-pub use w::vertical_space;
 pub use w::Space;
+
+pub fn horizontal_space() -> Space {
+    Space::new().width(Length::Fill)
+}
+pub fn vertical_space() -> Space {
+    Space::new().height(Length::Fill)
+}
 
 pub trait IcedParentExt<'a, Message> {
     fn push_if<E>(self, condition: bool, element: impl FnOnce() -> E) -> Self

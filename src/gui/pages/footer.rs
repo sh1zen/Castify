@@ -3,10 +3,10 @@ use crate::config::app_version;
 use crate::gui::common::icons::Icon;
 use crate::gui::style::button::ButtonType;
 use crate::gui::style::container::ContainerType;
+use crate::gui::widget::horizontal_space;
 use crate::gui::widget::{Button, Container, Row, Text};
 use crate::gui::windows::main::MainWindowEvent;
 use iced::alignment::{Horizontal, Vertical};
-use iced::widget::horizontal_space;
 use iced::widget::text::LineHeight;
 use iced::{Alignment, Length};
 
@@ -16,9 +16,7 @@ pub fn footer<'a>() -> Container<'a, MainWindowEvent> {
         .height(Length::Fill)
         .width(Length::Fill)
         .spacing(5)
-        .push(
-            Text::new(app_version()).font(FONT_FAMILY_BOLD).size(12.0)
-        );
+        .push(Text::new(app_version()).font(FONT_FAMILY_BOLD).size(12.0));
 
     let footer_row = Row::new()
         .padding([0, 10])
@@ -27,26 +25,30 @@ pub fn footer<'a>() -> Container<'a, MainWindowEvent> {
         .push(horizontal_space().width(Length::Shrink))
         .push(
             Button::new(
-                Icon::Browser.to_text()
+                Icon::Browser
+                    .to_text()
                     .size(15.0)
                     .align_x(Horizontal::Center)
                     .align_y(Vertical::Center)
                     .line_height(LineHeight::Relative(1.0)),
             )
-                .class(ButtonType::Transparent)
-                .on_press(MainWindowEvent::OpenWebPage("https://github.com/sh1zen/RustProject".parse().unwrap()))
+            .class(ButtonType::Transparent)
+            .on_press(MainWindowEvent::OpenWebPage(
+                "https://github.com/sh1zen/RustProject".parse().unwrap(),
+            )),
         )
         .push(horizontal_space().width(Length::Fill))
         .push(
             Button::new(
-                Icon::Info.to_text()
+                Icon::Info
+                    .to_text()
                     .size(15.0)
                     .align_x(Horizontal::Center)
                     .align_y(Vertical::Center)
                     .line_height(LineHeight::Relative(1.0)),
             )
-                .class(ButtonType::Transparent)
-                .on_press(MainWindowEvent::OpenInfo)
+            .class(ButtonType::Transparent)
+            .on_press(MainWindowEvent::OpenInfo),
         );
 
     Container::new(footer_row)

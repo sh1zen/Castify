@@ -8,8 +8,8 @@ use crate::gui::style::text::TextType;
 use crate::gui::widget::{Column, Container, Element, Row};
 use crate::gui::windows::main::MainWindowEvent;
 use iced::widget::Text;
-use iced::{alignment, Padding};
 use iced::{Alignment, Length};
+use iced::{Padding, alignment};
 
 pub fn client_page<'a, 'b>(video: &'b Video, config: &Config) -> Element<'a, MainWindowEvent>
 where
@@ -20,26 +20,38 @@ where
     };
 
     let actions = Row::new()
-        .align_y(Alignment::Center).spacing(10)
+        .align_y(Alignment::Center)
+        .spacing(10)
+        .push(if client.is_saving() {
+            IconButton::new()
+                .label("Stop")
+                .icon(Icon::Save)
+                .build()
+                .on_press(MainWindowEvent::SaveCaptureStop)
+        } else {
+            IconButton::new()
+                .label("Save")
+                .icon(Icon::Download)
+                .build()
+                .on_press(MainWindowEvent::SaveCapture)
+        })
         .push(
-            if client.is_saving() {
-                IconButton::new()
-                    .label("Stop")
-                    .icon(Icon::Save)
-                    .build()
-                    .on_press(MainWindowEvent::SaveCaptureStop)
-            } else {
-                IconButton::new()
-                    .label("Save")
-                    .icon(Icon::Download)
-                    .build()
-                    .on_press(MainWindowEvent::SaveCapture)
-            }
+            IconButton::new()
+                .label(if client.is_audio_muted() {
+                    "Unmute"
+                } else {
+                    "Mute"
+                })
+                .icon(if client.is_audio_muted() {
+                    Icon::VolumeMute
+                } else {
+                    Icon::VolumeHigh
+                })
+                .build()
+                .on_press(MainWindowEvent::ToggleAudioMute),
         )
         .push({
-            let mut button = IconButton::new().label("Exit")
-                .icon(Icon::Stop)
-                .build();
+            let mut button = IconButton::new().label("Exit").icon(Icon::Stop).build();
             if !client.is_saving() {
                 button = button.on_press(MainWindowEvent::ExitApp);
             }
@@ -53,22 +65,25 @@ where
             _ => unreachable!("Mode must be Client here"),
         };
 
-        let video = if client.is_streaming() {
+        if client.is_streaming() {
             Container::new(VideoPlayer::new(video))
                 .height(Length::Fill)
                 .width(Length::Fill)
                 .align_x(alignment::Horizontal::Center)
                 .class(ContainerType::Video)
         } else {
-            Container::new(Text::new("Waiting for the Caster...").font(FONT_FAMILY_BOLD).size(22.0).class(TextType::White))
-                .height(Length::Fill)
-                .width(Length::Fill)
-                .align_x(alignment::Horizontal::Center)
-                .align_y(alignment::Vertical::Center)
-                .class(ContainerType::Video)
-        };
-
-        video
+            Container::new(
+                Text::new("Waiting for the Caster...")
+                    .font(FONT_FAMILY_BOLD)
+                    .size(22.0)
+                    .class(TextType::White),
+            )
+            .height(Length::Fill)
+            .width(Length::Fill)
+            .align_x(alignment::Horizontal::Center)
+            .align_y(alignment::Vertical::Center)
+            .class(ContainerType::Video)
+        }
     };
 
     let content = Column::new()

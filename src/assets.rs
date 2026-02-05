@@ -1,11 +1,7 @@
-use iced::font::{Family, Stretch, Style, Weight};
 use iced::Font;
+use iced::font::{Family, Stretch, Style, Weight};
 
-pub const FRAME_RATE: i32 = 30;
-pub const FRAME_WITH: i32 = 1920;
-pub const FRAME_HEIGHT: i32 = 1080;
-
-// connections
+pub const FRAME_RATE: u32 = 60;
 pub const MAX_PACKAGES_FAIL: u8 = 5;
 pub const CAST_SERVICE_PORT: u16 = 31413;
 
@@ -18,7 +14,8 @@ pub const TARGET_OS: &str = "linux";
 
 pub const ICON_BYTES: &[u8] = include_bytes!("../resources/icons/96x96.png");
 
-pub const FONT_AWESOME_BYTES: &[u8] = include_bytes!("../resources/Font Awesome 6 Free-Solid-900.otf");
+pub const FONT_AWESOME_BYTES: &[u8] =
+    include_bytes!("../resources/Font Awesome 6 Free-Solid-900.otf");
 pub const FONT_AWESOME: Font = Font {
     family: Family::Name("Font Awesome 6 Free"),
     weight: Weight::Black,
@@ -42,7 +39,6 @@ pub const FONT_FAMILY_BOLD: Font = Font {
     stretch: Stretch::Normal,
     style: Style::Normal,
 };
-
 
 // border theme
 pub const BORDER_WIDTH: f32 = 0.0;

@@ -3,7 +3,7 @@ use crate::gui::style::theme::csx::StyleType;
 use iced::Color;
 
 #[derive(Clone, Copy, Debug, Default)]
-#[allow(dead_code)]
+
 pub enum TextType {
     #[default]
     Standard,
@@ -36,30 +36,12 @@ impl iced::widget::text::Catalog for StyleType {
         iced::widget::text::Style {
             color: Some(match class {
                 TextType::Standard => palette.text,
-                TextType::Title => {
-                    let color = if palette.is_nightly() { Color::WHITE } else { Color::BLACK };
-                    let (p1, c) = if palette.is_nightly() { (0.4, 1.0) } else { (0.6, 0.7) };
-                    Color {
-                        r: c * (1.0 - p1) + color.r * p1,
-                        g: c * (1.0 - p1) + color.g * p1,
-                        b: c * (1.0 - p1) + color.b * p1,
-                        a: 1.0,
-                    }
-                }
-                TextType::Subtitle => {
-                    let color = if palette.is_nightly() { Color::WHITE } else { Color::BLACK };
-                    let (p1, c) = if palette.is_nightly() { (0.4, 0.8) } else { (0.6, 0.5) };
-                    Color {
-                        r: c * (1.0 - p1) + color.r * p1,
-                        g: c * (1.0 - p1) + color.g * p1,
-                        b: c * (1.0 - p1) + color.b * p1,
-                        a: 1.0,
-                    }
-                }
+                TextType::Title => palette.title_text(),
+                TextType::Subtitle => palette.subtitle_text(),
                 TextType::Danger => mix(palette.danger, palette.text),
                 TextType::White => Color::WHITE,
-                TextType::Colored(color) => color.clone()
-            })
+                TextType::Colored(color) => *color,
+            }),
         }
     }
 }

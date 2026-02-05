@@ -25,46 +25,70 @@ pub struct Palette {
 }
 
 impl Palette {
-    pub fn is_nightly(&self) -> bool {
-        // Calculate the relative luminance using a simple approximation
-        let luminance = 0.2126 * self.background.r + 0.7152 * self.background.g + 0.0722 * self.background.b;
+    fn adjust(&self, color: Color, amount: f32, alpha: f32) -> Color {
+        let channel = |value: f32| {
+            if self.is_dark() {
+                f32::min(value + amount, 1.0)
+            } else {
+                f32::max(value - amount, 0.0)
+            }
+        };
+        Color {
+            r: channel(color.r),
+            g: channel(color.g),
+            b: channel(color.b),
+            a: alpha,
+        }
+    }
 
-        // If luminance is less than the threshold, the color is considered dark
+    fn emphasized_text(&self, weight: f32, neutral: f32) -> Color {
+        let anchor = if self.is_dark() {
+            Color::WHITE
+        } else {
+            Color::BLACK
+        };
+        Color {
+            r: neutral * (1.0 - weight) + anchor.r * weight,
+            g: neutral * (1.0 - weight) + anchor.g * weight,
+            b: neutral * (1.0 - weight) + anchor.b * weight,
+            a: 1.0,
+        }
+    }
+
+    pub fn is_dark(&self) -> bool {
+        let luminance =
+            0.2126 * self.background.r + 0.7152 * self.background.g + 0.0722 * self.background.b;
         luminance < 0.5
     }
-    pub fn active(&self, color: Color) -> Color {
-        if self.is_nightly() {
-            Color {
-                r: f32::min(color.r + 0.15, 1.0),
-                g: f32::min(color.g + 0.15, 1.0),
-                b: f32::min(color.b + 0.15, 1.0),
-                a: 1.0,
-            }
-        } else {
-            Color {
-                r: f32::max(color.r - 0.15, 0.0),
-                g: f32::max(color.g - 0.15, 0.0),
-                b: f32::max(color.b - 0.15, 0.0),
-                a: 1.0,
-            }
-        }
+
+    pub fn is_nightly(&self) -> bool {
+        self.is_dark()
     }
+
+    pub fn active(&self, color: Color) -> Color {
+        self.adjust(color, 0.15, 1.0)
+    }
+
     pub fn disabled(&self, color: Color) -> Color {
-        if self.is_nightly() {
-            Color {
-                r: f32::min(color.r + 0.1, 1.0),
-                g: f32::min(color.g + 0.1, 1.0),
-                b: f32::min(color.b + 0.1, 1.0),
-                a: 0.6,
-            }
+        self.adjust(color, if self.is_dark() { 0.1 } else { 0.2 }, 0.6)
+    }
+
+    pub fn title_text(&self) -> Color {
+        let (weight, neutral) = if self.is_dark() {
+            (0.4, 1.0)
         } else {
-            Color {
-                r: f32::max(color.r - 0.2, 0.0),
-                g: f32::max(color.g - 0.2, 0.0),
-                b: f32::max(color.b - 0.2, 0.0),
-                a: 0.6,
-            }
-        }
+            (0.6, 0.7)
+        };
+        self.emphasized_text(weight, neutral)
+    }
+
+    pub fn subtitle_text(&self) -> Color {
+        let (weight, neutral) = if self.is_dark() {
+            (0.4, 0.8)
+        } else {
+            (0.6, 0.5)
+        };
+        self.emphasized_text(weight, neutral)
     }
 }
 
@@ -73,7 +97,6 @@ impl Default for Palette {
         StyleType::get_palette(&StyleType::DarkVenus)
     }
 }
-
 
 impl Hash for Palette {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -85,7 +108,7 @@ impl Hash for Palette {
             danger,
             action,
             text,
-            text_inv
+            text_inv,
         } = self;
 
         color_hash(*background, state);

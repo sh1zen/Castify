@@ -1,8 +1,8 @@
 use crate::utils::string;
 use async_trait::async_trait;
-use base64::engine::general_purpose::PAD;
 use base64::engine::GeneralPurpose;
-use base64::{alphabet, Engine};
+use base64::engine::general_purpose::PAD;
+use base64::{Engine, alphabet};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use webrtc::ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit};
@@ -21,7 +21,6 @@ pub struct SDPICEExchange {
     sdp: RTCSessionDescription,
 }
 
-#[allow(dead_code)]
 impl SDPICEExchange {
     pub fn new() -> SDPICEExchange {
         SDPICEExchange {
@@ -57,14 +56,14 @@ impl SDPICEExchange {
 
     pub fn pack(&self) -> Result<String, Box<dyn Error + Sync + Send>> {
         let str = serde_json::to_string(&self)?;
-        let str = string::compress_string(&*str)?;
+        let str = string::compress_string(&str)?;
         let str = GeneralPurpose::new(&alphabet::STANDARD, PAD).encode(str);
         Ok(str)
     }
 
     pub fn unpack(packed: String) -> Result<SDPICEExchange, Box<dyn Error + Sync + Send>> {
         let str = GeneralPurpose::new(&alphabet::STANDARD, PAD).decode(packed.trim())?;
-        let str = string::decompress_string(&*str)?;
+        let str = string::decompress_string(&str)?;
         let exchanger = serde_json::from_str::<SDPICEExchange>(&str)?;
         Ok(exchanger)
     }

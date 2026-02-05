@@ -1,14 +1,13 @@
-use std::collections::HashMap;
 use display_info::DisplayInfo;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
+
 pub struct XMonitor {
     pub x: i32,
     pub y: i32,
     pub width: u32,
     pub height: u32,
-    primary: bool,
     pub dev_id: String,
     pub sc: f32,
 }
@@ -20,13 +19,16 @@ pub struct Monitors {
     monitors: HashMap<u32, XMonitor>,
 }
 
+impl Default for Monitors {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Monitors {
     pub fn new() -> Self {
         let (monitors, main) = Self::setup_monitors();
-        Monitors {
-            main,
-            monitors,
-        }
+        Monitors { main, monitors }
     }
 
     pub fn change_monitor(&mut self, id: u32) -> bool {
@@ -52,7 +54,7 @@ impl Monitors {
         let mut monitors = Vec::new();
 
         for x in self.monitors.iter() {
-            monitors.push(x.0.clone());
+            monitors.push(*x.0);
         }
 
         monitors
@@ -63,14 +65,15 @@ impl Monitors {
         let mut main = 0;
 
         if let Ok(vec_display) = DisplayInfo::all() {
-            for (_mon_index, display) in vec_display.iter().enumerate() {
-                monitors.insert(display.id, XMonitor {
+            for display in vec_display.iter() {
+                monitors.insert(
+                    display.id,
+                    XMonitor {
                     x: display.x,
                     y: display.y,
                     height: display.height ,
                     width: display.width,
                     sc: display.scale_factor,
-                    primary: display.is_primary,
                     #[cfg(target_os = "windows")]
                     dev_id: format!("{:?}", display.raw_handle.0),
                     #[cfg(target_os = "macos")]
@@ -78,7 +81,8 @@ impl Monitors {
                     dev_id: _mon_index.to_string(),
                     #[cfg(target_os = "linux")]
                     dev_id: format!("{}:{}", display.name.to_lowercase(), display.id),
-                });
+                },
+                );
 
                 if display.is_primary {
                     main = display.id;

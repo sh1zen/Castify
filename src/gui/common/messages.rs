@@ -4,8 +4,7 @@ use iced::keyboard::{Key, Modifiers};
 use iced::window::Id;
 
 #[derive(Debug, Clone)]
-pub enum AppEvent
-{
+pub enum AppEvent {
     /// Open Main Window
     OpenMainWindow,
     /// Open Annotation Window
@@ -38,4 +37,6 @@ pub enum AppEvent
     CasterToggleStreaming,
     /// TimeTick for custom fps
     TimeTickFPS,
+    /// Toggle audio mute
+    ToggleAudioMute,
 }

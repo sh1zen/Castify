@@ -3,11 +3,13 @@ use crate::gui::common::icons::Icon;
 use crate::gui::components::awmodal::GuiComponent;
 use crate::gui::components::button::IconButton;
 use crate::gui::style::container::ContainerType;
-use crate::gui::widget::{horizontal_line, vertical_space, Column, Container, Element, IcedParentExt, Space, Text};
+use crate::gui::widget::{
+    Column, Container, Element, IcedParentExt, Space, Text, horizontal_line, vertical_space,
+};
 use iced::Length;
 use std::cell::UnsafeCell;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub struct AwModalManager<T> {
     popup: Option<Arc<UnsafeCell<T>>>,
@@ -16,7 +18,7 @@ pub struct AwModalManager<T> {
 
 impl<T, Message> AwModalManager<T>
 where
-    T: GuiComponent<Message=Message> + 'static,
+    T: GuiComponent<Message = Message> + 'static,
     Message: Clone + 'static,
 {
     pub fn new() -> Self {
@@ -42,18 +44,13 @@ where
         self.popup = Some(Arc::new(UnsafeCell::new(p0)));
     }
 
-    pub fn remove(&mut self) {
-        self.hide();
-        self.popup = None;
-    }
-
     pub fn render<'a, 'b>(&'b self, config: &Config) -> Element<'a, Message>
     where
         'b: 'a,
         Message: Clone,
     {
         if !self.is_visible() {
-            return Container::new(Space::new(0, 0)).into();
+            return Container::new(Space::new()).into();
         }
 
         let binding = self.get_ref().unwrap();
@@ -67,10 +64,13 @@ where
             .push(vertical_space().height(5))
             .push(gui.view(config))
             .push(vertical_space().height(5))
-            .push_if(
-                gui.on_close().is_some(),
-                || IconButton::new().icon(Icon::Close).label("Close").build().on_press(gui.on_close().unwrap()),
-            )
+            .push_if(gui.on_close().is_some(), || {
+                IconButton::new()
+                    .icon(Icon::Close)
+                    .label("Close")
+                    .build()
+                    .on_press(gui.on_close().unwrap())
+            })
             .width(Length::Fill)
             .height(Length::Fill);
 
@@ -79,29 +79,18 @@ where
             .width(gui.width())
             .height(gui.height());
 
-        Container::new(content)
-            .center(Length::Fill)
-            .into()
+        Container::new(content).center(Length::Fill).into()
     }
 
-    pub fn get_ref(&self) -> Option<&T>
-    {
-        self.popup.as_ref().and_then(move |p|
-            Some(
-                unsafe { &*p.get() }
-            )
-        )
+    pub fn get_ref(&self) -> Option<&T> {
+        self.popup.as_ref().map(move |p| unsafe { &*p.get() })
     }
 
     pub fn get_mut_ref<'a, 'b>(&'b self) -> Option<&'a mut T>
     where
         'b: 'a,
     {
-        self.popup.as_ref().and_then(move |p|
-            Some(
-                unsafe { &mut *p.get() }
-            )
-        )
+        self.popup.as_ref().map(move |p| unsafe { &mut *p.get() })
     }
 }
 

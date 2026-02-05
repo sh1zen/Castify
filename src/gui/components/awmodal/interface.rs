@@ -2,7 +2,6 @@ use crate::config::Config;
 use crate::gui::widget::{Column, Element};
 use castbox::AnyRef;
 use iced::Length;
-use std::any::Any;
 
 pub trait GuiInterface {
     type Message;
@@ -35,9 +34,7 @@ pub trait GuiInterface {
 pub trait GuiComponent {
     type Message;
 
-    fn as_gui<'a>(&'a self) -> &'a dyn GuiInterface<Message=Self::Message>;
+    fn as_gui(&self) -> &dyn GuiInterface<Message = Self::Message>;
 
-    fn as_mut_gui(&mut self) -> &mut dyn GuiInterface<Message=Self::Message>;
-
-    fn as_mut_any(&mut self) -> Box<&mut dyn Any>;
+    fn as_mut_gui(&mut self) -> &mut dyn GuiInterface<Message = Self::Message>;
 }

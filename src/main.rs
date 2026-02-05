@@ -1,21 +1,25 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use crate::config::{app_id, app_name, app_version};
 use crate::utils::flags::Flags;
 use clap::{Arg, Command};
 use interprocess::local_socket::traits::Stream;
 use interprocess::local_socket::{GenericNamespaced, ToNsName};
 use std::{panic, process};
-use native_dialog::DialogBuilder;
 
+pub mod assets;
+pub mod capture;
+pub mod config;
+pub mod decoder;
+pub mod display;
+pub mod encoder;
 pub mod gui;
+pub mod pipeline;
 pub mod utils;
 pub mod workers;
-pub mod assets;
-pub mod config;
 pub mod xmacro;
 
 fn main() {
+    tracing_subscriber::fmt::init();
+
     let app_name = Box::leak(app_name().into_boxed_str());
 
     let matches = Command::new(&*app_name)
@@ -32,7 +36,7 @@ fn main() {
                 .default_missing_value("yes")
                 .ignore_case(true)
                 .num_args(0..=1)
-                .default_value("no")
+                .default_value("no"),
         )
         .get_matches();
 
@@ -48,8 +52,6 @@ fn main() {
         };
     }
 
-    let os_supported = gstreamer::init().is_ok();
-
     // kill the main thread as soon as a secondary thread panics
     let orig_hook = panic::take_hook();
     panic::set_hook(Box::new(move |panic_info| {
@@ -61,19 +63,10 @@ fn main() {
     // gracefully close the app when receiving SIGINT, SIGTERM, or SIGHUP
     ctrlc::set_handler(move || {
         process::exit(130);
-    }).expect("Error setting Ctrl-C handler");
-
-    if !os_supported {
-        if let Err(e) = DialogBuilder::message()
-            .set_text("OS not yet supported.")
-            .alert()
-            .show()
-        {
-            eprintln!("Failed to display error dialog: {e:?}");
-        }
-    }
+    })
+    .expect("Error setting Ctrl-C handler");
 
     gui::run(Flags {
-        multi_instance: multi_instances
+        multi_instance: multi_instances,
     });
 }

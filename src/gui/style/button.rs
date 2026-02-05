@@ -5,7 +5,7 @@ use iced::widget::button::{Catalog, Status, Style};
 use iced::{Background, Border, Color, Shadow, Vector};
 
 #[derive(Clone, Copy, Debug, Default)]
-#[allow(dead_code)]
+
 pub enum ButtonType {
     #[default]
     Standard,
@@ -14,6 +14,99 @@ pub enum ButtonType {
     KeyBoard,
     Disabled,
     Rounded,
+}
+
+impl ButtonType {
+    fn active_background(self, palette: &crate::gui::style::theme::palette::Palette) -> Color {
+        match self {
+            ButtonType::Danger => palette.danger,
+            ButtonType::Transparent => Color::TRANSPARENT,
+            ButtonType::Disabled => palette.disabled(palette.primary),
+            ButtonType::Rounded => palette.action,
+            _ => palette.primary,
+        }
+    }
+
+    fn hovered_background(self, palette: &crate::gui::style::theme::palette::Palette) -> Color {
+        match self {
+            ButtonType::Transparent => Color {
+                a: 0.14,
+                ..palette.secondary
+            },
+            ButtonType::Disabled => palette.disabled(palette.primary),
+            _ => palette.active(self.active_background(palette)),
+        }
+    }
+
+    fn pressed_background(self, palette: &crate::gui::style::theme::palette::Palette) -> Color {
+        match self {
+            ButtonType::Transparent => Color {
+                a: 0.24,
+                ..palette.secondary
+            },
+            ButtonType::Disabled => palette.disabled(palette.primary),
+            _ => palette.active(self.hovered_background(palette)),
+        }
+    }
+
+    fn disabled_background(self, palette: &crate::gui::style::theme::palette::Palette) -> Color {
+        match self {
+            ButtonType::Danger => palette.disabled(palette.danger),
+            ButtonType::Transparent => Color::TRANSPARENT,
+            _ => palette.disabled(palette.primary),
+        }
+    }
+
+    fn active_border(self, palette: &crate::gui::style::theme::palette::Palette) -> Color {
+        match self {
+            ButtonType::Transparent => Color::TRANSPARENT,
+            ButtonType::Danger => palette.active(palette.danger),
+            ButtonType::Standard => palette.primary_darker,
+            ButtonType::KeyBoard => Color {
+                r: 145.0 / 255.0,
+                g: 145.0 / 255.0,
+                b: 245.0 / 255.0,
+                a: 1.0,
+            },
+            ButtonType::Disabled => palette.disabled(palette.primary),
+            ButtonType::Rounded => palette.active(palette.action),
+        }
+    }
+
+    fn hovered_border(self, palette: &crate::gui::style::theme::palette::Palette) -> Color {
+        match self {
+            ButtonType::Transparent => Color {
+                a: 0.30,
+                ..palette.secondary
+            },
+            ButtonType::Disabled => palette.disabled(palette.primary),
+            _ => palette.active(self.active_border(palette)),
+        }
+    }
+
+    fn pressed_border(self, palette: &crate::gui::style::theme::palette::Palette) -> Color {
+        match self {
+            ButtonType::Transparent => Color {
+                a: 0.40,
+                ..palette.secondary
+            },
+            ButtonType::Disabled => palette.disabled(palette.primary),
+            _ => palette.active(self.hovered_border(palette)),
+        }
+    }
+
+    fn text_color(self, palette: &crate::gui::style::theme::palette::Palette) -> Color {
+        match self {
+            ButtonType::KeyBoard => Color::BLACK,
+            ButtonType::Transparent => Color {
+                a: 0.9,
+                ..palette.text
+            },
+            ButtonType::Danger | ButtonType::Rounded => palette.text_inv,
+            ButtonType::Disabled => palette.disabled(palette.text_inv),
+            _ => palette.text,
+        }
+    }
 }
 
 impl Catalog for StyleType {
@@ -25,17 +118,12 @@ impl Catalog for StyleType {
 
     fn style(&self, class: &Self::Class<'_>, status: Status) -> Style {
         let palette = self.get_palette();
+        let button = *class;
 
         let active = Style {
-            background: Some(match class {
-                ButtonType::Danger => Background::Color(palette.danger),
-                ButtonType::Transparent => Background::Color(Color::TRANSPARENT),
-                ButtonType::Disabled => Background::Color(palette.disabled(palette.primary)),
-                ButtonType::Rounded => Background::Color(palette.action),
-                _ => Background::Color(palette.primary),
-            }),
+            background: Some(Background::Color(button.active_background(&palette))),
             border: Border {
-                radius: match class {
+                radius: match button {
                     ButtonType::Rounded => Radius {
                         top_left: 80.0,
                         top_right: 80.0,
@@ -44,31 +132,14 @@ impl Catalog for StyleType {
                     },
                     _ => BORDER_RADIUS.into(),
                 },
-                width: match class {
+                width: match button {
                     ButtonType::KeyBoard => 2.0,
                     _ => BORDER_WIDTH,
                 },
-                color: match class {
-                    ButtonType::Transparent => Color::TRANSPARENT,
-                    ButtonType::Danger => palette.danger,
-                    ButtonType::Standard => palette.primary,
-                    ButtonType::KeyBoard => Color {
-                        r: 145.0 / 255.0,
-                        g: 145.0 / 255.0,
-                        b: 245.0 / 255.0,
-                        a: 1.0,
-                    },
-                    ButtonType::Disabled => palette.disabled(palette.primary),
-                    _ => palette.secondary,
-                },
+                color: button.active_border(&palette),
             },
-            text_color: match class {
-                ButtonType::KeyBoard => Color::BLACK,
-                ButtonType::Transparent => Color { a: 0.8, ..palette.text },
-                ButtonType::Disabled => palette.disabled(palette.text_inv),
-                _ => palette.text,
-            },
-            shadow: match class {
+            text_color: button.text_color(&palette),
+            shadow: match button {
                 ButtonType::Transparent => Shadow::default(),
                 _ => Shadow {
                     color: Color::BLACK,
@@ -76,58 +147,51 @@ impl Catalog for StyleType {
                     blur_radius: 4.0,
                 },
             },
+            snap: false,
         };
 
         match status {
             Status::Active => active,
             Status::Hovered => Style {
-                background: Some(match class {
-                    ButtonType::Danger => Background::Color(palette.active(palette.danger)),
-                    ButtonType::Transparent => Background::Color(Color::TRANSPARENT),
-                    ButtonType::Disabled => Background::Color(palette.disabled(palette.primary)),
-                    ButtonType::Rounded => Background::Color(palette.active(palette.action)),
-                    _ => Background::Color(palette.active(palette.primary)),
-                }),
-                shadow: match class {
+                background: Some(Background::Color(button.hovered_background(&palette))),
+                border: Border {
+                    color: button.hovered_border(&palette),
+                    ..active.border
+                },
+                shadow: match button {
                     ButtonType::Transparent => Shadow::default(),
                     _ => Shadow {
                         color: Color::BLACK,
-                        offset: Vector::ZERO,
-                        blur_radius: 5.0,
+                        offset: Vector::new(0.0, 1.0),
+                        blur_radius: 6.0,
                     },
                 },
                 ..active
             },
             Status::Pressed => Style {
-                background: Some(match class {
-                    ButtonType::Danger => Background::Color(palette.active(palette.danger)),
-                    ButtonType::Transparent => Background::Color(Color::TRANSPARENT),
-                    ButtonType::Disabled => Background::Color(palette.disabled(palette.primary)),
-                    ButtonType::Rounded => Background::Color(palette.active(palette.action)),
-                    _ => Background::Color(palette.active(palette.primary)),
-                }),
-                shadow: match class {
+                background: Some(Background::Color(button.pressed_background(&palette))),
+                border: Border {
+                    color: button.pressed_border(&palette),
+                    ..active.border
+                },
+                shadow: match button {
                     ButtonType::Transparent => Shadow::default(),
                     _ => Shadow {
                         color: Color::BLACK,
-                        offset: Vector::ZERO,
-                        blur_radius: 2.0,
+                        offset: Vector::new(0.0, 0.5),
+                        blur_radius: 1.0,
                     },
                 },
                 ..active
             },
             Status::Disabled => Style {
-                background: Some(match class {
-                    ButtonType::Danger => Background::Color(palette.disabled(palette.danger)),
-                    ButtonType::Transparent => Background::Color(Color::TRANSPARENT),
-                    _ => Background::Color(palette.disabled(palette.primary)),
-                }),
+                background: Some(Background::Color(button.disabled_background(&palette))),
                 border: Border {
                     color: palette.disabled(active.border.color),
                     ..active.border
                 },
                 text_color: palette.disabled(active.text_color),
-                shadow: match class {
+                shadow: match button {
                     ButtonType::KeyBoard => Shadow {
                         color: Color::BLACK,
                         offset: Vector::ZERO,

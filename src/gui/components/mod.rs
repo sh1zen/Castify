@@ -1,9 +1,8 @@
-pub mod button;
-mod area_selector;
 mod annotation;
-pub mod video;
+mod area_selector;
 pub mod awmodal;
-mod spinner;
+pub mod button;
+pub mod video;
 
 pub use annotation::{Annotation, Shape, ShapeColor, ShapeStroke, ShapeType};
 pub use area_selector::AreaSelector;

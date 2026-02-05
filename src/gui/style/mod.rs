@@ -1,9 +1,9 @@
-pub mod theme;
-pub mod text;
-pub mod container;
-mod textinput;
-mod picklist;
 pub mod button;
-mod scrollbar;
+pub mod container;
 mod menu;
+mod picklist;
+mod scrollbar;
 mod slider;
+pub mod text;
+mod textinput;
+pub mod theme;

@@ -4,16 +4,15 @@ use crate::gui::common::icons::Icon;
 use crate::gui::components::awmodal::GuiInterface;
 use crate::gui::components::button::IconButton;
 use crate::gui::style::container::ContainerType;
-use crate::gui::widget::{Column, Container, Element, IcedButtonExt, Row, Scrollable, Text, TextInput};
+use crate::gui::widget::{
+    Column, Container, Element, IcedButtonExt, Row, Scrollable, Text, TextInput,
+};
 use crate::gui::windows::main::{MainWindowEvent, Page};
-use crate::utils::net::webrtc::SDPICEExchangeWRTC;
 use crate::utils::sos::SignalOfStop;
 use crate::utils::status::Status;
-use castbox::{AnyRef, Arw};
+use castbox::AnyRef;
 use iced::Length;
-use iced_wgpu::core::alignment;
-use std::ops::Deref;
-use std::sync::Arc;
+use iced::alignment;
 
 struct HandleSDP {
     sdp: String,
@@ -30,7 +29,6 @@ impl Clone for HandleSDP {
 }
 
 pub struct WrtcModal {
-    sdp_provider: Arw<Option<Arc<dyn SDPICEExchangeWRTC>>>,
     doing_offer: bool,
     status: Status,
     local_sdp: HandleSDP,
@@ -42,7 +40,6 @@ impl WrtcModal {
         let status = Status::new(0);
 
         WrtcModal {
-            sdp_provider: Arw::new(None),
             doing_offer,
             status,
             local_sdp: HandleSDP {
@@ -56,34 +53,16 @@ impl WrtcModal {
         }
     }
 
-    pub async fn set_sdp_provider(&mut self, sdp: Arc<dyn SDPICEExchangeWRTC>) {
-        self.sdp_provider.as_mut().replace(sdp.clone());
-    }
-
-    pub async fn handle_sdp_negotiation(&mut self, offering: bool) {
-        if self.doing_offer == offering {
-            self.local_sdp.sdp = self.sdp_provider.as_ref().deref().as_ref().unwrap().get_sdp().await;
-            self.local_sdp.watcher.wait().await;
-        } else {
-            loop {
-                self.remote_sdp.watcher.wait().await;
-                let res = self.sdp_provider.as_ref().deref().as_ref().unwrap().set_remote_sdp(self.remote_sdp.sdp.clone()).await;
-                if res {
-                    break;
-                } else {
-                    self.remote_sdp.watcher.restore();
-                    self.status.set(400);
-                }
-            }
-        }
-        self.status.next();
-    }
-
     fn show_sdp<'a>(&self) -> Element<'a, MainWindowEvent> {
         if self.local_sdp.sdp.is_empty() {
             return Column::new()
                 .align_x(alignment::Alignment::Center)
-                .push(Text::new("Loading...").font(FONT_FAMILY_BOLD).size(20).align_x(alignment::Alignment::Center))
+                .push(
+                    Text::new("Loading...")
+                        .font(FONT_FAMILY_BOLD)
+                        .size(20)
+                        .align_x(alignment::Alignment::Center),
+                )
                 .into();
         }
         let local_sdp = self.local_sdp.clone();
@@ -92,25 +71,35 @@ impl WrtcModal {
             .spacing(10)
             .push(
                 Container::new(
-                    Scrollable::new(
-                        Text::new(local_sdp.sdp.clone()).size(12)
-                    ).height(Length::FillPortion(50))
-                ).class(ContainerType::Standard)
+                    Scrollable::new(Text::new(local_sdp.sdp.clone()).size(12))
+                        .height(Length::FillPortion(50)),
+                )
+                .class(ContainerType::Standard),
             )
             .push(
                 Row::new()
                     .spacing(12)
                     .push(
-                        IconButton::new().label("Copy").icon(Icon::Copy).build()
+                        IconButton::new()
+                            .label("Copy")
+                            .icon(Icon::Copy)
+                            .build()
                             .on_press_with(move || {
                                 local_sdp.watcher.cancel();
                                 MainWindowEvent::CopyToClipboard(local_sdp.sdp.clone())
-                            })
+                            }),
                     )
                     .push(
-                        IconButton::new().label("Abort").icon(Icon::Close).build()
-                            .on_press(MainWindowEvent::ClosePopup(if receiver { Some(Page::Home) } else { None }))
-                    )
+                        IconButton::new()
+                            .label("Abort")
+                            .icon(Icon::Close)
+                            .build()
+                            .on_press(MainWindowEvent::ClosePopup(if receiver {
+                                Some(Page::Home)
+                            } else {
+                                None
+                            })),
+                    ),
             )
             .into()
     }
@@ -123,26 +112,34 @@ impl WrtcModal {
             .push(
                 TextInput::new("Paste here the remote SDP.", &self.remote_sdp.sdp)
                     .on_input(move |new_value| {
-                        MainWindowEvent::PopupMessage(
-                            AnyRef::new(new_value)
-                        )
+                        MainWindowEvent::PopupMessage(AnyRef::new(new_value))
                     })
-                    .padding([8, 12])
+                    .padding([8, 12]),
             )
             .push(
                 Row::new()
                     .spacing(12)
                     .push(
-                        IconButton::new().label("Ok").icon(Icon::Ok).build()
+                        IconButton::new()
+                            .label("Ok")
+                            .icon(Icon::Ok)
+                            .build()
                             .on_press_if(!self.remote_sdp.sdp.is_empty(), move || {
                                 rsdp_watcher.cancel();
                                 MainWindowEvent::Ignore
-                            })
+                            }),
                     )
                     .push(
-                        IconButton::new().label("Abort").icon(Icon::Close).build()
-                            .on_press(MainWindowEvent::ClosePopup(if receiver { Some(Page::Home) } else { None }))
-                    )
+                        IconButton::new()
+                            .label("Abort")
+                            .icon(Icon::Close)
+                            .build()
+                            .on_press(MainWindowEvent::ClosePopup(if receiver {
+                                Some(Page::Home)
+                            } else {
+                                None
+                            })),
+                    ),
             )
             .into()
     }
@@ -179,25 +176,32 @@ impl GuiInterface for WrtcModal {
                     self.show_sdp()
                 }
             }
-            400 => {
-                Column::new()
-                    .push(Text::new("Invalid Remote SDP").size(20).font(FONT_FAMILY_BOLD).align_x(alignment::Alignment::Center))
-                    .push(IconButton::new().label("Retry").build().on_press(MainWindowEvent::ShowSDP))
-                    .width(Length::Fill)
-                    .into()
-            }
-            _ => {
-                Column::new()
-                    .push(
-                        Text::new("Connecting...")
-                            .size(20).font(FONT_FAMILY_BOLD)
-                            .align_x(alignment::Alignment::Center)
-                            .align_y(alignment::Alignment::Center)
-                    )
-                    .width(Length::Fill)
-                    .align_x(alignment::Alignment::Center)
-                    .into()
-            }
+            400 => Column::new()
+                .push(
+                    Text::new("Invalid Remote SDP")
+                        .size(20)
+                        .font(FONT_FAMILY_BOLD)
+                        .align_x(alignment::Alignment::Center),
+                )
+                .push(
+                    IconButton::new()
+                        .label("Retry")
+                        .build()
+                        .on_press(MainWindowEvent::ShowSDP),
+                )
+                .width(Length::Fill)
+                .into(),
+            _ => Column::new()
+                .push(
+                    Text::new("Connecting...")
+                        .size(20)
+                        .font(FONT_FAMILY_BOLD)
+                        .align_x(alignment::Alignment::Center)
+                        .align_y(alignment::Alignment::Center),
+                )
+                .width(Length::Fill)
+                .align_x(alignment::Alignment::Center)
+                .into(),
         };
 
         Container::new(content)

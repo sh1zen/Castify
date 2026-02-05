@@ -13,21 +13,18 @@ pub struct Key4Board {
 
 impl Key4Board {
     pub fn new(label: String, size: usize) -> Self {
-        Self {
-            label,
-            size,
-        }
+        Self { label, size }
     }
 
-    pub fn get_label(&self) -> String {
-        self.label.clone()
+    pub fn get_label(&self) -> &str {
+        &self.label
     }
 
-    pub fn from_command(key: Modifiers) -> Key4Board {
-        let label = if key == Modifiers::empty() {
+    pub fn from_command(key: &Modifiers) -> Key4Board {
+        let label = if *key == Modifiers::empty() {
             String::new()
         } else {
-            format!("{:?}", key)
+            format!("{:?}", *key)
                 .trim_start_matches("Modifiers(")
                 .trim_end_matches(')')
                 .to_string()
@@ -35,7 +32,7 @@ impl Key4Board {
         Key4Board::new(label, 3)
     }
 
-    pub fn from_key(key: Key) -> Key4Board {
+    pub fn from_key(key: &Key) -> Key4Board {
         let label = format!("{:?}", key)
             .trim_start_matches("Character(\"")
             .trim_start_matches("Named(")
@@ -44,29 +41,31 @@ impl Key4Board {
             .to_uppercase()
             .replace("SHIFT", "")
             .replace("CONTROL", "")
-            .replace("ALT", "")
-            .to_string();
+            .replace("ALT", "");
         Key4Board::new(label, 2)
     }
 
-    pub fn build<'a, Message: 'a>(self) -> Button<'a, Message>
-    {
+    pub fn build<'a, Message: 'a>(self) -> Button<'a, Message> {
+        let Key4Board { label, size } = self;
         Button::new(
-            Container::new(Text::new(self.label.clone()).font(FONT_FAMILY_BOLD))
+            Container::new(Text::new(label).font(FONT_FAMILY_BOLD))
                 .align_x(alignment::Horizontal::Center)
-                .align_y(alignment::Vertical::Center)
+                .align_y(alignment::Vertical::Center),
         )
-            .padding(Padding { top: 2.0, right: 8.0, bottom: 2.0, left: 8.0 })
-            .height(40)
-            .width(
-                match self.size {
-                    0 => 40,
-                    1 => 60,
-                    2 => 80,
-                    3 => 100,
-                    _ => 120
-                }
-            )
-            .class(ButtonType::KeyBoard)
+        .padding(Padding {
+            top: 2.0,
+            right: 8.0,
+            bottom: 2.0,
+            left: 8.0,
+        })
+        .height(40)
+        .width(match size {
+            0 => 40,
+            1 => 60,
+            2 => 80,
+            3 => 100,
+            _ => 120,
+        })
+        .class(ButtonType::KeyBoard)
     }
 }

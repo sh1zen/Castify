@@ -32,11 +32,17 @@ impl Catalog for StyleType {
         match status {
             Status::Active => active,
             Status::Hovered => Style {
-                background: Background::Color(Color { a: 0.9, ..palette.primary }),
+                background: Background::Color(Color {
+                    a: 0.9,
+                    ..palette.primary
+                }),
                 ..active
             },
-            Status::Opened => Style {
-                background: Background::Color(Color { a: 1.0, ..palette.primary }),
+            Status::Opened { is_hovered: _ } => Style {
+                background: Background::Color(Color {
+                    a: 1.0,
+                    ..palette.primary
+                }),
                 ..active
             },
         }

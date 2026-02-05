@@ -15,15 +15,11 @@ pub struct IconButton {
     color: Option<Color>,
 }
 
-#[allow(dead_code)]
 pub enum Dimensions {
-    Small,
     Medium,
     Large,
-    Auto,
 }
 
-#[allow(dead_code)]
 impl IconButton {
     pub fn new() -> Self {
         Self {
@@ -38,22 +34,6 @@ impl IconButton {
 
     pub fn label(mut self, label: &str) -> Self {
         self.label = Some(String::from(label));
-        self
-    }
-
-    pub fn label_if(mut self, condition: bool, label: String) -> Self {
-        if condition {
-            self.label = Some(label);
-        }
-        self
-    }
-
-    pub fn label_if_else(mut self, condition: bool, if_label: &str, else_label: &str) -> Self {
-        if condition {
-            self.label = Some(String::from(if_label));
-        } else {
-            self.label = Some(String::from(else_label));
-        }
         self
     }
 
@@ -72,54 +52,55 @@ impl IconButton {
         self
     }
 
-    pub fn icon_if_else(mut self, condition: bool, if_icon: Icon, else_label: Icon) -> Self {
-        if condition {
-            self.icon = Some(if_icon);
-        } else {
-            self.icon = Some(else_label);
-        }
-        self
-    }
-
     pub fn size(mut self, size: f32) -> Self {
         self.size = size;
         self
     }
 
-    pub fn build<'a, Message: 'a>(self) -> Button<'a, Message>
-    {
+    pub fn build<'a, Message: 'a>(self) -> Button<'a, Message> {
         let content = if let Some(icon) = self.icon {
             Container::new(
                 Row::new()
                     .spacing(5)
-                    .push(icon.to_text().size(self.size).class(TextType::maybe_colored(self.color)))
-                    .push_if(self.label.is_some(), || Space::with_width(Length::Fill))
-                    .push_if(self.label.is_some(), || Text::new(self.label.unwrap()).size(self.size).font(FONT_FAMILY_BOLD).class(TextType::maybe_colored(self.color)))
-                    .align_y(iced::Alignment::Center)
+                    .push(
+                        icon.to_text()
+                            .size(self.size)
+                            .class(TextType::maybe_colored(self.color)),
+                    )
+                    .push_if(self.label.is_some(), || Space::new().width(Length::Fill))
+                    .push_if(self.label.is_some(), || {
+                        Text::new(self.label.unwrap())
+                            .size(self.size)
+                            .font(FONT_FAMILY_BOLD)
+                            .class(TextType::maybe_colored(self.color))
+                    })
+                    .align_y(iced::Alignment::Center),
             )
         } else {
-            Container::new(Text::new(self.label.unwrap_or("".to_string())).font(FONT_FAMILY_BOLD).class(TextType::maybe_colored(self.color)))
+            Container::new(
+                Text::new(self.label.unwrap_or("".to_string()))
+                    .font(FONT_FAMILY_BOLD)
+                    .class(TextType::maybe_colored(self.color)),
+            )
         };
 
         Button::new(
             content
                 .align_x(Horizontal::Center)
-                .align_y(Vertical::Center)
+                .align_y(Vertical::Center),
         )
-            .padding(Padding {
-                top: 0.0,
-                right: 22.0,
-                bottom: 0.0,
-                left: 22.0,
-            })
-            .height(40)
-            .width(match self.dim {
-                Dimensions::Small => Length::Fixed(80.0),
-                Dimensions::Medium => Length::Fixed(130.0),
-                Dimensions::Large => Length::Fixed(160.0),
-                Dimensions::Auto => Length::Shrink,
-            })
-            .class(self.button_type)
+        .padding(Padding {
+            top: 0.0,
+            right: 22.0,
+            bottom: 0.0,
+            left: 22.0,
+        })
+        .height(40)
+        .width(match self.dim {
+            Dimensions::Medium => Length::Fixed(130.0),
+            Dimensions::Large => Length::Fixed(160.0),
+        })
+        .class(self.button_type)
     }
 
     pub fn dim(mut self, dim: Dimensions) -> Self {
