@@ -1,10 +1,10 @@
+use castbox::AnyRef;
 use crate::config::Config;
 use crate::gui::common::icons::Icon;
 use crate::gui::components::awmodal::GuiInterface;
 use crate::gui::components::button::{Dimensions, IconButton};
 use crate::gui::widget::{Column, Element, IcedButtonExt, Row, TextInput};
 use crate::gui::windows::main::MainWindowEvent;
-use castbox::AnyRef;
 
 pub struct IPModal {
     ip: String,

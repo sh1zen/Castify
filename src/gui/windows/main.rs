@@ -44,45 +44,25 @@ pub enum Page {
 #[derive(Debug, Clone)]
 pub enum MainWindowEvent {
     Home,
-    /// the app mode caster / receiver
     Mode(home::Message),
-    /// caster play pause
     CasterToggleStreaming,
-    /// Set Caster monitor
-    CasterMonitor(u32),
-    /// handle popup messages
+    CasterChangeDisplay(usize),
     PopupMessage(AnyRef),
-    /// close any popup
     ClosePopup(Option<Page>),
-    /// Connect to caster, passing caster ip as String
     ConnectToCaster(String),
-    /// Save the capture
     SaveCapture,
-    /// stop saving capture
     SaveCaptureStop,
-    /// Setup hotkeys
     HotkeysPage,
-    /// handle hot keys request update
     HotkeysTypePage(KeyTypes),
-    /// Request for area selection page
     AreaSelection,
-    /// Messages for handling area selection, set to 0 to restore default screen size
     AreaSelectedFullScreen,
-    /// Quit the app
     ExitApp,
-    /// Open the supplied web page
     OpenWebPage(String),
-    /// Handle animated style change
     ThemeUpdate(iced_anim::event::Event<StyleType>),
-    /// handle the launch of annotation window
     ShowAnnotationWindow,
-    /// program info
     OpenInfo,
-    /// Ignore the event
     Ignore,
-    /// Show WebRTC SDP
     ShowSDP,
-    /// Copy Text To Clipboard
     CopyToClipboard(String),
 }
 
@@ -97,7 +77,10 @@ pub struct MainWindow {
 impl MainWindow {
     pub fn new() -> Self {
         Self {
-            theme: Animated::new(StyleType::default(), iced_anim::animated::Mode::Spring(iced_anim::spring::Motion::SMOOTH)),
+            theme: Animated::new(
+                StyleType::default(),
+                iced_anim::animated::Mode::Spring(iced_anim::spring::Motion::SMOOTH),
+            ),
             page: Page::Home,
             popup: AwModalManager::new(),
             video: Video::new(),
@@ -108,6 +91,19 @@ impl MainWindow {
     pub fn change_page(&mut self, page: Page) {
         self.prev_page = self.page;
         self.page = page;
+    }
+
+    /// Collega il canale video dal Receiver al componente Video per il rendering.
+    fn attach_video_stream(&mut self, receiver: &mut Receiver) {
+        if let Some(rx) = receiver.launch(true) {
+            self.video.set_stream(rx, FRAME_WITH, FRAME_HEIGHT, FRAME_RATE);
+        }
+    }
+
+    fn attach_video_stream_manual(&mut self, receiver: &mut Receiver) {
+        if let Some(rx) = receiver.launch(false) {
+            self.video.set_stream(rx, FRAME_WITH, FRAME_HEIGHT, FRAME_RATE);
+        }
     }
 }
 
@@ -130,7 +126,7 @@ impl GuiWindow for MainWindow {
             MainWindowEvent::Mode(mode) => {
                 match mode {
                     home::Message::ButtonCaster => {
-                        config.mode = Some(Mode::Caster(Caster::new(config.sos.clone())));
+                        config.mode = Some(Mode::Caster(Caster::new(config.fps, config.sos.clone())));
                         self.change_page(Page::Caster);
                     }
                     home::Message::ButtonReceiver => {
@@ -149,51 +145,53 @@ impl GuiWindow for MainWindow {
                         Some(caster.get_connection_handler() as Arc<dyn SDPICEExchangeWRTC>)
                     }
                     Some(Mode::Receiver(receiver)) => {
-                        if let Some(pipeline) = receiver.launch(false) {
-                            self.video.set_pipeline(pipeline, FRAME_WITH, FRAME_HEIGHT, gstreamer::Fraction::new(FRAME_RATE, 1));
-                        }
+                        self.attach_video_stream_manual(receiver);
                         self.page = Page::Client;
                         Some(receiver.get_connection_handler() as Arc<dyn SDPICEExchangeWRTC>)
                     }
                     _ => None,
                 } {
-                    self.popup.set(PopupType::ManualWRTC(WrtcModal::new(is_caster)));
+                    self.popup
+                        .set(PopupType::ManualWRTC(WrtcModal::new(is_caster)));
                     self.popup.show();
 
-                    let mut popup = self.popup.clone();
+                    let sdp = sdp_provider.clone();
 
                     Task::future(async move {
-                        let binding = popup.get_mut_ref().unwrap();
-                        let wrtc_popup = binding.as_mut_any().downcast_mut::<WrtcModal>().unwrap();
-
-                        wrtc_popup.set_sdp_provider(sdp_provider).await;
-                        wrtc_popup.handle_sdp_negotiation(true).await;
-                        wrtc_popup.handle_sdp_negotiation(false).await;
+                        let remote_sdp = sdp.get_sdp().await;
+                        if !remote_sdp.starts_with("Wrong") {
+                            sdp.set_remote_sdp(remote_sdp).await;
+                        }
 
                         sleep(Duration::from_millis(1500)).await;
-
-                        popup.remove();
                         AppEvent::Ignore
                     })
                 } else {
                     Task::none()
                 }
             }
-            MainWindowEvent::CasterToggleStreaming => { Task::done(AppEvent::CasterToggleStreaming) }
-            MainWindowEvent::CasterMonitor(mon) => {
+            MainWindowEvent::CasterToggleStreaming => Task::done(AppEvent::CasterToggleStreaming),
+            MainWindowEvent::CasterChangeDisplay(idx) => {
                 if let Some(Mode::Caster(caster)) = &mut config.mode {
-                    caster.change_monitor(mon);
+                    let displays = caster.get_displays();
+                    if let Some(display) = displays.into_iter().nth(idx) {
+                        caster.change_display(display);
+                    }
                 }
                 Task::none()
             }
             MainWindowEvent::PopupMessage(value) => {
-                self.popup.get_mut_ref().unwrap().as_mut_gui().update(value, config);
+                self.popup
+                    .get_mut_ref()
+                    .unwrap()
+                    .as_mut_gui()
+                    .update(value, config);
                 Task::none()
             }
             MainWindowEvent::ClosePopup(page) => {
                 self.popup.hide();
-                if page.is_some() {
-                    self.page = page.unwrap();
+                if let Some(p) = page {
+                    self.page = p;
                 }
                 Task::none()
             }
@@ -203,7 +201,8 @@ impl GuiWindow for MainWindow {
             }
             MainWindowEvent::HotkeysTypePage(key) => {
                 config.shortcuts.updating = key;
-                self.popup.set(PopupType::HotkeyUpdate(ShortcutModal::new().set_key(key)));
+                self.popup
+                    .set(PopupType::HotkeyUpdate(ShortcutModal::new().set_key(key)));
                 self.popup.show();
                 Task::none()
             }
@@ -214,7 +213,7 @@ impl GuiWindow for MainWindow {
                     return Task::none();
                 };
                 if caster_ip != "auto" {
-                    if !caster_ip.contains(":") {
+                    if !caster_ip.contains(':') {
                         caster_ip = format!("{}:{}", caster_ip, CAST_SERVICE_PORT);
                     }
 
@@ -223,16 +222,17 @@ impl GuiWindow for MainWindow {
                             client.set_caster_addr(caster_socket_addr);
                         }
                         Err(_) => {
-                            self.popup.get_mut_ref().unwrap().as_mut_gui().update(AnyRef::new(String::from("")), config);
+                            self.popup
+                                .get_mut_ref()
+                                .unwrap()
+                                .as_mut_gui()
+                                .update(AnyRef::new(String::from("")), config);
                             return Task::none();
                         }
                     }
                 }
 
-                if let Some(pipeline) = client.launch(true) {
-                    self.video.set_pipeline(pipeline, FRAME_WITH, FRAME_HEIGHT, gstreamer::Fraction::new(FRAME_RATE, 1));
-                }
-
+                self.attach_video_stream(client);
                 Task::none()
             }
             MainWindowEvent::SaveCapture => {
@@ -258,11 +258,13 @@ impl GuiWindow for MainWindow {
                 }
                 Task::none()
             }
-            MainWindowEvent::ShowAnnotationWindow => { Task::done(AppEvent::OpenAnnotationWindow) }
-            MainWindowEvent::OpenWebPage(s) => { Task::done(AppEvent::OpenWebPage(s)) }
-            MainWindowEvent::AreaSelection => { Task::done(AppEvent::OpenAreaSelectionWindow) }
-            MainWindowEvent::AreaSelectedFullScreen => { Task::done(AppEvent::AreaSelected(ScreenRect::default())) }
-            MainWindowEvent::ExitApp => { Task::done(AppEvent::ExitApp) }
+            MainWindowEvent::ShowAnnotationWindow => Task::done(AppEvent::OpenAnnotationWindow),
+            MainWindowEvent::OpenWebPage(s) => Task::done(AppEvent::OpenWebPage(s)),
+            MainWindowEvent::AreaSelection => Task::done(AppEvent::OpenAreaSelectionWindow),
+            MainWindowEvent::AreaSelectedFullScreen => {
+                Task::done(AppEvent::AreaSelected(ScreenRect::default()))
+            }
+            MainWindowEvent::ExitApp => Task::done(AppEvent::ExitApp),
             MainWindowEvent::ThemeUpdate(event) => self.theme.update(event).into(),
             MainWindowEvent::Ignore => Task::none(),
             MainWindowEvent::CopyToClipboard(text) => {
@@ -276,26 +278,14 @@ impl GuiWindow for MainWindow {
 
     fn view(&self, config: &Config) -> Element<'_, MainWindowEvent> {
         let body = match self.page {
-            Page::Home => {
-                initial_page(&self, config)
-            }
-            Page::Caster => {
-                caster_page(config)
-            }
-            Page::Client => {
-                client_page(&self.video, config)
-            }
-            Page::Hotkeys => {
-                hotkeys()
-            }
-            Page::Info => {
-                info_page()
-            }
+            Page::Home => initial_page(self, config),
+            Page::Caster => caster_page(config),
+            Page::Client => client_page(&self.video, config),
+            Page::Hotkeys => hotkeys(),
+            Page::Info => info_page(),
         };
 
-        let mut content = Column::new()
-            .push(body)
-            .push(footer());
+        let mut content = Column::new().push(body).push(footer());
 
         if self.popup.is_visible() {
             let darkened_background = Container::new(Space::new(0, 0))
@@ -303,15 +293,11 @@ impl GuiWindow for MainWindow {
                 .height(Length::Fill)
                 .class(ContainerType::DarkFilter);
 
-            content = Column::new()
-                .push(
-                    Container::new(
-                        Stack::new()
-                            //.push(content)
-                            .push(darkened_background)
-                            .push(self.popup.render(config))
-                    )
-                );
+            content = Column::new().push(Container::new(
+                Stack::new()
+                    .push(darkened_background)
+                    .push(self.popup.render(config)),
+            ));
         }
 
         Animation::new(&self.theme, content)

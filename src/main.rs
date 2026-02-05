@@ -1,12 +1,9 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use crate::config::{app_id, app_name, app_version};
 use crate::utils::flags::Flags;
 use clap::{Arg, Command};
 use interprocess::local_socket::traits::Stream;
 use interprocess::local_socket::{GenericNamespaced, ToNsName};
 use std::{panic, process};
-use native_dialog::DialogBuilder;
 
 pub mod gui;
 pub mod utils;
@@ -14,6 +11,8 @@ pub mod workers;
 pub mod assets;
 pub mod config;
 pub mod xmacro;
+pub mod capture;
+pub mod encoder;
 
 fn main() {
     let app_name = Box::leak(app_name().into_boxed_str());
@@ -48,8 +47,6 @@ fn main() {
         };
     }
 
-    let os_supported = gstreamer::init().is_ok();
-
     // kill the main thread as soon as a secondary thread panics
     let orig_hook = panic::take_hook();
     panic::set_hook(Box::new(move |panic_info| {
@@ -62,16 +59,6 @@ fn main() {
     ctrlc::set_handler(move || {
         process::exit(130);
     }).expect("Error setting Ctrl-C handler");
-
-    if !os_supported {
-        if let Err(e) = DialogBuilder::message()
-            .set_text("OS not yet supported.")
-            .alert()
-            .show()
-        {
-            eprintln!("Failed to display error dialog: {e:?}");
-        }
-    }
 
     gui::run(Flags {
         multi_instance: multi_instances

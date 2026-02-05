@@ -5,6 +5,8 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 
+use crate::assets::FRAME_RATE;
+
 pub struct WebRTCCaster {
     sos: SignalOfStop,
     peers: Arc<Mutex<Vec<Arc<WRTCPeer>>>>,
@@ -40,34 +42,29 @@ impl WebRTCCaster {
         }
     }
 
-    pub fn send_video_frames(&self, mut receiver: tokio::sync::mpsc::Receiver<gstreamer::Buffer>) {
+    pub fn send_video_frames(&self, mut receiver: tokio::sync::mpsc::Receiver<Vec<u8>>) {
         let peers = Arc::clone(&self.peers);
+        let frame_duration = Duration::from_millis(1000 / FRAME_RATE as u64);
 
         self.sos.spawn(async move {
-            while let Some(buffer) = receiver.recv().await {
-                if peers.lock().await.len() == 0 {
+            while let Some(data) = receiver.recv().await {
+                if peers.lock().await.is_empty() {
                     sleep(Duration::from_millis(100)).await;
                     continue;
                 }
 
-                let Ok(map) = buffer.map_readable() else {
-                    continue;
-                };
-
-                let sample = Arc::new(
-                    webrtc::media::Sample {
-                        data: map.as_slice().to_vec().into(),
-                        duration: Duration::from(buffer.duration().unwrap_or_default()),
-                        ..Default::default()
-                    }
-                );
+                let sample = Arc::new(webrtc::media::Sample {
+                    data: data.into(),
+                    duration: frame_duration,
+                    ..Default::default()
+                });
 
                 peers.lock().await.retain(|peer| {
                     if peer.is_online() {
-                        let peer = Arc::clone(&peer);
-                        let sample_clone = Arc::clone(&sample);
+                        let peer = Arc::clone(peer);
+                        let sample = Arc::clone(&sample);
                         tokio::spawn(async move {
-                            let _ = peer.video_track.write_sample(&sample_clone).await;
+                            let _ = peer.video_track.write_sample(&sample).await;
                         });
                         true
                     } else {

@@ -7,7 +7,7 @@ use crate::gui::style::container::ContainerType;
 use crate::gui::widget::{horizontal_space, vertical_space, Column, Container, Element, PickList, Text};
 use crate::gui::windows::main::MainWindowEvent;
 use crate::row;
-use crate::utils::{format_seconds, get_string_after};
+use crate::utils::format_seconds;
 use iced::alignment::{Horizontal, Vertical};
 use iced::Length;
 
@@ -47,7 +47,7 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
     } else {
         content
             .push(
-                Container::new(row![monitors_picklist(config)])
+                Container::new(row![displays_picklist(config)])
                     .center(Length::Fill).height(80).class(ContainerType::Standard)
             )
             .push(
@@ -113,38 +113,43 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
         .into()
 }
 
-fn monitor_name(id: u32) -> String {
-    format!("Monitor #{}", id)
+fn display_name(idx: usize) -> String {
+    format!("Display #{}", idx + 1)
 }
 
-fn monitors_picklist(config: &Config) -> Container<'static, MainWindowEvent> {
-    let mut content = Column::new();
-
+fn displays_picklist(config: &Config) -> Container<'static, MainWindowEvent> {
     let Some(crate::config::Mode::Caster(caster)) = &config.mode else {
         unreachable!("Mode must be Caster here")
     };
 
-    let mut monitors = Vec::new();
+    let displays = caster.get_displays();
 
-    for monitor_id in caster.get_monitors() {
-        monitors.push(monitor_name(monitor_id));
-    }
-
-    if monitors.len() == 0 {
+    if displays.is_empty() {
         return Container::new(iced::widget::Space::new(0, 0));
     }
 
-    let selected = monitor_name(caster.current_monitor_id());
-    content = content
-        .push(
-            PickList::new(
-                monitors,
-                Some(selected),
-                |val| {
-                    MainWindowEvent::CasterMonitor(get_string_after(val.clone(), '#').trim().parse::<u32>().unwrap())
-                },
-            ).padding([11, 8])
-        );
+    let options: Vec<String> = (0..displays.len())
+        .map(display_name)
+        .collect();
+
+    // Per ora selezioniamo il primo come default
+    let selected = display_name(0);
+
+    let content = Column::new().push(
+        PickList::new(
+            options,
+            Some(selected),
+            |val| {
+                // Estrai l'indice dal nome "Display #N"
+                let idx = val
+                    .trim_start_matches("Display #")
+                    .parse::<usize>()
+                    .unwrap_or(1)
+                    - 1;
+                MainWindowEvent::CasterChangeDisplay(idx)
+            },
+        ).padding([11, 8])
+    );
 
     Container::new(content)
         .align_x(Horizontal::Center)

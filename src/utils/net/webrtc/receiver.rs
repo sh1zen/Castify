@@ -6,11 +6,10 @@ use async_tungstenite::tokio::{connect_async, ConnectStream};
 use async_tungstenite::tungstenite::handshake::client::Response;
 use async_tungstenite::tungstenite::Error;
 use async_tungstenite::WebSocketStream;
-use castbox::Arw;
 use std::sync::Arc;
-use tokio::sync::mpsc::error::SendError;
+use castbox::Arw;
+use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
-use webrtc::rtp::packet::Packet;
 use webrtc::rtp_transceiver::rtp_receiver::RTCRtpReceiver;
 use webrtc::rtp_transceiver::RTCRtpTransceiver;
 use webrtc::track::track_remote::TrackRemote;
@@ -48,9 +47,7 @@ impl WebRTCReceiver {
             conn = self.sos.select(async move { connect_async(&*ws_c).await }).await.unwrap_or(Err(Error::ConnectionClosed));
         }
 
-        // Connect to the signaling server
         let (ws_stream, _) = conn.unwrap();
-
         let peer = self.get_lazy_peer().await;
 
         self.sos.spawn(async move {
@@ -60,14 +57,11 @@ impl WebRTCReceiver {
         Ok(())
     }
 
-    pub async fn receive_video(&self, tx: tokio::sync::mpsc::Sender<Packet>) {
+    pub async fn receive_video(&self, tx: Sender<Vec<u8>>) {
         let tx = Arc::new(Mutex::new(tx));
         let sos = self.sos.clone();
-        // Set up the event handler for incoming tracks
+
         self.get_lazy_peer().await.get_connection().on_track(Box::new(move |track: Arc<TrackRemote>, _receiver: Arc<RTCRtpReceiver>, _transceiver: Arc<RTCRtpTransceiver>| {
-            // Send a PLI on an interval so that the publisher is pushing a keyframe every rtcpPLIInterval
-            //let media_ssrc = track.ssrc();
-            //let codec = track.codec();
             let sos = sos.clone();
 
             Box::pin({
@@ -75,12 +69,15 @@ impl WebRTCReceiver {
                 async move {
                     sos.spawn(async move {
                         while let Ok((packet, _)) = track.read_rtp().await {
-                            match tx.lock().await.send(packet).await {
-                                Err(SendError(e)) => {
-                                    println!("Error channel packet {}", e);
-                                    break;
-                                }
-                                _ => {}
+                            // Estrai il payload H.264 dal pacchetto RTP
+                            let payload = packet.payload.to_vec();
+                            if payload.is_empty() {
+                                continue;
+                            }
+
+                            if let Err(e) = tx.lock().await.send(payload).await {
+                                log::error!("Video frame channel closed: {}", e);
+                                break;
                             }
                         }
                     });

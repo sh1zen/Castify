@@ -1,5 +1,4 @@
 use iced::Point;
-pub mod gist;
 pub mod net;
 pub mod sos;
 pub mod bimap;

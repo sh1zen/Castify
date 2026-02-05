@@ -5,7 +5,6 @@ use crate::utils::sos::SignalOfStop;
 use crate::utils::string::capitalize_first_letter;
 use crate::workers::caster::Caster;
 use crate::workers::receiver::Receiver;
-use crate::workers::WorkerClose;
 use castbox::Arw;
 use chrono::Local;
 use iced::keyboard::key::Named;
@@ -15,6 +14,7 @@ use local_ip_address::local_ip;
 use native_dialog::DialogBuilder;
 use std::net::{IpAddr, Ipv4Addr};
 use std::ops::DerefMut;
+use crate::workers::WorkerClose;
 
 pub enum Mode {
     Caster(Caster),
@@ -24,8 +24,8 @@ pub enum Mode {
 impl Mode {
     pub fn close(&mut self) {
         match self {
-            Mode::Caster(closable) => closable.close(),
-            Mode::Receiver(closable) => closable.close(),
+            Mode::Caster(caster) => caster.close(),
+            Mode::Receiver(receiver) => receiver.close(),
         }
     }
 }
@@ -60,7 +60,7 @@ pub struct Config {
     pub local_ip: Option<Ipv4Addr>,
     pub sos: SignalOfStop,
     pub multi_instance: bool,
-    pub fps: Option<u64>,
+    pub fps: u32,
 }
 
 impl Config {
@@ -79,7 +79,7 @@ impl Config {
                 }),
             sos: SignalOfStop::new(),
             multi_instance: flags.multi_instance,
-            fps: None,
+            fps: 30,
         };
 
         let public_ip = Arw::clone(&conf.public_ip);
@@ -93,8 +93,7 @@ impl Config {
     }
 
     pub fn reset_mode(&mut self) {
-        if self.mode.is_some() {
-            let mut mode = self.mode.take().unwrap();
+        if let Some(mut mode) = self.mode.take() {
             mode.close();
         }
     }
@@ -110,19 +109,16 @@ pub fn saving_path() -> String {
         .add_filter("Video", &["mp4", "mov"])
         .save_single_file().show().unwrap();
 
-    if let Some(path) = save_p
-    {
+    if let Some(path) = save_p {
         path.into_os_string().into_string().unwrap()
     } else {
         default_path
     }
 }
 
-/// Returns a version as specified in Cargo.toml
 pub fn app_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
-
 
 pub fn app_name() -> String {
     capitalize_first_letter(env!("CARGO_PKG_NAME"))

@@ -1,89 +1,92 @@
-use crate::utils::gist::create_save_pipeline;
-use gstreamer::prelude::{Cast, ElementExt, GstBinExt};
-use gstreamer::{ClockTime, FlowSuccess, MessageView, Pipeline, StateChangeSuccess};
-use gstreamer_app::{gst, AppSrc};
 use std::sync::Arc;
+use log::{info, error};
 use tokio::sync::mpsc::Receiver;
+use tokio::sync::Mutex;
+use tokio::io::AsyncWriteExt;
 
 #[derive(Debug)]
 pub struct SaveStream {
-    saver_channel: Arc<tokio::sync::Mutex<Receiver<gstreamer::Buffer>>>,
-    is_saving: Arc<tokio::sync::Mutex<bool>>,
-    pipeline: Arc<tokio::sync::Mutex<Pipeline>>,
+    saver_channel: Arc<Mutex<Receiver<Vec<u8>>>>,
+    is_saving: Arc<Mutex<bool>>,
+    /// Segnale per interrompere il loop di scrittura
+    stop_tx: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
 impl SaveStream {
-    pub fn new(saver_channel: Arc<tokio::sync::Mutex<Receiver<gstreamer::Buffer>>>) -> Self {
+    pub fn new(saver_channel: Arc<Mutex<Receiver<Vec<u8>>>>) -> Self {
         Self {
             saver_channel,
-            is_saving: Arc::new(tokio::sync::Mutex::new(false)),
-            pipeline: Default::default(),
+            is_saving: Arc::new(Mutex::new(false)),
+            stop_tx: None,
         }
     }
 
     pub fn start(&mut self, path: String) {
-        let pipeline = create_save_pipeline(path).unwrap();
+        *self.is_saving.blocking_lock() = true;
 
-        if let Some(appsrc) = pipeline.by_name("appsrc").and_then(|elem| elem.downcast::<AppSrc>().ok()) {
-            if pipeline.set_state(gst::State::Playing).is_err() {
-                return;
-            }
-            *self.pipeline.blocking_lock() = pipeline;
-            *self.is_saving.blocking_lock() = true;
+        let is_saving = Arc::clone(&self.is_saving);
+        let saver_channel = Arc::clone(&self.saver_channel);
+        let (stop_tx, stop_rx) = tokio::sync::oneshot::channel::<()>();
+        self.stop_tx = Some(stop_tx);
 
-            let available = Arc::clone(&self.is_saving);
-            let saver_channel = Arc::clone(&self.saver_channel);
-            let pipeline = Arc::clone(&self.pipeline);
+        tokio::spawn(async move {
+            // Apri il file di output
+            let file = match tokio::fs::File::create(&path).await {
+                Ok(f) => f,
+                Err(e) => {
+                    error!("Failed to create save file '{}': {}", path, e);
+                    *is_saving.lock().await = false;
+                    return;
+                }
+            };
 
-            tokio::spawn(async move {
-                loop {
-                    if !*available.lock().await {
-                        break;
-                    }
+            let mut writer = tokio::io::BufWriter::new(file);
+            let mut stop_rx = stop_rx;
 
-                    let buffer = saver_channel.lock().await.recv().await;
-                    if let Some(buffer) = buffer {
-                        if appsrc.push_buffer(buffer).is_err() {
-                            *available.lock().await = false;
-                            appsrc.end_of_stream().unwrap_or(FlowSuccess::Ok);
-                            pipeline.lock().await.set_state(gstreamer::State::Null).unwrap();
+            info!("SaveStream started → {}", path);
+
+            loop {
+                let data = {
+                    let mut rx = saver_channel.lock().await;
+                    tokio::select! {
+                        frame = rx.recv() => frame,
+                        _ = &mut stop_rx => {
+                            info!("SaveStream stop signal received");
                             break;
                         }
                     }
+                };
+
+                let Some(data) = data else {
+                    info!("Saver channel closed");
+                    break;
+                };
+
+                if !*is_saving.lock().await {
+                    break;
                 }
-            });
-        }
+
+                if let Err(e) = writer.write_all(&data).await {
+                    error!("Write error: {}", e);
+                    break;
+                }
+            }
+
+            // Flush e chiudi
+            if let Err(e) = writer.flush().await {
+                error!("Flush error on save file: {}", e);
+            }
+
+            *is_saving.lock().await = false;
+            info!("SaveStream finished → {}", path);
+        });
     }
 
     pub fn stop(&mut self) {
-        let is_saving = Arc::clone(&self.is_saving);
-        let pipeline = Arc::clone(&self.pipeline);
-
-        tokio::spawn(async move {
-            let mut pipeline = pipeline.lock().await;
-
-            match &pipeline
-                .by_name("appsrc").and_then(|elem| elem.downcast::<AppSrc>().ok()) {
-                Some(appsrc) => {
-                    appsrc.end_of_stream().unwrap_or(FlowSuccess::Ok);
-                    if let Some(bus) = pipeline.bus()
-                    {
-                        for msg in bus.iter_timed(Some(ClockTime::from_mseconds(10))) {
-                            match msg.view() {
-                                MessageView::Eos(_) => {
-                                    pipeline.set_state(gstreamer::State::Null).unwrap_or(StateChangeSuccess::NoPreroll);
-                                    break;
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-            *is_saving.lock().await = false;
-            *pipeline = Pipeline::new();
-        });
+        // Invia il segnale di stop al task
+        if let Some(tx) = self.stop_tx.take() {
+            let _ = tx.send(());
+        }
     }
 
     pub fn is_saving(&self) -> bool {

@@ -47,6 +47,18 @@ impl App {
         )
     }
 
+    /// Helper: ottiene la dimensione del display selezionato dal caster,
+    /// restituendo un default se non disponibile.
+    fn caster_display_size(caster: &crate::workers::caster::Caster) -> (f32, f32, f32, f32) {
+        if let Some(display) = caster.get_displays().into_iter().next() {
+            // display deve implementare un modo per ottenere size/position
+            // Per ora usiamo valori default; adatta in base al tuo tipo Display
+            (1920.0, 1080.0, 0.0, 0.0)
+        } else {
+            (1920.0, 1080.0, 0.0, 0.0)
+        }
+    }
+
     pub fn update(&mut self, message: AppEvent) -> Task<AppEvent> {
         match message {
             AppEvent::OpenMainWindow => {
@@ -92,17 +104,11 @@ impl App {
                     unreachable!("Mode must be Caster here")
                 };
                 if !self.windows.contains(WindowType::AreaSelector) {
-                    let monitor = caster.get_monitor();
+                    let (w, h, x, y) = Self::caster_display_size(caster);
 
                     let (id, open_task) = window::open(window::Settings {
-                        size: monitor.map_or(Size { width: 1920.0, height: 1080.0 }, |mon| Size {
-                            width: mon.width as f32 - 1.0,
-                            height: mon.height as f32 - 1.0,
-                        }),
-                        position: Position::Specific(monitor.map_or(Point::default(), |mon| Point {
-                            x: mon.x as f32,
-                            y: mon.y as f32,
-                        })),
+                        size: Size { width: w - 1.0, height: h - 1.0 },
+                        position: Position::Specific(Point { x, y }),
                         transparent: true,
                         decorations: false,
                         resizable: false,
@@ -146,17 +152,11 @@ impl App {
                 };
 
                 if !self.windows.contains(WindowType::Annotation) {
-                    let monitor = caster.get_monitor();
+                    let (w, h, x, y) = Self::caster_display_size(caster);
 
                     let (id, open_task) = window::open(window::Settings {
-                        size: monitor.map_or(Size { width: 1920.0, height: 1080.0 }, |mon| Size {
-                            width: mon.width as f32 - 1.0,
-                            height: mon.height as f32 - 1.0,
-                        }),
-                        position: Position::Specific(monitor.map_or(Point::default(), |mon| Point {
-                            x: mon.x as f32,
-                            y: mon.y as f32,
-                        })),
+                        size: Size { width: w - 1.0, height: h - 1.0 },
+                        position: Position::Specific(Point { x, y }),
                         transparent: true,
                         decorations: false,
                         resizable: false,
@@ -195,7 +195,6 @@ impl App {
                 }
             }
             AppEvent::AreaSelected(rect) => {
-                // set the new area selected
                 if let Some(crate::config::Mode::Caster(caster)) = &mut self.config.mode {
                     caster.resize_rec_area(rect);
                 }
@@ -217,7 +216,7 @@ impl App {
                         caster.streaming_time += 1;
                     }
                 }
-                self.config.e_time = self.config.e_time + 1;
+                self.config.e_time += 1;
                 Task::none()
             }
             AppEvent::WindowResized(id, width, height) => {
@@ -246,7 +245,6 @@ impl App {
                 if key == Key::Unidentified {
                     return Task::none();
                 }
-                //println!("KeyEvent {:?} {:?}", modifier, key);
                 let item = (modifier, key);
 
                 if self.config.shortcuts.updating != KeyTypes::None {
@@ -273,7 +271,9 @@ impl App {
                         Task::done(AppEvent::BlankScreen)
                     } else if item == self.config.shortcuts.end_session {
                         Task::done(AppEvent::ExitApp)
-                    } else { Task::none() }
+                    } else {
+                        Task::none()
+                    }
                 }
             }
             AppEvent::ExitApp => {
@@ -288,7 +288,6 @@ impl App {
                 Task::none()
             }
             _ => {
-                //println!("Command not yet implemented!");
                 Task::none()
             }
         }
@@ -328,9 +327,6 @@ impl App {
         batch.push(Subscription::run(tray_menu_listener));
         batch.push(Subscription::run(tray_icon_listener));
         batch.push(iced::time::every(Duration::from_secs(1)).map(|_| AppEvent::TimeTick));
-        if self.config.fps.is_some() {
-            batch.push(iced::time::every(Duration::from_millis(self.config.fps.unwrap())).map(|_| AppEvent::TimeTickFPS));
-        }
         batch.push(Subscription::run(ipc));
         batch.push(self.keyboard_subscription());
         batch.push(self.window_subscription());

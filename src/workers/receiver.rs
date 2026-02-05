@@ -1,33 +1,36 @@
+use std::net::SocketAddr;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use log::{info, error};
+use tokio::sync::{mpsc, Mutex};
 use crate::assets::FRAME_RATE;
 use crate::utils::net::common::find_caster;
 use crate::utils::net::webrtc::WebRTCReceiver;
-use crate::utils::result_to_option;
 use crate::utils::sos::SignalOfStop;
 use crate::workers::save_stream::SaveStream;
 use crate::workers::WorkerClose;
-use gstreamer::Pipeline;
-use std::net::SocketAddr;
-use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 pub struct Receiver {
     is_streaming: Arc<AtomicBool>,
     save_stream: Option<SaveStream>,
     caster_addr: Option<SocketAddr>,
-    save_rx: Option<Arc<Mutex<tokio::sync::mpsc::Receiver<gstreamer::Buffer>>>>,
+    /// Canale dove arrivano i frame H.264 decodificati dal WebRTC
+    frame_rx: Option<Arc<Mutex<mpsc::Receiver<Vec<u8>>>>>,
+    /// Canale usato dal SaveStream per ricevere copie dei frame
+    save_rx: Option<Arc<Mutex<mpsc::Receiver<Vec<u8>>>>>,
     local_sos: SignalOfStop,
     handler: Arc<WebRTCReceiver>,
 }
 
 impl Receiver {
     pub fn new(sos: SignalOfStop) -> Self {
-        Receiver {
+        Self {
             is_streaming: Arc::new(AtomicBool::new(false)),
             save_stream: None,
             caster_addr: None,
+            frame_rx: None,
             save_rx: None,
-            local_sos: sos.clone(),
+            local_sos: sos,
             handler: Arc::new(WebRTCReceiver::new()),
         }
     }
@@ -36,58 +39,86 @@ impl Receiver {
         self.caster_addr = Some(addr);
     }
 
-    pub fn launch(&mut self, auto: bool) -> Option<Pipeline> {
-        let (save_tx, save_rx) = tokio::sync::mpsc::channel(FRAME_RATE as usize);
+    /// Avvia la connessione al caster e ritorna il canale con i frame
+    /// video da renderizzare (al posto della vecchia Pipeline GStreamer).
+    pub fn launch(&mut self, auto: bool) -> Option<mpsc::Receiver<Vec<u8>>> {
+        // Canale principale: WebRTC → display
+        let (video_tx, video_rx) = mpsc::channel::<Vec<u8>>(FRAME_RATE as usize);
+        // Canale per il salvataggio stream
+        let (save_tx, save_rx) = mpsc::channel::<Vec<u8>>(FRAME_RATE as usize);
 
         self.save_rx = Some(Arc::new(Mutex::new(save_rx)));
 
-        let pipeline: Option<Pipeline> = {
-            let (tx, rx) = tokio::sync::mpsc::channel(1);
+        let is_streaming = Arc::clone(&self.is_streaming);
+        let mut caster_addr = self.caster_addr;
+        let handler = Arc::clone(&self.handler);
 
-            let is_streaming = Arc::clone(&self.is_streaming);
-            let mut caster_addr = self.caster_addr;
-            let handler = Arc::clone(&self.handler);
-
-            tokio::spawn(async move {
-                if auto {
-                    if caster_addr.is_none() {
-                        caster_addr = find_caster();
-                    }
-
-                    if let Some(socket_addr) = caster_addr {
-                        let addr: &str = &format!("ws://{}", &(socket_addr.to_string()));
-
-                        println!("Connecting to caster at {:?}", addr);
-
-                        if handler.connect(addr).await.is_err() {
-                            // todo handle error
-                        }
-                    }
+        // Task di connessione + ricezione
+        tokio::spawn(async move {
+            // Auto-discovery del caster se necessario
+            if auto {
+                if caster_addr.is_none() {
+                    caster_addr = find_caster();
                 }
 
-                if handler.is_connected().await {
-                    is_streaming.store(true, std::sync::atomic::Ordering::Relaxed);
-                    handler.receive_video(tx).await;
+                if let Some(socket_addr) = caster_addr {
+                    let addr = format!("ws://{}", socket_addr);
+                    info!("Connecting to caster at {}", addr);
+
+                    if let Err(e) = handler.connect(&addr).await {
+                        error!("Failed to connect to caster: {}", e);
+                        return;
+                    }
+                } else {
+                    error!("No caster found");
+                    return;
                 }
-            });
+            }
 
-            result_to_option(crate::utils::gist::create_view_pipeline(rx, save_tx))
-        };
+            if !handler.is_connected().await {
+                error!("Not connected to caster");
+                return;
+            }
 
-        pipeline
+            is_streaming.store(true, Ordering::Relaxed);
+            info!("Streaming started");
+
+            // Canale interno dal WebRTC handler
+            let (raw_tx, mut raw_rx) = mpsc::channel::<Vec<u8>>(FRAME_RATE as usize);
+            handler.receive_video(raw_tx).await;
+
+            // Fan-out: ogni frame va sia al display che al saver
+            while let Some(frame) = raw_rx.recv().await {
+                // Copia per il salvataggio (best-effort, non blocca)
+                let _ = save_tx.try_send(frame.clone());
+
+                // Frame per il rendering
+                if video_tx.send(frame).await.is_err() {
+                    info!("Video display channel closed, stopping");
+                    break;
+                }
+            }
+
+            is_streaming.store(false, Ordering::Relaxed);
+            info!("Streaming ended");
+        });
+
+        Some(video_rx)
+    }
+
+    // ── Stato ───────────────────────────────────────────────────
+
+    pub fn is_streaming(&self) -> bool {
+        self.is_streaming.load(Ordering::Relaxed)
     }
 
     pub fn is_saving(&self) -> bool {
-        if let Some(save_stream) = &self.save_stream {
-            save_stream.is_saving()
-        } else {
-            false
-        }
+        self.save_stream
+            .as_ref()
+            .map_or(false, |s| s.is_saving())
     }
 
-    pub fn is_streaming(&self) -> bool {
-        self.is_streaming.load(std::sync::atomic::Ordering::Relaxed)
-    }
+    // ── Salvataggio stream ──────────────────────────────────────
 
     pub fn save_stream(&mut self, path: String) {
         if let Some(saver_channel) = &self.save_rx {
@@ -103,11 +134,14 @@ impl Receiver {
         }
     }
 
+    // ── WebRTC ──────────────────────────────────────────────────
+
     pub fn get_connection_handler(&self) -> Arc<WebRTCReceiver> {
         Arc::clone(&self.handler)
     }
 }
 
+// ── Cleanup ─────────────────────────────────────────────────────
 
 impl WorkerClose for Receiver {
     fn close(&mut self) {
@@ -116,6 +150,8 @@ impl WorkerClose for Receiver {
         tokio::spawn(async move {
             handler.close().await;
         });
+        self.is_streaming.store(false, Ordering::Relaxed);
         self.local_sos.cancel();
+        info!("Receiver closed");
     }
 }
