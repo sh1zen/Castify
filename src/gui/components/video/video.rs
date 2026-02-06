@@ -114,7 +114,7 @@ impl Video {
                     Ok(mut buf) => {
                         // Resize buffer if dimensions changed
                         if cur_w != new_w || cur_h != new_h {
-                            let new_size = (new_w * new_h * 4) as usize;
+                            let new_size = (new_w * new_h * 3 / 2) as usize;
                             buf.resize(new_size, 0);
                             width_ref.store(new_w, Ordering::SeqCst);
                             height_ref.store(new_h, Ordering::SeqCst);

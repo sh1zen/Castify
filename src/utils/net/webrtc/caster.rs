@@ -5,8 +5,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Mutex, RwLock};
 
-use crate::assets::FRAME_RATE;
-
 pub struct WebRTCCaster {
     sos: SignalOfStop,
     peers: Arc<RwLock<Vec<Arc<WRTCPeer>>>>,
@@ -58,14 +56,18 @@ impl WebRTCCaster {
     pub fn send_video_frames(&self, mut receiver: tokio::sync::mpsc::Receiver<Vec<u8>>) {
         let peers = Arc::clone(&self.peers);
         let peers_version = Arc::clone(&self.peers_version);
-        let frame_duration = Duration::from_millis(1000 / FRAME_RATE as u64);
 
         self.sos.spawn(async move {
             // Cached peer snapshot — rebuilt only when peers_version changes
             let mut cached_peers: Vec<Arc<WRTCPeer>> = Vec::new();
             let mut last_version: u64 = u64::MAX; // force initial rebuild
+            let mut last_frame_time = std::time::Instant::now();
 
             while let Some(data) = receiver.recv().await {
+                let now = std::time::Instant::now();
+                let frame_duration = now.duration_since(last_frame_time);
+                last_frame_time = now;
+
                 let sample = Arc::new(webrtc::media::Sample {
                     data: data.into(),
                     duration: frame_duration,

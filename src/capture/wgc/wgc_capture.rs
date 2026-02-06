@@ -128,15 +128,13 @@ impl ScreenCapture for WGCScreenCapture {
             let mut crop_y_buf: Vec<u8> = Vec::new();
             let mut crop_uv_buf: Vec<u8> = Vec::new();
 
-            // Interval-based rate limiter: encode at most one frame per tick
-            let mut ticker = tokio::time::interval(
-                std::time::Duration::from_millis(1000 / FRAME_RATE as u64)
-            );
-            ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            let max_fps = FRAME_RATE;
+            let mut current_fps: u32 = max_fps;
 
             loop {
                 select! {
                     Some(frame) = receiver.recv() => {
+                        let frame_start = std::time::Instant::now();
                         let frame_time = frame.SystemRelativeTime().unwrap().Duration;
 
                         // Check blank_screen dynamically
@@ -178,7 +176,7 @@ impl ScreenCapture for WGCScreenCapture {
                         };
                         stats.capture_us.fetch_add(t_capture.elapsed().as_micros() as u64, Ordering::Relaxed);
 
-                        // Crop extraction: reuse pre-allocated buffers when cropping
+                        // Crop extraction: reuse pre-allocated buffers, swap instead of clone
                         let frame_to_encode = if let Some(ref crop) = initial_crop {
                             extract_crop_nv12_reuse(&yuv_frame, crop, &mut crop_y_buf, &mut crop_uv_buf)
                         } else {
@@ -201,8 +199,23 @@ impl ScreenCapture for WGCScreenCapture {
                             }
                         }
 
-                        // Rate limit: wait for next tick before processing next frame
-                        ticker.tick().await;
+                        // Adaptive frame rate
+                        let elapsed_ms = frame_start.elapsed().as_millis() as u64;
+                        let budget_ms = 1000 / current_fps as u64;
+
+                        if elapsed_ms > budget_ms {
+                            current_fps = current_fps.saturating_sub(5).max(15);
+                            stats.frames_skipped.fetch_add(1, Ordering::Relaxed);
+                        } else if elapsed_ms < budget_ms * 60 / 100 && current_fps < max_fps {
+                            current_fps = (current_fps + 2).min(max_fps);
+                        }
+
+                        stats.current_fps.store(current_fps as u64, Ordering::Relaxed);
+
+                        let remaining = budget_ms.saturating_sub(elapsed_ms);
+                        if remaining > 1 {
+                            tokio::time::sleep(std::time::Duration::from_millis(remaining)).await;
+                        }
                     }
                     else => break,
                 }
@@ -292,9 +305,9 @@ fn extract_crop_nv12_reuse<'a>(
         display_time: frame.display_time,
         width: cw as i32,
         height: ch as i32,
-        luminance_bytes: y_buf.clone(),
+        luminance_bytes: std::mem::replace(y_buf, Vec::with_capacity(cw * ch)),
         luminance_stride: cw as i32,
-        chrominance_bytes: uv_buf.clone(),
+        chrominance_bytes: std::mem::replace(uv_buf, Vec::with_capacity(cw * uv_h)),
         chrominance_stride: cw as i32,
     }
 }

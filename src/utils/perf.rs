@@ -10,6 +10,7 @@ pub struct PipelineStats {
     pub frames_encoded: AtomicU64,
     pub frames_skipped: AtomicU64,
     pub frames_dropped: AtomicU64,
+    pub current_fps: AtomicU64,
     encoder_name: String,
 }
 
@@ -23,6 +24,7 @@ impl PipelineStats {
             frames_encoded: AtomicU64::new(0),
             frames_skipped: AtomicU64::new(0),
             frames_dropped: AtomicU64::new(0),
+            current_fps: AtomicU64::new(60),
             encoder_name,
         }
     }
@@ -31,10 +33,12 @@ impl PipelineStats {
         let n = self.frames_encoded.load(Ordering::Relaxed).max(1);
         let skipped = self.frames_skipped.load(Ordering::Relaxed);
         let dropped = self.frames_dropped.load(Ordering::Relaxed);
+        let fps = self.current_fps.load(Ordering::Relaxed);
 
         log::info!(
-            "Pipeline [{}]: capture={:.1}ms encode={:.1}ms send={:.1}ms | encoded={} skipped={} dropped={}",
+            "Pipeline [{}]: fps={} capture={:.1}ms encode={:.1}ms send={:.1}ms | encoded={} skipped={} dropped={}",
             self.encoder_name,
+            fps,
             self.capture_us.load(Ordering::Relaxed) as f64 / n as f64 / 1000.0,
             self.encode_us.load(Ordering::Relaxed) as f64 / n as f64 / 1000.0,
             self.send_us.load(Ordering::Relaxed) as f64 / n as f64 / 1000.0,

@@ -6,7 +6,6 @@ use tokio::{
 };
 use log::{info, error};
 
-use crate::assets::FRAME_RATE;
 use crate::capture::{ScreenCapture, ScreenCaptureImpl};
 use crate::capture::display::DisplaySelector;
 use crate::gui::common::datastructure::ScreenRect;
@@ -108,8 +107,8 @@ impl Capturer {
             }
         };
 
-        let (tx, rx) = mpsc::channel::<Vec<u8>>(FRAME_RATE as usize);
-        let (frame_tx, mut frame_rx) = mpsc::channel::<bytes::Bytes>(FRAME_RATE as usize);
+        let (tx, rx) = mpsc::channel::<Vec<u8>>(4);
+        let (frame_tx, mut frame_rx) = mpsc::channel::<bytes::Bytes>(2);
 
         let capture = self.capture.clone();
         let pause_notify = self.pause_notify.clone();

@@ -3,7 +3,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use log::{info, error};
 use tokio::sync::{mpsc, Mutex};
-use crate::assets::FRAME_RATE;
 use crate::decoder::{H264Depacketizer, FfmpegDecoder, VideoFrame};
 use crate::utils::net::common::find_caster;
 use crate::utils::net::webrtc::WebRTCReceiver;
@@ -46,9 +45,9 @@ impl Receiver {
     /// video da renderizzare (al posto della vecchia Pipeline GStreamer).
     pub fn launch(&mut self, auto: bool) -> Option<mpsc::Receiver<VideoFrame>> {
         // Canale principale: WebRTC → display
-        let (video_tx, video_rx) = mpsc::channel::<VideoFrame>(FRAME_RATE as usize);
+        let (video_tx, video_rx) = mpsc::channel::<VideoFrame>(3);
         // Canale per il salvataggio stream
-        let (save_tx, save_rx) = mpsc::channel::<Vec<u8>>(FRAME_RATE as usize);
+        let (save_tx, save_rx) = mpsc::channel::<Vec<u8>>(4);
 
         self.save_rx = Some(Arc::new(Mutex::new(save_rx)));
 
@@ -87,7 +86,7 @@ impl Receiver {
             info!("Streaming started");
 
             // Canale interno dal WebRTC handler (RTP packets with marker bit)
-            let (raw_tx, mut raw_rx) = mpsc::channel::<(Vec<u8>, bool)>(FRAME_RATE as usize * 4);
+            let (raw_tx, mut raw_rx) = mpsc::channel::<(Vec<u8>, bool)>(16);
             let (audio_tx, mut audio_rx) = mpsc::channel::<Vec<u8>>(128);
             handler.receive_video(raw_tx, audio_tx).await;
 
@@ -116,10 +115,10 @@ impl Receiver {
                     // Save raw H.264 data (best-effort)
                     let _ = save_tx.try_send(h264_au.clone());
 
-                    // Decode H.264 → RGBA
-                    if let Some((rgba, w, h)) = decoder.decode(&h264_au) {
+                    // Decode H.264 → packed YUV420p (GPU converts to RGB)
+                    if let Some((yuv, w, h)) = decoder.decode(&h264_au) {
                         consecutive_failures = 0;
-                        let frame = VideoFrame { data: rgba, width: w as u32, height: h as u32 };
+                        let frame = VideoFrame { data: yuv, width: w as u32, height: h as u32 };
                         if video_tx.send(frame).await.is_err() {
                             info!("Video display channel closed, stopping");
                             break;
