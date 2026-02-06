@@ -1,10 +1,13 @@
+use crate::assets::FRAME_RATE;
 use crate::capture::display::DisplaySelector;
 use crate::capture::wgc::d3d;
 use crate::capture::wgc::display::Display;
 use crate::capture::{CaptureOpts, CropRect, DisplayInfo, ScreenCapture, ScreenCaptureImpl, YUVFrame, YuvConverter};
 use crate::encoder::{FfmpegEncoder, FrameData};
+use crate::utils::perf::PipelineStats;
 use async_trait::async_trait;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use tokio::select;
 use tokio::sync::watch;
 use windows::core::IInspectable;
@@ -102,7 +105,35 @@ impl ScreenCapture for WGCScreenCapture {
         // Read crop once at start (frozen for this session)
         let initial_crop = opts_rx.borrow().crop;
 
+        // Share the force_idr flag from the encoder
+        let force_idr = encoder.force_idr.clone();
+
+        // Pipeline stats for periodic logging
+        let stats = Arc::new(PipelineStats::new(encoder.codec_name.clone()));
+        let stats_clone = Arc::clone(&stats);
+
+        // Periodic stats logger
         tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                stats_clone.log_summary();
+            }
+        });
+
+        tokio::spawn(async move {
+            // Cache the black frame to avoid per-frame allocation
+            let mut cached_black_frame: Option<YUVFrame> = None;
+
+            // Pre-allocated crop buffers — reused across frames to avoid per-frame allocation
+            let mut crop_y_buf: Vec<u8> = Vec::new();
+            let mut crop_uv_buf: Vec<u8> = Vec::new();
+
+            // Interval-based rate limiter: encode at most one frame per tick
+            let mut ticker = tokio::time::interval(
+                std::time::Duration::from_millis(1000 / FRAME_RATE as u64)
+            );
+            ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
             loop {
                 select! {
                     Some(frame) = receiver.recv() => {
@@ -118,16 +149,18 @@ impl ScreenCapture for WGCScreenCapture {
                             } else {
                                 (item_size.Width as u32, item_size.Height as u32)
                             };
-                            let black = YUVFrame {
-                                display_time: 0,
-                                width: enc_w as i32,
-                                height: enc_h as i32,
-                                luminance_bytes: vec![0u8; (enc_w * enc_h) as usize],
-                                luminance_stride: enc_w as i32,
-                                chrominance_bytes: vec![128u8; (enc_w * enc_h / 2) as usize],
-                                chrominance_stride: enc_w as i32,
-                            };
-                            match encoder.encode(FrameData::NV12(&black), frame_time) {
+                            let black = cached_black_frame.get_or_insert_with(|| {
+                                YUVFrame {
+                                    display_time: 0,
+                                    width: enc_w as i32,
+                                    height: enc_h as i32,
+                                    luminance_bytes: vec![0u8; (enc_w * enc_h) as usize],
+                                    luminance_stride: enc_w as i32,
+                                    chrominance_bytes: vec![128u8; (enc_w * enc_h / 2) as usize],
+                                    chrominance_stride: enc_w as i32,
+                                }
+                            });
+                            match encoder.encode(FrameData::NV12(black), frame_time) {
                                 Ok(encoded) => {
                                     if output.send(encoded).await.is_err() { break; }
                                 }
@@ -138,26 +171,38 @@ impl ScreenCapture for WGCScreenCapture {
                             continue;
                         }
 
+                        let t_capture = std::time::Instant::now();
                         let yuv_frame = {
                             duplicator
                                 .capture(d3d::get_d3d_interface_from_object(&frame.Surface().unwrap()).unwrap()).unwrap()
                         };
+                        stats.capture_us.fetch_add(t_capture.elapsed().as_micros() as u64, Ordering::Relaxed);
 
-                        // True crop extraction: extract only the crop region
+                        // Crop extraction: reuse pre-allocated buffers when cropping
                         let frame_to_encode = if let Some(ref crop) = initial_crop {
-                            extract_crop_nv12(&yuv_frame, crop)
+                            extract_crop_nv12_reuse(&yuv_frame, crop, &mut crop_y_buf, &mut crop_uv_buf)
                         } else {
                             yuv_frame
                         };
 
+                        let t_encode = std::time::Instant::now();
                         match encoder.encode(FrameData::NV12(&frame_to_encode), frame_time) {
                             Ok(encoded) => {
+                                let encode_us = t_encode.elapsed().as_micros() as u64;
+                                stats.encode_us.fetch_add(encode_us, Ordering::Relaxed);
+                                stats.frames_encoded.fetch_add(1, Ordering::Relaxed);
+
+                                let t_send = std::time::Instant::now();
                                 if output.send(encoded).await.is_err() { break; }
+                                stats.send_us.fetch_add(t_send.elapsed().as_micros() as u64, Ordering::Relaxed);
                             }
                             Err(e) => {
                                 log::error!("Encode frame failed: {}", e);
                             }
                         }
+
+                        // Rate limit: wait for next tick before processing next frame
+                        ticker.tick().await;
                     }
                     else => break,
                 }
@@ -196,7 +241,66 @@ impl DisplaySelector for WGCScreenCapture {
     }
 }
 
+/// Extract a crop region from an NV12 YUVFrame, reusing pre-allocated buffers.
+/// Returns a YUVFrame whose luminance/chrominance data lives in the provided buffers.
+fn extract_crop_nv12_reuse<'a>(
+    frame: &YUVFrame,
+    crop: &CropRect,
+    y_buf: &'a mut Vec<u8>,
+    uv_buf: &'a mut Vec<u8>,
+) -> YUVFrame {
+    let cx = crop.x & !1;
+    let cw = (crop.w + (crop.w % 2)) as usize;
+    let cy = crop.y & !1;
+    let ch = (crop.h + (crop.h % 2)) as usize;
+
+    let src_y_stride = frame.luminance_stride as usize;
+    let src_uv_stride = frame.chrominance_stride as usize;
+
+    // Resize buffers (no-op after first frame if dimensions are constant)
+    y_buf.resize(cw * ch, 0);
+    let uv_h = ch / 2;
+    uv_buf.resize(cw * uv_h, 128);
+
+    // Extract Y plane
+    for row in 0..ch {
+        let src_row = (cy as usize) + row;
+        if src_row >= frame.height as usize { break; }
+        let src_start = src_row * src_y_stride + cx as usize;
+        let dst_start = row * cw;
+        let copy_len = cw.min(frame.luminance_bytes.len().saturating_sub(src_start));
+        if copy_len > 0 {
+            y_buf[dst_start..dst_start + copy_len]
+                .copy_from_slice(&frame.luminance_bytes[src_start..src_start + copy_len]);
+        }
+    }
+
+    // Extract UV plane
+    for row in 0..uv_h {
+        let src_row = (cy as usize / 2) + row;
+        if src_row >= (frame.height as usize / 2) { break; }
+        let src_start = src_row * src_uv_stride + cx as usize;
+        let dst_start = row * cw;
+        let copy_len = cw.min(frame.chrominance_bytes.len().saturating_sub(src_start));
+        if copy_len > 0 {
+            uv_buf[dst_start..dst_start + copy_len]
+                .copy_from_slice(&frame.chrominance_bytes[src_start..src_start + copy_len]);
+        }
+    }
+
+    YUVFrame {
+        display_time: frame.display_time,
+        width: cw as i32,
+        height: ch as i32,
+        luminance_bytes: y_buf.clone(),
+        luminance_stride: cw as i32,
+        chrominance_bytes: uv_buf.clone(),
+        chrominance_stride: cw as i32,
+    }
+}
+
 /// Extract a crop region from an NV12 YUVFrame, producing a smaller YUVFrame.
+#[allow(dead_code)]
 fn extract_crop_nv12(frame: &YUVFrame, crop: &CropRect) -> YUVFrame {
     // Ensure even alignment for NV12 chroma
     let cx = crop.x & !1; // round down to even

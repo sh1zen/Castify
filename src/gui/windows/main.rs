@@ -64,6 +64,7 @@ pub enum MainWindowEvent {
     Ignore,
     ShowSDP,
     CopyToClipboard(String),
+    ToggleAudioMute,
 }
 
 pub struct MainWindow {
@@ -273,6 +274,7 @@ impl GuiWindow for MainWindow {
                 }
                 Task::none()
             }
+            MainWindowEvent::ToggleAudioMute => Task::done(AppEvent::ToggleAudioMute),
         }
     }
 

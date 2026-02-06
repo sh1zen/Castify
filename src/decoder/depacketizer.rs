@@ -6,6 +6,7 @@ use bytes::BufMut;
 pub struct H264Depacketizer {
     buffer: BytesMut,
     seen_idr: bool,
+    in_fua_fragment: bool,
 }
 
 const START_CODE: [u8; 4] = [0, 0, 0, 1];
@@ -15,7 +16,16 @@ impl H264Depacketizer {
         Self {
             buffer: BytesMut::new(),
             seen_idr: false,
+            in_fua_fragment: false,
         }
+    }
+
+    /// Reset the depacketizer state, discarding all buffered data.
+    /// After reset, frames are discarded until the next IDR.
+    pub fn reset(&mut self) {
+        self.buffer.clear();
+        self.seen_idr = false;
+        self.in_fua_fragment = false;
     }
 
     /// Feed one RTP payload + marker bit.
@@ -55,16 +65,30 @@ impl H264Depacketizer {
                 let fu_indicator = payload[0];
                 let fu_header = payload[1];
                 let start = (fu_header & 0x80) != 0;
+                let end = (fu_header & 0x40) != 0;
 
                 if start {
+                    if self.in_fua_fragment {
+                        // Previous fragment was incomplete (lost end packet) — discard it
+                        log::warn!("FU-A: new start while previous fragment incomplete, discarding buffer");
+                        self.buffer.clear();
+                    }
+                    self.in_fua_fragment = true;
                     // Reconstruct the NAL header: NRI from indicator, type from FU header
                     let nal_header = (fu_indicator & 0xE0) | (fu_header & 0x1F);
                     self.buffer.put_slice(&START_CODE);
                     self.buffer.put_u8(nal_header);
+                } else if !self.in_fua_fragment {
+                    // Middle/end packet without a start — fragment was lost
+                    return None;
                 }
 
                 if payload.len() > 2 {
                     self.buffer.put_slice(&payload[2..]);
+                }
+
+                if end {
+                    self.in_fua_fragment = false;
                 }
             }
             _ => {
@@ -74,6 +98,7 @@ impl H264Depacketizer {
         }
 
         if marker {
+            self.in_fua_fragment = false;
             self.drain_au()
         } else {
             None

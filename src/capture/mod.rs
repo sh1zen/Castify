@@ -41,7 +41,7 @@ pub trait DisplayInfo {
 #[cfg(target_os = "macos")]
 pub use macos::MacOSCapture as ScreenCaptureImpl;
 
-mod audio;
+pub mod audio;
 pub mod display;
 mod yuv_convert;
 

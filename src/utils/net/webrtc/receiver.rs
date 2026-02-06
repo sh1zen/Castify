@@ -7,6 +7,7 @@ use async_tungstenite::tungstenite::handshake::client::Response;
 use async_tungstenite::tungstenite::Error;
 use async_tungstenite::WebSocketStream;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use castbox::Arw;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
@@ -31,7 +32,9 @@ impl WebRTCReceiver {
 
     async fn get_lazy_peer(&self) -> Arc<WRTCPeer> {
         if self.peer.as_ref().is_none() {
-            self.peer.as_mut().replace(WRTCPeer::new().await.unwrap());
+            // Receiver doesn't encode, so force_idr is unused
+            let dummy_idr = Arc::new(AtomicBool::new(false));
+            self.peer.as_mut().replace(WRTCPeer::new(dummy_idr).await.unwrap());
         }
         self.peer.as_ref().as_ref().unwrap().clone()
     }
@@ -57,32 +60,56 @@ impl WebRTCReceiver {
         Ok(())
     }
 
-    pub async fn receive_video(&self, tx: Sender<(Vec<u8>, bool)>) {
-        let tx = Arc::new(Mutex::new(tx));
+    pub async fn receive_video(&self, video_tx: Sender<(Vec<u8>, bool)>, audio_tx: Sender<Vec<u8>>) {
+        let video_tx = Arc::new(Mutex::new(video_tx));
+        let audio_tx = Arc::new(Mutex::new(audio_tx));
         let sos = self.sos.clone();
 
         self.get_lazy_peer().await.get_connection().on_track(Box::new(move |track: Arc<TrackRemote>, _receiver: Arc<RTCRtpReceiver>, _transceiver: Arc<RTCRtpTransceiver>| {
             let sos = sos.clone();
+            let mime_type = track.codec().capability.mime_type.clone();
 
-            Box::pin({
-                let tx = Arc::clone(&tx);
-                async move {
-                    sos.spawn(async move {
-                        while let Ok((packet, _)) = track.read_rtp().await {
-                            let payload = packet.payload.to_vec();
-                            if payload.is_empty() {
-                                continue;
+            if mime_type.to_lowercase().contains("audio") {
+                // Audio track
+                Box::pin({
+                    let audio_tx = Arc::clone(&audio_tx);
+                    async move {
+                        sos.spawn(async move {
+                            while let Ok((packet, _)) = track.read_rtp().await {
+                                let payload = packet.payload.to_vec();
+                                if payload.is_empty() {
+                                    continue;
+                                }
+                                if let Err(e) = audio_tx.lock().await.send(payload).await {
+                                    log::error!("Audio channel closed: {}", e);
+                                    break;
+                                }
                             }
+                        });
+                    }
+                })
+            } else {
+                // Video track
+                Box::pin({
+                    let video_tx = Arc::clone(&video_tx);
+                    async move {
+                        sos.spawn(async move {
+                            while let Ok((packet, _)) = track.read_rtp().await {
+                                let payload = packet.payload.to_vec();
+                                if payload.is_empty() {
+                                    continue;
+                                }
 
-                            let marker = packet.header.marker;
-                            if let Err(e) = tx.lock().await.send((payload, marker)).await {
-                                log::error!("Video frame channel closed: {}", e);
-                                break;
+                                let marker = packet.header.marker;
+                                if let Err(e) = video_tx.lock().await.send((payload, marker)).await {
+                                    log::error!("Video frame channel closed: {}", e);
+                                    break;
+                                }
                             }
-                        }
-                    });
-                }
-            })
+                        });
+                    }
+                })
+            }
         }));
     }
 

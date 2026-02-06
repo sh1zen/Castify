@@ -1,4 +1,4 @@
-use crate::utils::net::webrtc::common::{create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
+use crate::utils::net::webrtc::common::{create_audio_track, create_peer_connection, create_video_track, create_webrtc_api, SignalMessage};
 use crate::utils::sos::SignalOfStop;
 use async_tungstenite::tokio::ConnectStream;
 use async_tungstenite::tungstenite::{Message, Utf8Bytes};
@@ -6,6 +6,8 @@ use async_tungstenite::WebSocketStream;
 use futures_util::{StreamExt};
 use iced::futures::executor::block_on;
 use once_cell::sync::Lazy;
+use rtcp::payload_feedbacks::full_intra_request::FullIntraRequest;
+use rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndication;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -22,27 +24,45 @@ static WRTC_PEER_UUID: Lazy<AtomicU32> = Lazy::new(|| AtomicU32::new(0));
 pub struct WRTCPeer {
     connection: Arc<RTCPeerConnection>,
     pub video_track: Arc<TrackLocalStaticSample>,
+    pub audio_track: Arc<TrackLocalStaticSample>,
     online: AtomicBool,
     id: u32,
     sos: SignalOfStop,
 }
 
 impl WRTCPeer {
-    pub async fn new() -> Result<Arc<WRTCPeer>, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn new(force_idr: Arc<AtomicBool>) -> Result<Arc<WRTCPeer>, Box<dyn std::error::Error + Send + Sync>> {
         let sos = SignalOfStop::new();
         let video_track = create_video_track();
+        let audio_track = create_audio_track();
 
         let connection = create_peer_connection(&create_webrtc_api()).await.map_err(|e| format!("WebRTCServer Error: {:?}", e))?;
 
         connection.add_transceiver_from_kind(RTPCodecType::Video, None).await.map_err(|e| format!("WebRTCServer Error: {:?}", e))?;
+        connection.add_transceiver_from_kind(RTPCodecType::Audio, None).await.map_err(|e| format!("WebRTCServer Error: {:?}", e))?;
 
         if let Ok(rtp_sender) = connection.add_track(Arc::clone(&video_track) as Arc<dyn TrackLocal + Send + Sync>).await {
-            // Read incoming RTCP packets
+            // Read incoming RTCP packets and handle PLI/FIR feedback
+            let force_idr_clone = Arc::clone(&force_idr);
             sos.spawn(async move {
                 let mut rtcp_buf = vec![0u8; 1500];
-                while let Ok((_x, _)) = rtp_sender.read(&mut rtcp_buf).await {
-                    //println!("info:::: {:?}", x);
+                while let Ok((pkts, _)) = rtp_sender.read(&mut rtcp_buf).await {
+                    for pkt in &pkts {
+                        if pkt.as_any().downcast_ref::<PictureLossIndication>().is_some()
+                            || pkt.as_any().downcast_ref::<FullIntraRequest>().is_some()
+                        {
+                            log::info!("Received PLI/FIR, forcing IDR keyframe");
+                            force_idr_clone.store(true, Ordering::Relaxed);
+                        }
+                    }
                 }
+            });
+        }
+
+        if let Ok(rtp_sender) = connection.add_track(Arc::clone(&audio_track) as Arc<dyn TrackLocal + Send + Sync>).await {
+            sos.spawn(async move {
+                let mut rtcp_buf = vec![0u8; 1500];
+                while let Ok((_x, _)) = rtp_sender.read(&mut rtcp_buf).await {}
             });
         }
 
@@ -52,6 +72,7 @@ impl WRTCPeer {
             WRTCPeer {
                 connection,
                 video_track,
+                audio_track,
                 online: AtomicBool::new(true),
                 id: WRTC_PEER_UUID.fetch_add(1, Ordering::Relaxed),
                 sos,
@@ -61,7 +82,7 @@ impl WRTCPeer {
         // This will notify you when the peer has connected/disconnected
         let peer_clone = Arc::clone(&peer);
         conn_clone.on_peer_connection_state_change(Box::new(move |connection_state: RTCPeerConnectionState| {
-            println!("Peer Connection State has changed: {connection_state}");
+            log::info!("Peer Connection State has changed: {connection_state}");
             match connection_state {
                 RTCPeerConnectionState::Disconnected | RTCPeerConnectionState::Failed | RTCPeerConnectionState::Closed => {
                     Arc::clone(&peer_clone).lazy_disconnect();
@@ -71,13 +92,13 @@ impl WRTCPeer {
             Box::pin(async {})
         }));
 
-        println!("New peer connection {:?}", conn_clone);
+        log::info!("New peer connection created");
 
         Ok(peer)
     }
 
     pub async fn disconnect(&self) {
-        println!("Peer {} has disconnected", self.id);
+        log::info!("Peer {} has disconnected", self.id);
         self.online.store(false, Ordering::Relaxed);
         self.sos.cancelled();
         let _ = self.connection.close().await;
@@ -162,7 +183,7 @@ impl WRTCPeer {
                             }).unwrap_or_default();
 
                             if ws_sender_clone.lock().await.send(Message::Text(Utf8Bytes::from(candidate_str))).await.is_err() {
-                                eprintln!("Failed to send ICE candidate to client");
+                                log::error!("Failed to send ICE candidate to client");
                                 peer_clone.disconnect().await;
                             }
                         }

@@ -38,7 +38,12 @@ pub fn caster_page<'a>(config: &Config) -> Element<'a, MainWindowEvent> {
                 Container::new(
                     row![
                             IconButton::new().label("Annotations").icon(Icon::Image).build().width(180).on_press(MainWindowEvent::ShowAnnotationWindow),
-                            IconButton::new().label("Manual SDP").icon(Icon::Sync).build().width(180).on_press(MainWindowEvent::ShowSDP)
+                            IconButton::new().label("Manual SDP").icon(Icon::Sync).build().width(180).on_press(MainWindowEvent::ShowSDP),
+                            IconButton::new()
+                                .label(if caster.is_audio_muted() { "Unmute" } else { "Mute" })
+                                .icon(if caster.is_audio_muted() { Icon::VolumeMute } else { Icon::VolumeHigh })
+                                .build().width(140)
+                                .on_press(MainWindowEvent::ToggleAudioMute)
                     ].spacing(5)
                 ).width(Length::Fill).height(Length::Fill)
                     .align_x(Horizontal::Center)

@@ -13,6 +13,7 @@ use crate::workers::WorkerClose;
 
 pub struct Receiver {
     is_streaming: Arc<AtomicBool>,
+    audio_muted: Arc<AtomicBool>,
     save_stream: Option<SaveStream>,
     caster_addr: Option<SocketAddr>,
     /// Canale dove arrivano i frame decodificati dal WebRTC
@@ -27,6 +28,7 @@ impl Receiver {
     pub fn new(sos: SignalOfStop) -> Self {
         Self {
             is_streaming: Arc::new(AtomicBool::new(false)),
+            audio_muted: Arc::new(AtomicBool::new(false)),
             save_stream: None,
             caster_addr: None,
             frame_rx: None,
@@ -86,7 +88,16 @@ impl Receiver {
 
             // Canale interno dal WebRTC handler (RTP packets with marker bit)
             let (raw_tx, mut raw_rx) = mpsc::channel::<(Vec<u8>, bool)>(FRAME_RATE as usize * 4);
-            handler.receive_video(raw_tx).await;
+            let (audio_tx, mut audio_rx) = mpsc::channel::<Vec<u8>>(128);
+            handler.receive_video(raw_tx, audio_tx).await;
+
+            // Audio playback: forward received Opus packets to log (actual decode requires opus decoder)
+            // For now, we receive and discard audio packets - full decode/playback can be added later
+            tokio::spawn(async move {
+                while let Some(_audio_data) = audio_rx.recv().await {
+                    // Audio packets received - playback integration point
+                }
+            });
 
             let mut depacketizer = H264Depacketizer::new();
             let mut decoder = match FfmpegDecoder::new() {
@@ -97,6 +108,8 @@ impl Receiver {
                 }
             };
 
+            let mut consecutive_failures: u32 = 0;
+
             while let Some((payload, marker)) = raw_rx.recv().await {
                 // Reassemble RTP packets into H.264 access units
                 if let Some(h264_au) = depacketizer.push(&payload, marker) {
@@ -105,10 +118,18 @@ impl Receiver {
 
                     // Decode H.264 → RGBA
                     if let Some((rgba, w, h)) = decoder.decode(&h264_au) {
+                        consecutive_failures = 0;
                         let frame = VideoFrame { data: rgba, width: w as u32, height: h as u32 };
                         if video_tx.send(frame).await.is_err() {
                             info!("Video display channel closed, stopping");
                             break;
+                        }
+                    } else {
+                        consecutive_failures += 1;
+                        if consecutive_failures >= 10 {
+                            log::warn!("10 consecutive decode failures, resetting depacketizer (waiting for IDR)");
+                            depacketizer.reset();
+                            consecutive_failures = 0;
                         }
                     }
                 }
@@ -131,6 +152,18 @@ impl Receiver {
         self.save_stream
             .as_ref()
             .map_or(false, |s| s.is_saving())
+    }
+
+    // ── Audio mute ──────────────────────────────────────────────
+
+    pub fn is_audio_muted(&self) -> bool {
+        self.audio_muted.load(Ordering::Relaxed)
+    }
+
+    pub fn toggle_audio_mute(&mut self) {
+        let muted = !self.audio_muted.load(Ordering::Relaxed);
+        self.audio_muted.store(muted, Ordering::Relaxed);
+        info!("Receiver audio muted: {}", muted);
     }
 
     // ── Salvataggio stream ──────────────────────────────────────

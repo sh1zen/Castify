@@ -38,4 +38,6 @@ pub enum AppEvent
     CasterToggleStreaming,
     /// TimeTick for custom fps
     TimeTickFPS,
+    /// Toggle audio mute
+    ToggleAudioMute,
 }

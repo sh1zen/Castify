@@ -36,6 +36,13 @@ where
                     .on_press(MainWindowEvent::SaveCapture)
             }
         )
+        .push(
+            IconButton::new()
+                .label(if client.is_audio_muted() { "Unmute" } else { "Mute" })
+                .icon(if client.is_audio_muted() { Icon::VolumeMute } else { Icon::VolumeHigh })
+                .build()
+                .on_press(MainWindowEvent::ToggleAudioMute)
+        )
         .push({
             let mut button = IconButton::new().label("Exit")
                 .icon(Icon::Stop)

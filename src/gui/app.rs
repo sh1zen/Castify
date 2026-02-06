@@ -50,10 +50,16 @@ impl App {
     /// Helper: ottiene la dimensione del display selezionato dal caster,
     /// restituendo un default se non disponibile.
     fn caster_display_size(caster: &crate::workers::caster::Caster) -> (f32, f32, f32, f32) {
-        if let Some(display) = caster.get_displays().into_iter().next() {
-            // display deve implementare un modo per ottenere size/position
-            // Per ora usiamo valori default; adatta in base al tuo tipo Display
-            (1920.0, 1080.0, 0.0, 0.0)
+        if let Some(display) = caster.get_selected_display() {
+            #[cfg(target_os = "windows")]
+            {
+                display.rect()
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                let _ = display;
+                (1920.0, 1080.0, 0.0, 0.0)
+            }
         } else {
             (1920.0, 1080.0, 0.0, 0.0)
         }
@@ -240,6 +246,18 @@ impl App {
             AppEvent::CasterToggleStreaming => {
                 if let Some(crate::config::Mode::Caster(caster)) = &mut self.config.mode {
                     caster.toggle_streaming();
+                }
+                Task::none()
+            }
+            AppEvent::ToggleAudioMute => {
+                match &mut self.config.mode {
+                    Some(crate::config::Mode::Caster(caster)) => {
+                        caster.toggle_audio_mute();
+                    }
+                    Some(crate::config::Mode::Receiver(receiver)) => {
+                        receiver.toggle_audio_mute();
+                    }
+                    _ => {}
                 }
                 Task::none()
             }

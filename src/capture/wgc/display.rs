@@ -47,6 +47,24 @@ impl Display {
         let interop = windows::core::factory::<GraphicsCaptureItem, IGraphicsCaptureItemInterop>()?;
         Ok(unsafe { interop.CreateForMonitor(self.handle) }?)
     }
+
+    /// Returns (width, height, x, y) of the monitor in physical pixels.
+    pub fn rect(&self) -> (f32, f32, f32, f32) {
+        unsafe {
+            let mut info = MONITORINFO {
+                cbSize: size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
+            let _ = GetMonitorInfoA(self.handle, &mut info);
+            let rc = info.rcMonitor;
+            (
+                (rc.right - rc.left) as f32,
+                (rc.bottom - rc.top) as f32,
+                rc.left as f32,
+                rc.top as f32,
+            )
+        }
+    }
 }
 
 unsafe fn get_display_name(handle: HMONITOR) -> String {

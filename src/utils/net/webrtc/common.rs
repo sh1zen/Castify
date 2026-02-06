@@ -62,3 +62,16 @@ pub fn create_video_track() -> Arc<TrackLocalStaticSample> {
         "castify-ts".to_string(),
     ))
 }
+
+pub fn create_audio_track() -> Arc<TrackLocalStaticSample> {
+    Arc::new(TrackLocalStaticSample::new(
+        RTCRtpCodecCapability {
+            mime_type: "audio/opus".to_string(),
+            clock_rate: 48000,
+            channels: 2,
+            ..Default::default()
+        },
+        "audio".to_string(),
+        "castify-as".to_string(),
+    ))
+}

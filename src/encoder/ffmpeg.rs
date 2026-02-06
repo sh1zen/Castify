@@ -7,6 +7,50 @@ use bytes::Bytes;
 use crate::capture::YUVFrame;
 use crate::encoder::frame_pool::FramePool;
 
+/// Encoder fallback chain: try hardware encoders first, then software.
+const ENCODER_CHAIN: &[(&str, &[(&str, &str)])] = &[
+    ("h264_nvenc", &[
+        ("preset", "p1"),
+        ("tune", "ull"),
+        ("zerolatency", "1"),
+        ("rc", "cbr"),
+        ("b", "4000000"),
+        ("maxrate", "4000000"),
+        ("bufsize", "8000000"),
+        ("g", "60"),
+        ("gpu", "0"),
+    ]),
+    ("h264_qsv", &[
+        ("preset", "veryfast"),
+        ("g", "60"),
+        ("b", "4000000"),
+        ("maxrate", "4000000"),
+        ("bufsize", "8000000"),
+        ("low_power", "1"),
+    ]),
+    ("h264_amf", &[
+        ("usage", "ultralowlatency"),
+        ("quality", "speed"),
+        ("b", "4000000"),
+        ("maxrate", "4000000"),
+        ("rc", "cbr"),
+        ("g", "60"),
+    ]),
+    ("libx264", &[
+        ("profile", "baseline"),
+        ("preset", "ultrafast"),
+        ("tune", "zerolatency"),
+        ("crf", "23"),
+        ("maxrate", "4000000"),
+        ("bufsize", "8000000"),
+        ("keyint", "60"),
+        ("min-keyint", "30"),
+        ("scenecut", "40"),
+        ("threads", "0"),
+        ("sliced-threads", "1"),
+    ]),
+];
+
 pub struct FfmpegEncoder {
     encoder: VideoEncoder,
     frame_pool: FramePool,
@@ -14,6 +58,7 @@ pub struct FfmpegEncoder {
     w: usize,
     h: usize,
     pub force_idr: Arc<AtomicBool>,
+    pub codec_name: String,
 }
 
 unsafe impl Send for FfmpegEncoder {}
@@ -32,26 +77,51 @@ impl FfmpegEncoder {
 
         let pixel_format = video::frame::get_pixel_format("nv12");
 
-        let encoder = VideoEncoder::builder("libx264")
-            .unwrap()
-            .pixel_format(pixel_format)
-            .width(w)
-            .height(h)
-            .time_base(time_base)
-            .set_option("profile", "baseline")
-            .set_option("preset", "ultrafast")
-            .set_option("tune", "zerolatency")
-            .build()
-            .unwrap();
+        let (encoder, codec_name) = Self::try_create_encoder(w, h, time_base, pixel_format);
+        log::info!("Using encoder: {}", codec_name);
 
         Self {
             encoder,
             pixel_format: String::from("nv12"),
             frame_pool: FramePool::new(w, h, time_base, pixel_format),
             force_idr: Arc::new(AtomicBool::new(false)),
+            codec_name,
             w,
             h,
         }
+    }
+
+    fn try_create_encoder(
+        w: usize,
+        h: usize,
+        time_base: TimeBase,
+        pixel_format: video::frame::PixelFormat,
+    ) -> (VideoEncoder, String) {
+        for (codec, options) in ENCODER_CHAIN {
+            let mut builder = match VideoEncoder::builder(codec) {
+                Ok(b) => b,
+                Err(e) => {
+                    log::debug!("Encoder {} not available, skipping: {}", codec, e);
+                    continue;
+                }
+            };
+            builder = builder
+                .pixel_format(pixel_format)
+                .width(w)
+                .height(h)
+                .time_base(time_base);
+            for (k, v) in *options {
+                builder = builder.set_option(k, v);
+            }
+            match builder.build() {
+                Ok(enc) => return (enc, codec.to_string()),
+                Err(e) => {
+                    log::debug!("Encoder {} failed to initialize: {}", codec, e);
+                    continue;
+                }
+            }
+        }
+        panic!("No H.264 encoder available — install FFmpeg with at least libx264 support");
     }
 
     pub fn encode(
@@ -85,7 +155,7 @@ impl FfmpegEncoder {
 
         match frame_data {
             FrameData::NV12(nv12) => {
-                // Piano Y (luminance): dimensione piena
+                // Y plane (luminance): full size
                 {
                     let mut planes = frame.planes_mut();
                     let y_plane = planes[0].data_mut();
@@ -100,7 +170,7 @@ impl FfmpegEncoder {
                     );
                 }
 
-                // Piano UV (chrominance): metà altezza per NV12/YUV420
+                // UV plane (chrominance): half height for NV12/YUV420
                 {
                     let mut planes = frame.planes_mut();
                     let uv_plane = planes[1].data_mut();

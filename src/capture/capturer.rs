@@ -1,9 +1,8 @@
 use std::sync::Arc;
-use std::time::Duration;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::{
     select,
     sync::{mpsc, watch, Mutex, Notify},
-    time::interval,
 };
 use log::{info, error};
 
@@ -52,17 +51,17 @@ impl From<&ScreenRect> for CropRect {
 // ── Capturer ────────────────────────────────────────────────────
 
 pub struct Capturer {
-    fps: u32,
     capture: Arc<Mutex<ScreenCaptureImpl>>,
     state: Arc<Mutex<CaptureState>>,
     pause_notify: Arc<Notify>,
     stop_notify: Arc<Notify>,
     opts_tx: watch::Sender<CaptureOpts>,
     opts_rx: watch::Receiver<CaptureOpts>,
+    force_idr: Arc<AtomicBool>,
 }
 
 impl Capturer {
-    pub fn new(fps: u32) -> Self {
+    pub fn new(_fps: u32) -> Self {
         let display_capture = ScreenCaptureImpl::new_default()
             .expect("Failed to create screen capture");
 
@@ -74,19 +73,19 @@ impl Capturer {
 
         Self {
             capture: Arc::new(Mutex::new(display_capture)),
-            fps,
             state: Arc::new(Mutex::new(CaptureState::Stopped)),
             pause_notify: Arc::new(Notify::new()),
             stop_notify: Arc::new(Notify::new()),
             opts_tx,
             opts_rx,
+            force_idr: Arc::new(AtomicBool::new(false)),
         }
     }
 
     // ── Avvio cattura ───────────────────────────────────────────
 
     /// Avvia la cattura e ritorna il canale con i frame H.264 codificati.
-    pub async fn start(&self) -> Result<mpsc::Receiver<Vec<u8>>, anyhow::Error> {
+    pub async fn start(&mut self) -> Result<mpsc::Receiver<Vec<u8>>, anyhow::Error> {
         {
             let mut state = self.state.lock().await;
             if *state != CaptureState::Stopped {
@@ -117,21 +116,23 @@ impl Capturer {
         let stop_notify = self.stop_notify.clone();
         let state_ref = self.state.clone();
         let opts_rx = self.opts_rx.clone();
-        let fps = self.fps;
+
+        // Create encoder and capture its force_idr before moving it
+        let encoder = FfmpegEncoder::new(enc_w, enc_h);
+        self.force_idr = encoder.force_idr.clone();
+        let force_idr = self.force_idr.clone();
 
         tokio::spawn(async move {
             // Avvia la cattura interna (scrive frame codificati in frame_tx)
             {
                 let mut cap = capture.lock().await;
-                let encoder = FfmpegEncoder::new(enc_w, enc_h);
                 if let Err(e) = cap.start_capture(encoder, frame_tx, opts_rx).await {
                     error!("Capture start failed: {}", e);
                     return;
                 }
             }
 
-            let mut ticker = interval(Duration::from_millis(1000 / fps as u64));
-            info!("Capture loop started @ {} fps", fps);
+            info!("Capture loop started");
 
             loop {
                 select! {
@@ -151,8 +152,11 @@ impl Capturer {
                             CaptureState::Playing => {}
                         }
 
-                        let _ = tx.try_send(Vec::from(raw));
-                        ticker.tick().await;
+                        // Use try_send to avoid backpressure blocking the capture thread
+                        if tx.try_send(Vec::from(raw)).is_err() {
+                            log::warn!("Encoded frame dropped (channel full), requesting IDR");
+                            force_idr.store(true, Ordering::Relaxed);
+                        }
                     }
 
                     _ = stop_notify.notified() => {
@@ -205,6 +209,14 @@ impl Capturer {
         *self.state.lock().await == CaptureState::Playing
     }
 
+    // ── Force IDR ─────────────────────────────────────────────
+
+    /// Get the force_idr flag (shared with the encoder).
+    /// Setting this to true will make the next encoded frame an IDR/keyframe.
+    pub fn force_idr(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.force_idr)
+    }
+
     // ── Opzioni dinamiche ───────────────────────────────────────
 
     /// Attiva/disattiva lo schermo nero (sostituisce i frame con dati vuoti).
@@ -242,6 +254,13 @@ impl Capturer {
             Err(_) => {
                 error!("Cannot change display while capture is running");
             }
+        }
+    }
+
+    pub fn selected_display(&self) -> Option<<ScreenCaptureImpl as DisplaySelector>::Display> {
+        match self.capture.try_lock() {
+            Ok(cap) => cap.selected_display().unwrap_or(None),
+            Err(_) => None,
         }
     }
 }

@@ -1,5 +1,8 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use log::{info, error};
+use tokio_util::sync::CancellationToken;
+use crate::capture::audio::AudioCapture;
 use crate::capture::capturer::{Capturer, CropRect};
 use crate::capture::display::DisplaySelector;
 use crate::capture::ScreenCaptureImpl;
@@ -12,6 +15,8 @@ pub struct Caster {
     pub streaming_time: u64,
     streaming: bool,
     blank_screen: bool,
+    audio_muted: Arc<AtomicBool>,
+    audio_cancel: Option<CancellationToken>,
     capturer: Capturer,
     server: Arc<WebRTCServer>,
     sos: SignalOfStop,
@@ -24,6 +29,8 @@ impl Caster {
             streaming_time: 0,
             streaming: false,
             blank_screen: false,
+            audio_muted: Arc::new(AtomicBool::new(false)),
+            audio_cancel: None,
             capturer: Capturer::new(fps),
             server: WebRTCServer::new(),
             sos,
@@ -60,9 +67,25 @@ impl Caster {
             }
         });
 
+        // Link the encoder's force_idr flag to the server so new peers trigger IDR
+        self.server.set_force_idr(self.capturer.force_idr());
+
         // Avvia il server WebRTC e inoltra i frame
         Arc::clone(&self.server).run();
         self.server.get_handler().send_video_frames(rx);
+
+        // Start audio capture
+        let audio_cancel = CancellationToken::new();
+        match AudioCapture::start(audio_cancel.clone()) {
+            Ok(audio_rx) => {
+                info!("Audio capture started");
+                self.server.get_handler().send_audio_frames(audio_rx);
+            }
+            Err(e) => {
+                error!("Failed to start audio capture: {}", e);
+            }
+        }
+        self.audio_cancel = Some(audio_cancel);
     }
 
     // ── Streaming control ───────────────────────────────────────
@@ -110,6 +133,10 @@ impl Caster {
         self.capturer.select_display(display);
     }
 
+    pub fn get_selected_display(&self) -> Option<<ScreenCaptureImpl as DisplaySelector>::Display> {
+        self.capturer.selected_display()
+    }
+
     // ── Blank screen ────────────────────────────────────────────
 
     pub fn is_blank_screen(&self) -> bool {
@@ -119,6 +146,37 @@ impl Caster {
     pub fn toggle_blank_screen(&mut self) {
         self.blank_screen = !self.blank_screen;
         self.capturer.set_blank_screen(self.blank_screen);
+    }
+
+    // ── Audio mute ──────────────────────────────────────────────
+
+    pub fn is_audio_muted(&self) -> bool {
+        self.audio_muted.load(Ordering::Relaxed)
+    }
+
+    pub fn toggle_audio_mute(&mut self) {
+        let muted = !self.audio_muted.load(Ordering::Relaxed);
+        self.audio_muted.store(muted, Ordering::Relaxed);
+        if muted {
+            // Stop audio capture
+            if let Some(cancel) = self.audio_cancel.take() {
+                cancel.cancel();
+                info!("Audio muted");
+            }
+        } else {
+            // Restart audio capture
+            let audio_cancel = CancellationToken::new();
+            match AudioCapture::start(audio_cancel.clone()) {
+                Ok(audio_rx) => {
+                    self.server.get_handler().send_audio_frames(audio_rx);
+                    info!("Audio unmuted");
+                }
+                Err(e) => {
+                    error!("Failed to restart audio capture: {}", e);
+                }
+            }
+            self.audio_cancel = Some(audio_cancel);
+        }
     }
 
     // ── Resize recording area ───────────────────────────────────
@@ -145,6 +203,9 @@ impl Caster {
 impl Caster {
     pub fn close(&mut self) {
         if self.init {
+            if let Some(cancel) = self.audio_cancel.take() {
+                cancel.cancel();
+            }
             tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current().block_on(self.capturer.stop())
             });

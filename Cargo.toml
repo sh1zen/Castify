@@ -32,6 +32,7 @@ iced_anim = { version = "0.3.1", features = ["derive"] }
 public-ip = "0.2.2"
 local-ip-address = "0.6.10"
 webrtc = "0.17.1"
+rtcp = "0.17.1"
 mdns-sd = "0.17.2"
 natpmp = "0.5.0"
 async-tungstenite = { version = "0.32.1", features = ["tokio-runtime"] }
