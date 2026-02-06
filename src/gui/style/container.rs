@@ -69,6 +69,7 @@ impl Catalog for StyleType {
                 },
                 _ => Shadow::default(),
             },
+            snap: true,
         }
     }
 }

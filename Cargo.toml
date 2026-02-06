@@ -1,6 +1,6 @@
 [package]
 name = "castify"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Andrea Frolli <dev.sh1zen@outlook.it>, Pietro Bella, Mario De Paola"]
 description = "A simple cross-platform screen caster tool."
 keywords = ["screen", "capture", "cast", "stream", "castify"]
@@ -24,14 +24,14 @@ rdev = { version = "0.5.3" }
 ctrlc = "3.5.1"
 arboard = "3.6.1"
 # gui
-iced = { version = "0.13.1", features = ["tokio", "wgpu", "image", "canvas"] }
-iced_wgpu = "0.13.5"
-iced_graphics = "0.13.0"
-iced_anim = { version = "0.2.1", features = ["derive"] }
+iced = { version = "0.14.0", features = ["tokio", "wgpu", "image", "canvas", "advanced"] }
+iced_wgpu = "0.14.0"
+iced_graphics = "0.14.0"
+iced_anim = { version = "0.3.1", features = ["derive"] }
 # networking
 public-ip = "0.2.2"
 local-ip-address = "0.6.10"
-webrtc = "0.17.0"
+webrtc = "0.17.1"
 mdns-sd = "0.17.2"
 natpmp = "0.5.0"
 async-tungstenite = { version = "0.32.1", features = ["tokio-runtime"] }
@@ -59,7 +59,6 @@ tokio-util = "0.7.18"
 cpal = "0.17.1"
 widestring = "1.2.1"
 
-
 [target.'cfg(target_os="linux")'.dependencies]
 gtk = "0.18.2"
 
@@ -67,7 +66,7 @@ gtk = "0.18.2"
 winresource = "0.1.30"
 
 [dependencies.windows]
-version = "0.48.0"
+version = "0.62.2"
 features = [
     "Data_Xml_Dom",
     "Foundation",

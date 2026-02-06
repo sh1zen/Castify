@@ -2,8 +2,6 @@ use iced::font::{Family, Stretch, Style, Weight};
 use iced::Font;
 
 pub const FRAME_RATE: u32 = 30;
-pub const FRAME_WITH: i32 = 1920;
-pub const FRAME_HEIGHT: i32 = 1080;
 
 // connections
 pub const MAX_PACKAGES_FAIL: u8 = 5;

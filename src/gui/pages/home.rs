@@ -21,7 +21,7 @@ pub fn initial_page<'a>(main_window: &MainWindow, config: &Config) -> Element<'a
     let header = crate::row![
             Row::new()
                 .push(Image::new(iced::widget::image::Handle::from_bytes(ICON_BYTES)).width(58).height(58))
-                .push(Space::with_width(16))
+                .push(Space::new().width(16))
                 .push(Text::new(app_name()).size(42).font(FONT_FAMILY_BOLD))
                 .align_y(alignment::Vertical::Center),
             horizontal_space(),

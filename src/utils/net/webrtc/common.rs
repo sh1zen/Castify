@@ -55,6 +55,7 @@ pub fn create_video_track() -> Arc<TrackLocalStaticSample> {
     Arc::new(TrackLocalStaticSample::new(
         RTCRtpCodecCapability {
             mime_type: "video/H264".to_string(),
+            clock_rate: 90000,
             ..Default::default()
         },
         "video".to_string(),

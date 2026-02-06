@@ -57,7 +57,7 @@ impl WebRTCReceiver {
         Ok(())
     }
 
-    pub async fn receive_video(&self, tx: Sender<Vec<u8>>) {
+    pub async fn receive_video(&self, tx: Sender<(Vec<u8>, bool)>) {
         let tx = Arc::new(Mutex::new(tx));
         let sos = self.sos.clone();
 
@@ -69,13 +69,13 @@ impl WebRTCReceiver {
                 async move {
                     sos.spawn(async move {
                         while let Ok((packet, _)) = track.read_rtp().await {
-                            // Estrai il payload H.264 dal pacchetto RTP
                             let payload = packet.payload.to_vec();
                             if payload.is_empty() {
                                 continue;
                             }
 
-                            if let Err(e) = tx.lock().await.send(payload).await {
+                            let marker = packet.header.marker;
+                            if let Err(e) = tx.lock().await.send((payload, marker)).await {
                                 log::error!("Video frame channel closed: {}", e);
                                 break;
                             }

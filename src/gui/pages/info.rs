@@ -4,7 +4,7 @@ use crate::gui::components::button::IconButton;
 use crate::gui::widget::{Column, Container, Element};
 use crate::gui::windows::main::MainWindowEvent;
 use iced::alignment::{Horizontal, Vertical};
-use iced::widget::vertical_space;
+use crate::gui::widget::vertical_space;
 use iced::Length;
 
 pub fn info_page<'a>() -> Element<'a, MainWindowEvent> {

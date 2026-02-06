@@ -255,9 +255,9 @@ unsafe fn init_shaders(
     let vertex_buffer_desc = D3D11_BUFFER_DESC {
         ByteWidth: VERTEX_STRIDES * VERTICES.len() as u32,
         Usage: D3D11_USAGE_DEFAULT,
-        BindFlags: D3D11_BIND_VERTEX_BUFFER,
-        CPUAccessFlags: D3D11_CPU_ACCESS_FLAG::default(),
-        MiscFlags: D3D11_RESOURCE_MISC_FLAG::default(),
+        BindFlags: D3D11_BIND_VERTEX_BUFFER.0 as u32,
+        CPUAccessFlags: D3D11_CPU_ACCESS_FLAG::default().0 as u32,
+        MiscFlags: D3D11_RESOURCE_MISC_FLAG::default().0 as u32,
         StructureByteStride: 0,
     };
 
@@ -314,16 +314,16 @@ unsafe fn init_lumina_resources(
     texture_desc.SampleDesc.Count = 1;
     texture_desc.SampleDesc.Quality = 0;
     texture_desc.Usage = D3D11_USAGE_DEFAULT;
-    texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+    texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET.0 as u32;
 
     let mut render_texture = std::mem::zeroed();
 
     device.CreateTexture2D(&texture_desc, None, Some(&mut render_texture))?;
     let render_texture = render_texture.unwrap();
 
-    texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ.0 as u32;
     texture_desc.Usage = D3D11_USAGE_STAGING;
-    texture_desc.BindFlags = D3D11_BIND_FLAG::default();
+    texture_desc.BindFlags = D3D11_BIND_FLAG::default().0 as u32;
 
     let mut staging_texture = std::mem::zeroed();
     device.CreateTexture2D(&texture_desc, None, Some(&mut staging_texture))?;
@@ -366,15 +366,15 @@ unsafe fn init_chrominance_resources(
     texture_desc.SampleDesc.Count = 1;
     texture_desc.SampleDesc.Quality = 0;
     texture_desc.Usage = D3D11_USAGE_DEFAULT;
-    texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+    texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET.0 as u32;
 
     let mut render_texture = None;
     device.CreateTexture2D(&texture_desc, None, Some(&mut render_texture))?;
     let render_texture = render_texture.unwrap();
 
-    texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ.0 as u32;
     texture_desc.Usage = D3D11_USAGE_STAGING;
-    texture_desc.BindFlags = D3D11_BIND_FLAG::default();
+    texture_desc.BindFlags = D3D11_BIND_FLAG::default().0 as u32;
 
     let mut staging_texture = None;
     device.CreateTexture2D(&texture_desc, None, Some(&mut staging_texture))?;
@@ -412,15 +412,15 @@ unsafe fn init_backend_resources(
     texture_desc.SampleDesc.Count = 1;
     texture_desc.SampleDesc.Quality = 0;
     texture_desc.Usage = D3D11_USAGE_DEFAULT;
-    texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    texture_desc.BindFlags = (D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE).0 as u32;
 
     let mut texture = None;
     device.CreateTexture2D(&texture_desc, None, Some(&mut texture))?;
     let texture = texture.unwrap();
 
-    texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ.0 as u32;
     texture_desc.Usage = D3D11_USAGE_STAGING;
-    texture_desc.BindFlags = D3D11_BIND_FLAG::default();
+    texture_desc.BindFlags = D3D11_BIND_FLAG::default().0 as u32;
 
     let mut rtv = None;
     device.CreateRenderTargetView(&texture, None, Some(&mut rtv))?;

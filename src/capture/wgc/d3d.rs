@@ -1,5 +1,6 @@
-use windows::core::{ComInterface, Interface, Result};
+use windows::core::{Interface, Result};
 use windows::Graphics::DirectX::Direct3D11::IDirect3DDevice;
+use windows::Win32::Foundation::HMODULE;
 use windows::Win32::Graphics::Direct3D11::ID3D11DeviceContext;
 use windows::Win32::Graphics::{
     Direct3D::{D3D_DRIVER_TYPE, D3D_DRIVER_TYPE_HARDWARE, D3D_DRIVER_TYPE_WARP},
@@ -22,7 +23,7 @@ fn create_d3d_device_with_type(
         D3D11CreateDevice(
             None,
             driver_type,
-            None,
+            HMODULE::default(),
             flags,
             None,
             D3D11_SDK_VERSION,
@@ -56,14 +57,14 @@ fn create_d3d_device() -> Result<ID3D11Device> {
 pub fn create_direct3d_devices_and_context(
 ) -> Result<(ID3D11Device, IDirect3DDevice, ID3D11DeviceContext)> {
     let d3d_device = create_d3d_device()?;
-    let d3d_context = unsafe { d3d_device.GetImmediateContext().unwrap() };
+    let d3d_context = unsafe { d3d_device.GetImmediateContext()? };
     let dxgi_device: IDXGIDevice = d3d_device.cast()?;
     let inspectable = unsafe { CreateDirect3D11DeviceFromDXGIDevice(&dxgi_device)? };
     let id3d_device: IDirect3DDevice = inspectable.cast()?;
     Ok((d3d_device, id3d_device, d3d_context))
 }
 
-pub fn get_d3d_interface_from_object<S: Interface + ComInterface, R: Interface + ComInterface>(
+pub fn get_d3d_interface_from_object<S: Interface, R: Interface>(
     object: &S,
 ) -> Result<R> {
     let access: IDirect3DDxgiInterfaceAccess = object.cast()?;

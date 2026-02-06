@@ -1,6 +1,6 @@
 use crate::gui::style::theme::palette::Palette;
 use crate::rgba8;
-use iced::application::{Appearance, DefaultStyle};
+use iced::theme::{Base, Mode, Style};
 use iced::Color;
 use iced_anim::Animate;
 use serde::{Deserialize, Serialize};
@@ -70,12 +70,29 @@ impl StyleType {
     }
 }
 
-impl DefaultStyle for StyleType {
-    fn default_style(&self) -> Appearance {
+impl Base for StyleType {
+    fn default(preference: Mode) -> Self {
+        match preference {
+            Mode::Dark => StyleType::DarkVenus,
+            _ => StyleType::LightVenus,
+        }
+    }
+    fn mode(&self) -> Mode { Mode::None }
+    fn base(&self) -> Style {
         let colors = self.get_palette();
-        Appearance {
+        Style {
             background_color: colors.background,
             text_color: colors.text,
+        }
+    }
+    fn palette(&self) -> Option<iced::theme::Palette> { None }
+    fn name(&self) -> &str {
+        match self {
+            StyleType::DarkVenus => "DarkVenus",
+            StyleType::LightVenus => "LightVenus",
+            StyleType::SemiTransparent => "SemiTransparent",
+            StyleType::Transparent => "Transparent",
+            StyleType::Custom(_) => "Custom",
         }
     }
 }

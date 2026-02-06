@@ -6,7 +6,7 @@ use crate::gui::style::container::ContainerType;
 use crate::gui::widget::{Button, Container, Row, Text};
 use crate::gui::windows::main::MainWindowEvent;
 use iced::alignment::{Horizontal, Vertical};
-use iced::widget::horizontal_space;
+use crate::gui::widget::horizontal_space;
 use iced::widget::text::LineHeight;
 use iced::{Alignment, Length};
 

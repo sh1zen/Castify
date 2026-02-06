@@ -53,7 +53,7 @@ where
         Message: Clone,
     {
         if !self.is_visible() {
-            return Container::new(Space::new(0, 0)).into();
+            return Container::new(Space::new()).into();
         }
 
         let binding = self.get_ref().unwrap();

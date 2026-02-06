@@ -9,7 +9,7 @@ use crate::config::app_id;
 use crate::gui::common::messages::AppEvent;
 
 pub fn ipc() -> impl Stream<Item=AppEvent> {
-    stream::channel(10, |mut output| async move {
+    stream::channel(10, |mut output: iced::futures::channel::mpsc::Sender<AppEvent>| async move {
         let name = app_id().to_ns_name::<GenericNamespaced>().unwrap();
 
         let listener_opts = ListenerOptions::new().name(name);

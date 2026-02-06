@@ -8,7 +8,8 @@ use windows::Win32::Devices::Display::{
     DISPLAYCONFIG_DEVICE_INFO_HEADER, DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE,
     DISPLAYCONFIG_SOURCE_DEVICE_NAME, DISPLAYCONFIG_TARGET_DEVICE_NAME, QDC_ONLY_ACTIVE_PATHS,
 };
-use windows::Win32::Foundation::{BOOL, LPARAM, RECT};
+use windows::Win32::Foundation::{LPARAM, RECT};
+use windows::core::BOOL;
 use windows::Win32::Graphics::Gdi::{
     EnumDisplayMonitors, GetMonitorInfoA, HDC, HMONITOR, MONITORINFO, MONITORINFOEXA,
 };
@@ -23,11 +24,14 @@ pub struct Display {
     pub name: String,
 }
 
+// SAFETY: HMONITOR is a system handle that is safe to send across threads.
+unsafe impl Send for Display {}
+
 impl Display {
     pub fn online() -> Result<Vec<Self>> {
         unsafe {
             let displays = Box::into_raw(Box::default());
-            EnumDisplayMonitors(HDC(0), None, Some(enum_monitor), LPARAM(displays as isize));
+            let _ = EnumDisplayMonitors(None, None, Some(enum_monitor), LPARAM(displays as isize));
             Ok(*Box::from_raw(displays))
         }
     }
@@ -54,7 +58,7 @@ unsafe fn get_display_name(handle: HMONITOR) -> String {
             },
             szDevice: [0; 32],
         };
-        GetMonitorInfoA(handle, &info as *const _ as *mut _);
+        let _ = GetMonitorInfoA(handle, &info as *const _ as *mut _);
         (
             CStr::from_ptr(info.szDevice.as_ptr() as _)
                 .to_str()
@@ -72,7 +76,7 @@ unsafe fn get_display_name(handle: HMONITOR) -> String {
 unsafe fn try_get_user_friendly_name(device_name: String) -> Option<String> {
     let mut num_path_array_elements = 0;
     let mut num_mode_info_array_elements = 0;
-    GetDisplayConfigBufferSizes(
+    let _ = GetDisplayConfigBufferSizes(
         QDC_ONLY_ACTIVE_PATHS,
         &mut num_path_array_elements,
         &mut num_mode_info_array_elements,
@@ -80,7 +84,7 @@ unsafe fn try_get_user_friendly_name(device_name: String) -> Option<String> {
 
     let mut path_info_array = vec![Default::default(); num_path_array_elements as usize];
     let mut mode_info_array = vec![Default::default(); num_mode_info_array_elements as usize];
-    QueryDisplayConfig(
+    let _ = QueryDisplayConfig(
         QDC_ONLY_ACTIVE_PATHS,
         &mut num_path_array_elements,
         path_info_array.as_mut_ptr(),
@@ -102,7 +106,7 @@ unsafe fn try_get_user_friendly_name(device_name: String) -> Option<String> {
                 },
                 ..Default::default()
             };
-            DisplayConfigGetDeviceInfo(&source_device_name.header as *const _ as *mut _);
+            let _ = DisplayConfigGetDeviceInfo(&source_device_name.header as *const _ as *mut _);
             let gdi_device_name =
                 widestring::U16CString::from_ptr_str(source_device_name.viewGdiDeviceName.as_ptr())
                     .to_string()
@@ -128,7 +132,7 @@ unsafe fn try_get_user_friendly_name(device_name: String) -> Option<String> {
                     },
                     ..Default::default()
                 };
-                DisplayConfigGetDeviceInfo(&target_device_name.header as *const _ as *mut _);
+                let _ = DisplayConfigGetDeviceInfo(&target_device_name.header as *const _ as *mut _);
                 let user_friendly_name = widestring::U16CString::from_ptr_str(
                     target_device_name.monitorFriendlyDeviceName.as_ptr(),
                 )

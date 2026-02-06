@@ -35,7 +35,7 @@ impl Catalog for StyleType {
                 background: Background::Color(Color { a: 0.9, ..palette.primary }),
                 ..active
             },
-            Status::Opened => Style {
+            Status::Opened { is_hovered: _ } => Style {
                 background: Background::Color(Color { a: 1.0, ..palette.primary }),
                 ..active
             },

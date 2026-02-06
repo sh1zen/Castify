@@ -22,9 +22,14 @@ pub type Canvas<P, Message> = w::Canvas<P, Message, Theme, IcedRenderer>;
 
 
 use crate::gui::style::container::ContainerType;
-pub use w::horizontal_space;
-pub use w::vertical_space;
 pub use w::Space;
+
+pub fn horizontal_space() -> Space {
+    Space::new().width(Length::Fill)
+}
+pub fn vertical_space() -> Space {
+    Space::new().height(Length::Fill)
+}
 
 pub trait IcedParentExt<'a, Message> {
     fn push_if<E>(self, condition: bool, element: impl FnOnce() -> E) -> Self

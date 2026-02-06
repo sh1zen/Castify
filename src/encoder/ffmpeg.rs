@@ -4,7 +4,6 @@ use ac_ffmpeg::codec::video::VideoEncoder;
 use ac_ffmpeg::codec::{video, Encoder};
 use ac_ffmpeg::time::{TimeBase, Timestamp};
 use bytes::Bytes;
-use itertools::enumerate;
 use crate::capture::YUVFrame;
 use crate::encoder::frame_pool::FramePool;
 
@@ -31,7 +30,7 @@ impl FfmpegEncoder {
         let h = if h % 2 == 0 { h } else { h + 1 } as usize;
         let time_base = TimeBase::new(1, 90_000);
 
-        let pixel_format = video::frame::get_pixel_format("yuv420p");
+        let pixel_format = video::frame::get_pixel_format("nv12");
 
         let encoder = VideoEncoder::builder("libx264")
             .unwrap()
@@ -47,7 +46,7 @@ impl FfmpegEncoder {
 
         Self {
             encoder,
-            pixel_format: String::from("yuv420p"),
+            pixel_format: String::from("nv12"),
             frame_pool: FramePool::new(w, h, time_base, pixel_format),
             force_idr: Arc::new(AtomicBool::new(false)),
             w,

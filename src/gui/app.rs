@@ -13,9 +13,9 @@ use crate::utils::open_link;
 use crate::workers::key_listener::{global_key_listener, valid_iced_key};
 use crate::workers::tray_icon::{tray_icon, tray_icon_listener, tray_menu_listener};
 use iced::keyboard::{Event, Key, Modifiers};
-use iced::widget::horizontal_space;
+use crate::gui::widget::horizontal_space;
 use iced::{
-    application::Appearance,
+    theme::Style,
     window,
     window::{
         settings::PlatformSpecific,
@@ -31,12 +31,12 @@ use tray_icon::TrayIcon;
 pub struct App {
     pub config: Config,
     windows: Windows,
-    tray_icon: TrayIcon,
+    tray_icon: Option<TrayIcon>,
 }
 
 impl App {
     pub fn new(flags: Flags) -> (Self, Task<AppEvent>) {
-        let tray_icon = tray_icon();
+        let tray_icon = tray_icon().ok();
         (
             Self {
                 config: Config::new(flags),
@@ -117,6 +117,7 @@ impl App {
                             drag_and_drop: false,
                             skip_taskbar: true,
                             undecorated_shadow: false,
+                            corner_preference: Default::default(),
                         },
                         #[cfg(target_os = "macos")]
                         platform_specific: PlatformSpecific {
@@ -140,7 +141,7 @@ impl App {
                         open_task
                             .discard()
                             .chain(window::gain_focus(id))
-                            .chain(window::change_mode(id, Mode::Fullscreen))
+                            .chain(window::set_mode(id, Mode::Fullscreen))
                     }
                 } else {
                     Task::none()
@@ -165,6 +166,7 @@ impl App {
                             drag_and_drop: false,
                             skip_taskbar: true,
                             undecorated_shadow: false,
+                            corner_preference: Default::default(),
                         },
                         #[cfg(target_os = "macos")]
                         platform_specific: PlatformSpecific {
@@ -188,7 +190,7 @@ impl App {
                         open_task
                             .discard()
                             .chain(window::gain_focus(id))
-                            .chain(window::change_mode(id, Mode::Fullscreen))
+                            .chain(window::set_mode(id, Mode::Fullscreen))
                     }
                 } else {
                     Task::none()
@@ -314,8 +316,8 @@ impl App {
         }
     }
 
-    pub fn style(&self, theme: &StyleType) -> Appearance {
-        Appearance {
+    pub fn style(&self, theme: &StyleType) -> Style {
+        Style {
             background_color: theme.get_palette().background,
             text_color: theme.get_palette().text,
         }

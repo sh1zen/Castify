@@ -1,4 +1,4 @@
-use crate::assets::{CAST_SERVICE_PORT, FRAME_HEIGHT, FRAME_RATE, FRAME_WITH};
+use crate::assets::{CAST_SERVICE_PORT, FRAME_RATE};
 use crate::config::{app_name, saving_path, Config, Mode};
 use crate::gui::common::datastructure::ScreenRect;
 use crate::gui::common::hotkeys::{hotkeys, KeyTypes};
@@ -96,13 +96,13 @@ impl MainWindow {
     /// Collega il canale video dal Receiver al componente Video per il rendering.
     fn attach_video_stream(&mut self, receiver: &mut Receiver) {
         if let Some(rx) = receiver.launch(true) {
-            self.video.set_stream(rx, FRAME_WITH, FRAME_HEIGHT, FRAME_RATE);
+            self.video.set_stream(rx, FRAME_RATE);
         }
     }
 
     fn attach_video_stream_manual(&mut self, receiver: &mut Receiver) {
         if let Some(rx) = receiver.launch(false) {
-            self.video.set_stream(rx, FRAME_WITH, FRAME_HEIGHT, FRAME_RATE);
+            self.video.set_stream(rx, FRAME_RATE);
         }
     }
 }
@@ -288,7 +288,7 @@ impl GuiWindow for MainWindow {
         let mut content = Column::new().push(body).push(footer());
 
         if self.popup.is_visible() {
-            let darkened_background = Container::new(Space::new(0, 0))
+            let darkened_background = Container::new(Space::new())
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .class(ContainerType::DarkFilter);

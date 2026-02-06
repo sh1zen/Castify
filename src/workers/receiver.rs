@@ -4,6 +4,7 @@ use std::sync::Arc;
 use log::{info, error};
 use tokio::sync::{mpsc, Mutex};
 use crate::assets::FRAME_RATE;
+use crate::decoder::{H264Depacketizer, FfmpegDecoder, VideoFrame};
 use crate::utils::net::common::find_caster;
 use crate::utils::net::webrtc::WebRTCReceiver;
 use crate::utils::sos::SignalOfStop;
@@ -14,8 +15,8 @@ pub struct Receiver {
     is_streaming: Arc<AtomicBool>,
     save_stream: Option<SaveStream>,
     caster_addr: Option<SocketAddr>,
-    /// Canale dove arrivano i frame H.264 decodificati dal WebRTC
-    frame_rx: Option<Arc<Mutex<mpsc::Receiver<Vec<u8>>>>>,
+    /// Canale dove arrivano i frame decodificati dal WebRTC
+    frame_rx: Option<Arc<Mutex<mpsc::Receiver<VideoFrame>>>>,
     /// Canale usato dal SaveStream per ricevere copie dei frame
     save_rx: Option<Arc<Mutex<mpsc::Receiver<Vec<u8>>>>>,
     local_sos: SignalOfStop,
@@ -41,9 +42,9 @@ impl Receiver {
 
     /// Avvia la connessione al caster e ritorna il canale con i frame
     /// video da renderizzare (al posto della vecchia Pipeline GStreamer).
-    pub fn launch(&mut self, auto: bool) -> Option<mpsc::Receiver<Vec<u8>>> {
+    pub fn launch(&mut self, auto: bool) -> Option<mpsc::Receiver<VideoFrame>> {
         // Canale principale: WebRTC → display
-        let (video_tx, video_rx) = mpsc::channel::<Vec<u8>>(FRAME_RATE as usize);
+        let (video_tx, video_rx) = mpsc::channel::<VideoFrame>(FRAME_RATE as usize);
         // Canale per il salvataggio stream
         let (save_tx, save_rx) = mpsc::channel::<Vec<u8>>(FRAME_RATE as usize);
 
@@ -83,19 +84,33 @@ impl Receiver {
             is_streaming.store(true, Ordering::Relaxed);
             info!("Streaming started");
 
-            // Canale interno dal WebRTC handler
-            let (raw_tx, mut raw_rx) = mpsc::channel::<Vec<u8>>(FRAME_RATE as usize);
+            // Canale interno dal WebRTC handler (RTP packets with marker bit)
+            let (raw_tx, mut raw_rx) = mpsc::channel::<(Vec<u8>, bool)>(FRAME_RATE as usize * 4);
             handler.receive_video(raw_tx).await;
 
-            // Fan-out: ogni frame va sia al display che al saver
-            while let Some(frame) = raw_rx.recv().await {
-                // Copia per il salvataggio (best-effort, non blocca)
-                let _ = save_tx.try_send(frame.clone());
+            let mut depacketizer = H264Depacketizer::new();
+            let mut decoder = match FfmpegDecoder::new() {
+                Ok(d) => d,
+                Err(e) => {
+                    error!("Failed to create H.264 decoder: {}", e);
+                    return;
+                }
+            };
 
-                // Frame per il rendering
-                if video_tx.send(frame).await.is_err() {
-                    info!("Video display channel closed, stopping");
-                    break;
+            while let Some((payload, marker)) = raw_rx.recv().await {
+                // Reassemble RTP packets into H.264 access units
+                if let Some(h264_au) = depacketizer.push(&payload, marker) {
+                    // Save raw H.264 data (best-effort)
+                    let _ = save_tx.try_send(h264_au.clone());
+
+                    // Decode H.264 → RGBA
+                    if let Some((rgba, w, h)) = decoder.decode(&h264_au) {
+                        let frame = VideoFrame { data: rgba, width: w as u32, height: h as u32 };
+                        if video_tx.send(frame).await.is_err() {
+                            info!("Video display channel closed, stopping");
+                            break;
+                        }
+                    }
                 }
             }
 

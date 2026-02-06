@@ -13,6 +13,7 @@ pub mod config;
 pub mod xmacro;
 pub mod capture;
 pub mod encoder;
+pub mod decoder;
 
 fn main() {
     let app_name = Box::leak(app_name().into_boxed_str());

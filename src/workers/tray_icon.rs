@@ -1,9 +1,10 @@
 use iced::{
-    advanced::graphics::image::image_rs::load_from_memory,
     futures::{SinkExt, Stream},
     stream,
 };
 use std::thread::spawn;
+use iced::advanced::graphics::image::load;
+use iced::advanced::image::Handle;
 use tokio::sync::mpsc;
 use tray_icon::{
     menu::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem},
@@ -13,13 +14,12 @@ use tray_icon::{
 };
 
 use crate::assets::ICON_BYTES;
-use crate::config::{app_id, app_name};
+use crate::config::{app_name};
 use crate::gui::common::messages::AppEvent;
 
-pub fn tray_icon() -> TrayIcon {
-    let icon_image = load_from_memory(ICON_BYTES).unwrap();
-    let (width, height) = (icon_image.width(), icon_image.height());
-    let icon = Icon::from_rgba(icon_image.into_bytes(), width, height).unwrap();
+pub fn tray_icon() ->  anyhow::Result<TrayIcon> {
+    let icon_image = load(&Handle::from_bytes(ICON_BYTES))?;
+    let icon = Icon::from_rgba(icon_image.to_vec(), icon_image.width(), icon_image.height())?;
 
     #[cfg(target_os = "linux")]
     gtk::init().unwrap();
@@ -31,19 +31,21 @@ pub fn tray_icon() -> TrayIcon {
         &MenuItem::with_id("exit", "Exit", true, None),
     ]).expect("Tray icon set up failed.");
 
-    TrayIcon::new(TrayIconAttributes {
-        tooltip: Some(app_id()),
-        menu: Some(Box::new(menu)),
-        icon: Some(icon),
-        icon_is_template: false,
-        menu_on_left_click: false,
-        title: Some(app_name()),
-        ..Default::default()
-    }).unwrap()
+    Ok(
+        TrayIcon::new(TrayIconAttributes {
+            tooltip: Some(app_name()),
+            menu: Some(Box::new(menu)),
+            icon: Some(icon),
+            icon_is_template: false,
+            menu_on_left_click: false,
+            title: Some(app_name()),
+            ..Default::default()
+        })?
+    )
 }
 
 pub fn tray_icon_listener() -> impl Stream<Item=AppEvent> {
-    stream::channel(16, |mut output| async move {
+    stream::channel(16, |mut output: iced::futures::channel::mpsc::Sender<AppEvent>| async move {
         let (sender, mut reciever) = mpsc::channel(16);
 
         spawn(move || loop {
@@ -61,7 +63,7 @@ pub fn tray_icon_listener() -> impl Stream<Item=AppEvent> {
 }
 
 pub fn tray_menu_listener() -> impl Stream<Item=AppEvent> {
-    stream::channel(16, |mut output| async move {
+    stream::channel(16, |mut output: iced::futures::channel::mpsc::Sender<AppEvent>| async move {
         let (sender, mut reciever) = mpsc::channel(16);
 
         spawn(move || loop {

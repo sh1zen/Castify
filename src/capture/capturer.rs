@@ -10,7 +10,6 @@ use log::{info, error};
 use crate::assets::FRAME_RATE;
 use crate::capture::{ScreenCapture, ScreenCaptureImpl};
 use crate::capture::display::DisplaySelector;
-use crate::config::Config;
 use crate::gui::common::datastructure::ScreenRect;
 use crate::encoder::FfmpegEncoder;
 
@@ -26,9 +25,9 @@ enum CaptureState {
 /// Opzioni dinamiche che possono cambiare a runtime.
 /// Vengono lette dal loop di cattura ad ogni frame tramite `watch`.
 #[derive(Debug, Clone)]
-struct CaptureOpts {
-    blank_screen: bool,
-    crop: Option<CropRect>,
+pub struct CaptureOpts {
+    pub blank_screen: bool,
+    pub crop: Option<CropRect>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -96,10 +95,18 @@ impl Capturer {
             *state = CaptureState::Playing;
         }
 
-        // Leggiamo la risoluzione prima dello spawn per evitare problemi con `self`
-        let resolution = {
-            let cap = self.capture.lock().await;
-            cap.display().resolution()
+        // Crop-aware encoder resolution: if crop is set, use crop dimensions
+        let (enc_w, enc_h) = {
+            let opts = self.opts_rx.borrow();
+            if let Some(crop) = &opts.crop {
+                // Ensure even dimensions for NV12 chroma alignment
+                let w = crop.w + (crop.w % 2);
+                let h = crop.h + (crop.h % 2);
+                (w, h)
+            } else {
+                let cap = self.capture.lock().await;
+                cap.display().resolution()
+            }
         };
 
         let (tx, rx) = mpsc::channel::<Vec<u8>>(FRAME_RATE as usize);
@@ -109,15 +116,15 @@ impl Capturer {
         let pause_notify = self.pause_notify.clone();
         let stop_notify = self.stop_notify.clone();
         let state_ref = self.state.clone();
-        let mut opts_rx = self.opts_rx.clone();
+        let opts_rx = self.opts_rx.clone();
         let fps = self.fps;
 
         tokio::spawn(async move {
             // Avvia la cattura interna (scrive frame codificati in frame_tx)
             {
                 let mut cap = capture.lock().await;
-                let encoder = FfmpegEncoder::new(resolution.0, resolution.1);
-                if let Err(e) = cap.start_capture(encoder, frame_tx).await {
+                let encoder = FfmpegEncoder::new(enc_w, enc_h);
+                if let Err(e) = cap.start_capture(encoder, frame_tx, opts_rx).await {
                     error!("Capture start failed: {}", e);
                     return;
                 }
@@ -128,14 +135,12 @@ impl Capturer {
 
             loop {
                 select! {
-                    // Frame codificato in arrivo dal layer di cattura
                     frame = frame_rx.recv() => {
                         let Some(raw) = frame else {
                             info!("Frame channel closed, stopping");
                             break;
                         };
 
-                        // Controlla stato
                         let s = *state_ref.lock().await;
                         match s {
                             CaptureState::Paused => {
@@ -146,22 +151,10 @@ impl Capturer {
                             CaptureState::Playing => {}
                         }
 
-                        // Leggi opzioni correnti
-                        let opts = opts_rx.borrow_and_update().clone();
-
-                        let output = if opts.blank_screen {
-                            blank_frame(raw.len())
-                        } else if let Some(crop) = &opts.crop {
-                            crop_frame(&raw, crop)
-                        } else {
-                            Vec::from(raw)
-                        };
-
-                        let _ = tx.try_send(output);
+                        let _ = tx.try_send(Vec::from(raw));
                         ticker.tick().await;
                     }
 
-                    // Segnale di stop esterno
                     _ = stop_notify.notified() => {
                         info!("Capture stopped via signal");
                         break;
@@ -253,17 +246,3 @@ impl Capturer {
     }
 }
 
-// ── Helpers frame ───────────────────────────────────────────────
-
-/// Genera un frame nero (tutti zeri) della dimensione data.
-fn blank_frame(size: usize) -> Vec<u8> {
-    vec![0u8; size]
-}
-
-/// Applica il crop al frame raw.
-/// NB: Placeholder — l'implementazione reale dipende dal formato pixel
-/// (NV12, I420, BGRA …). Per ora restituisce il frame intero.
-fn crop_frame(raw: &[u8], _crop: &CropRect) -> Vec<u8> {
-    // TODO: implementare crop reale in base al pixel format
-    raw.to_vec()
-}

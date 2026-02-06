@@ -1,9 +1,9 @@
-use iced::event::Status;
 use iced::mouse::Cursor;
 use iced::widget::canvas;
-use iced::widget::canvas::{Event, Frame, Geometry};
+use iced::widget::canvas::{Frame, Geometry, Path};
+use iced::widget::Action;
 use iced::{Color, Point, Rectangle, Renderer};
-use iced_graphics::geometry::{Path, Stroke, Style};
+use iced_graphics::geometry::{Stroke, Style};
 
 pub struct Spinner {}
 
@@ -23,9 +23,9 @@ impl<'a, Message, Theme> canvas::Program<Message, Theme> for Spinner
 {
     type State = SpinnerRotation;
 
-    fn update(&self, state: &mut Self::State, _event: Event, _bounds: Rectangle, _cursor: Cursor) -> (Status, Option<Message>) {
+    fn update(&self, state: &mut Self::State, _event: &iced::Event, _bounds: Rectangle, _cursor: Cursor) -> Option<Action<Message>> {
         state.rotation = state.rotation + 0.01;
-        (Status::Ignored, None)
+        None
     }
 
     fn draw(
@@ -35,7 +35,7 @@ impl<'a, Message, Theme> canvas::Program<Message, Theme> for Spinner
         _theme: &Theme,
         bounds: Rectangle,
         _cursor: Cursor,
-    ) -> Vec<Geometry<Renderer>> {
+    ) -> Vec<Geometry> {
         let mut frame = Frame::new(renderer, bounds.size());
 
         // Define spinner properties

@@ -48,7 +48,7 @@ impl Catalog for StyleType {
         match status {
             Status::Active => base,
             Status::Hovered => active,
-            Status::Focused => active,
+            Status::Focused { is_hovered: _ } => active,
             Status::Disabled => Style {
                 background: Background::Color(palette.disabled(palette.primary)),
                 value: palette.disabled(palette.text),

@@ -76,6 +76,7 @@ impl Catalog for StyleType {
                     blur_radius: 4.0,
                 },
             },
+            snap: false,
         };
 
         match status {

@@ -5,6 +5,7 @@ use iced::keyboard::{Event, Key};
 use iced::mouse::{Cursor, Interaction};
 use iced::widget::canvas;
 use iced::widget::canvas::{Frame, Geometry, Path, Stroke};
+use iced::widget::Action;
 use iced::Renderer;
 use iced::{mouse, Color, Point, Rectangle, Size};
 use iced_graphics::geometry;
@@ -112,54 +113,50 @@ impl<'a, Message: Clone, Theme> canvas::Program<Message, Theme> for AreaSelector
     fn update(
         &self,
         state: &mut Self::State,
-        event: canvas::Event,
+        event: &iced::Event,
         bounds: Rectangle,
         cursor: Cursor,
-    ) -> (canvas::event::Status, Option<Message>) {
-        let cursor_position = if let Some(position) = cursor.position_in(bounds) {
-            position
-        } else {
-            return (canvas::event::Status::Ignored, None);
-        };
+    ) -> Option<Action<Message>> {
+        let cursor_position = cursor.position_in(bounds)?;
 
         match event {
-            canvas::Event::Keyboard(event) => match event {
+            iced::Event::Keyboard(event) => match event {
                 Event::KeyPressed { key, .. } => {
-                    if key == Key::Named(Named::Escape) {
-                        (canvas::event::Status::Captured, self.on_esc.clone())
-                    } else if key == Key::Named(Named::Enter) {
-                        (canvas::event::Status::Captured, self.on_confirm.clone())
+                    if *key == Key::Named(Named::Escape) {
+                        self.on_esc.clone().map(|m| Action::publish(m).and_capture())
+                    } else if *key == Key::Named(Named::Enter) {
+                        self.on_confirm.clone().map(|m| Action::publish(m).and_capture())
                     } else {
-                        (canvas::event::Status::Ignored, None)
+                        None
                     }
                 }
-                _ => (canvas::event::Status::Ignored, None)
+                _ => None
             }
-            canvas::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
+            iced::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
                 state.updating = true;
                 state.initial_pos = Some(cursor_position);
                 state.final_pos = Some(cursor_position);
 
-                let mut message = None;
-                if let Some(callback) = &self.on_press {
-                    message = Some(callback(cursor_position));
+                let message = self.on_press.as_ref().map(|callback| callback(cursor_position));
+                match message {
+                    Some(msg) => Some(Action::publish(msg).and_capture()),
+                    None => Some(Action::request_redraw()),
                 }
-                (canvas::event::Status::Captured, message)
             }
-            canvas::Event::Mouse(mouse::Event::CursorMoved { .. }) => {
+            iced::Event::Mouse(mouse::Event::CursorMoved { .. }) => {
                 if state.updating {
                     state.final_pos = Some(cursor_position);
 
-                    let mut message = None;
-                    if let Some(callback) = &self.on_drag {
-                        message = Some(callback(cursor_position));
+                    let message = self.on_drag.as_ref().map(|callback| callback(cursor_position));
+                    match message {
+                        Some(msg) => Some(Action::publish(msg).and_capture()),
+                        None => Some(Action::request_redraw()),
                     }
-                    (canvas::event::Status::Captured, message)
                 } else {
-                    (canvas::event::Status::Ignored, None)
+                    None
                 }
             }
-            canvas::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) => {
+            iced::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) => {
                 state.updating = false;
 
                 let mut message = None;
@@ -170,9 +167,12 @@ impl<'a, Message: Clone, Theme> canvas::Program<Message, Theme> for AreaSelector
                     message = Some(callback(Self::calc_rect(state.initial_pos, state.final_pos)));
                 }
 
-                (canvas::event::Status::Captured, message)
+                match message {
+                    Some(msg) => Some(Action::publish(msg).and_capture()),
+                    None => Some(Action::request_redraw()),
+                }
             }
-            _ => (canvas::event::Status::Ignored, None),
+            _ => None,
         }
     }
 
@@ -183,7 +183,7 @@ impl<'a, Message: Clone, Theme> canvas::Program<Message, Theme> for AreaSelector
         _theme: &Theme,
         bounds: Rectangle,
         _cursor: Cursor,
-    ) -> Vec<Geometry<Renderer>> {
+    ) -> Vec<Geometry> {
         let mut frame = Frame::new(renderer, bounds.size());
 
         let overlay = geometry::Fill::from(Color::from_rgba(0.0, 0.0, 0.0, 0.4));
@@ -282,4 +282,3 @@ impl<'a, Message: Clone, Theme> canvas::Program<Message, Theme> for AreaSelector
         Interaction::Crosshair
     }
 }
-

@@ -15,7 +15,7 @@ pub fn global_key_listener() -> impl Stream<Item=AppEvent> {
         });
     });
 
-    stream::channel(10, move |mut output| async move {
+    stream::channel(10, move |mut output: iced::futures::channel::mpsc::Sender<AppEvent>| async move {
         let mut handler = KeyState::new();
 
         loop {

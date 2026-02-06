@@ -36,11 +36,12 @@ macro_rules! row {
 }
 
 pub fn run(flags: Flags) {
-    let app = iced::daemon(App::title, App::update, App::view)
+    let app = iced::daemon(move || App::new(flags), App::update, App::view)
         .settings(iced::Settings {
             id: Some(app_id()),
             ..Default::default()
         })
+        .title(App::title)
         .style(App::style)
         .theme(App::theme)
         .antialiasing(false)
@@ -50,7 +51,7 @@ pub fn run(flags: Flags) {
         .scale_factor(|_, _| 1.0)
         .subscription(App::subscription);
 
-    if let Err(e) = app.run_with(|| { App::new(flags) }) {
+    if let Err(e) = app.run() {
         eprintln!("Failed to initialize GUI: {e:?}");
 
         if let Err(e) = DialogBuilder::message()

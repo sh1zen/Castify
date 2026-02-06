@@ -3,6 +3,7 @@ use iced::keyboard::{Event, Key};
 use iced::mouse::{Cursor, Interaction};
 use iced::widget::canvas;
 use iced::widget::canvas::{Frame, Geometry, Path, Stroke};
+use iced::widget::Action;
 use iced::Renderer;
 use iced::{mouse, Color, Point, Rectangle};
 use iced_graphics::geometry::path::Builder;
@@ -196,61 +197,55 @@ impl<'a, Message: Clone, Theme> canvas::Program<Message, Theme> for Annotation<'
     fn update(
         &self,
         state: &mut Self::State,
-        event: canvas::Event,
+        event: &iced::Event,
         bounds: Rectangle,
         cursor: Cursor,
-    ) -> (canvas::event::Status, Option<Message>) {
-        let cursor_position = if let Some(position) = cursor.position_in(bounds) {
-            position
-        } else {
-            return (canvas::event::Status::Ignored, None);
-        };
+    ) -> Option<Action<Message>> {
+        let cursor_position = cursor.position_in(bounds)?;
 
         match event {
-            canvas::Event::Keyboard(event) => match event {
+            iced::Event::Keyboard(event) => match event {
                 Event::KeyPressed { key, .. } => {
-                    if key == Key::Named(Named::Escape) {
-                        (canvas::event::Status::Captured, self.on_esc.clone())
-                    } else if key == Key::Named(Named::Enter) {
-                        (canvas::event::Status::Captured, self.on_confirm.clone())
+                    if *key == Key::Named(Named::Escape) {
+                        self.on_esc.clone().map(|m| Action::publish(m).and_capture())
+                    } else if *key == Key::Named(Named::Enter) {
+                        self.on_confirm.clone().map(|m| Action::publish(m).and_capture())
                     } else {
-                        (canvas::event::Status::Ignored, None)
+                        None
                     }
                 }
-                _ => (canvas::event::Status::Ignored, None)
+                _ => None
             }
-            canvas::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
+            iced::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
                 state.updating = true;
                 state.points.push(cursor_position);
 
-                let mut message = None;
-                if let Some(callback) = &self.on_press {
-                    message = Some(callback(cursor_position));
+                let message = self.on_press.as_ref().map(|callback| callback(cursor_position));
+                match message {
+                    Some(msg) => Some(Action::publish(msg).and_capture()),
+                    None => Some(Action::request_redraw()),
                 }
-                (canvas::event::Status::Captured, message)
             }
-            canvas::Event::Mouse(mouse::Event::CursorMoved { .. }) => {
+            iced::Event::Mouse(mouse::Event::CursorMoved { .. }) => {
                 if state.updating {
-                    let mut message = None;
-
                     if self.shape.s_type == ShapeType::Eraser {
                         state.erase_at(cursor_position, self.shape.stroke.f32() * 5.0);
-                    } else {
-                        state.points.push(cursor_position);
-                        if let Some(callback) = &self.on_drag {
-                            message = Some(callback(cursor_position));
-                        }
+                        return Some(Action::request_redraw());
                     }
 
-                    (canvas::event::Status::Captured, message)
+                    state.points.push(cursor_position);
+                    let message = self.on_drag.as_ref().map(|callback| callback(cursor_position));
+                    match message {
+                        Some(msg) => Some(Action::publish(msg).and_capture()),
+                        None => Some(Action::request_redraw()),
+                    }
                 } else {
-                    (canvas::event::Status::Ignored, None)
+                    None
                 }
             }
-            canvas::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) => {
+            iced::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) => {
                 state.updating = false;
                 state.shapes.push((self.shape, state.points.clone()));
-
 
                 let mut message = None;
                 if let Some(callback) = &self.on_release_point {
@@ -263,9 +258,12 @@ impl<'a, Message: Clone, Theme> canvas::Program<Message, Theme> for Annotation<'
                 state.points.clear();
                 self.cache.clear();
 
-                (canvas::event::Status::Captured, message)
+                match message {
+                    Some(msg) => Some(Action::publish(msg).and_capture()),
+                    None => Some(Action::request_redraw()),
+                }
             }
-            _ => (canvas::event::Status::Ignored, None),
+            _ => None,
         }
     }
 
@@ -276,7 +274,7 @@ impl<'a, Message: Clone, Theme> canvas::Program<Message, Theme> for Annotation<'
         _theme: &Theme,
         bounds: Rectangle,
         cursor: Cursor,
-    ) -> Vec<Geometry<Renderer>> {
+    ) -> Vec<Geometry> {
         let shapes_frame = self.cache.draw(renderer, bounds.size(), |frame| {
             for (shape, points) in &state.shapes {
                 draw_shape(frame, shape, points);

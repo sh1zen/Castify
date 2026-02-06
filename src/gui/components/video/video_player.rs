@@ -1,6 +1,6 @@
 use crate::gui::components::video::pipeline::VideoPrimitive;
 use crate::gui::components::video::Video;
-use iced::{advanced::{self, graphics::core::event::Status, layout, widget, Widget}, Element};
+use iced::{advanced::{self, layout, widget, Widget}, Element};
 use iced_wgpu::primitive::Renderer as PrimitiveRenderer;
 use std::{marker::PhantomData, sync::atomic::Ordering};
 use std::{sync::Arc, time::Duration};
@@ -61,7 +61,7 @@ where
     }
 
     fn layout(
-        &self,
+        &mut self,
         _tree: &mut widget::Tree,
         _renderer: &Renderer,
         limits: &layout::Limits,
@@ -94,56 +94,51 @@ where
         _cursor: advanced::mouse::Cursor,
         _viewport: &iced::Rectangle,
     ) {
+        let (w, h) = self.video.size();
         let inner = self.video.0.borrow();
         renderer.draw_primitive(
             layout.bounds(),
             VideoPrimitive::new(
                 inner.id,
                 Arc::clone(&inner.frame),
-                (inner.width as _, inner.height as _),
+                (w as _, h as _),
                 inner.upload_frame.swap(false, Ordering::SeqCst),
             ),
         );
     }
 
-    fn on_event(
+    fn update(
         &mut self,
         _state: &mut widget::Tree,
-        event: iced::Event,
+        event: &iced::Event,
         _layout: advanced::Layout<'_>,
         _cursor: advanced::mouse::Cursor,
         _renderer: &Renderer,
         _clipboard: &mut dyn advanced::Clipboard,
         shell: &mut advanced::Shell<'_, Message>,
         _viewport: &iced::Rectangle,
-    ) -> Status {
+    ) {
         let inner = self.video.0.borrow();
 
         if let iced::Event::Window(iced::window::Event::RedrawRequested(now)) = event {
             if inner.is_eos_flag.load(Ordering::SeqCst) {
-                // Lo stream è terminato (canale chiuso)
                 if let Some(on_eos) = self.on_end_of_stream.clone() {
                     shell.publish(on_eos);
                 }
-                return Status::Captured;
+                return;
             }
 
             if !inner.paused {
-                // Schedula il prossimo redraw in base al framerate
                 let redraw_interval = 1.0 / inner.framerate;
                 let until_redraw =
-                    redraw_interval - (now - inner.next_redraw).as_secs_f64() % redraw_interval;
-                let next = now + Duration::from_secs_f64(until_redraw);
-                shell.request_redraw(iced::window::RedrawRequest::At(next));
+                    redraw_interval - (*now - inner.next_redraw).as_secs_f64() % redraw_interval;
+                let next = *now + Duration::from_secs_f64(until_redraw);
+                shell.request_redraw_at(next);
 
                 if let Some(on_new_frame) = self.on_new_frame.clone() {
                     shell.publish(on_new_frame);
                 }
             }
-
-            Status::Captured
-        } else {
-            Status::Ignored
         }
     }
 }

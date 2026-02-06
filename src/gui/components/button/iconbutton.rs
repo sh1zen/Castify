@@ -93,7 +93,7 @@ impl IconButton {
                 Row::new()
                     .spacing(5)
                     .push(icon.to_text().size(self.size).class(TextType::maybe_colored(self.color)))
-                    .push_if(self.label.is_some(), || Space::with_width(Length::Fill))
+                    .push_if(self.label.is_some(), || Space::new().width(Length::Fill))
                     .push_if(self.label.is_some(), || Text::new(self.label.unwrap()).size(self.size).font(FONT_FAMILY_BOLD).class(TextType::maybe_colored(self.color)))
                     .align_y(iced::Alignment::Center)
             )

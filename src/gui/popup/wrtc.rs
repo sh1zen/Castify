@@ -10,7 +10,7 @@ use crate::utils::net::webrtc::SDPICEExchangeWRTC;
 use crate::utils::sos::SignalOfStop;
 use crate::utils::status::Status;
 use iced::Length;
-use iced_wgpu::core::alignment;
+use iced::alignment;
 use std::ops::Deref;
 use std::sync::Arc;
 use castbox::{AnyRef, Arw};

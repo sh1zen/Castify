@@ -125,7 +125,7 @@ fn displays_picklist(config: &Config) -> Container<'static, MainWindowEvent> {
     let displays = caster.get_displays();
 
     if displays.is_empty() {
-        return Container::new(iced::widget::Space::new(0, 0));
+        return Container::new(iced::widget::Space::new());
     }
 
     let options: Vec<String> = (0..displays.len())
