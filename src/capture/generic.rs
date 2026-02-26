@@ -13,7 +13,7 @@ use crate::capture::{
 };
 use crate::encoder::{FfmpegEncoder, FrameData};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct GenericDisplay {
     pub id: u32,
     pub name: String,
@@ -21,6 +21,18 @@ pub struct GenericDisplay {
     pub height: u32,
     pub scale_factor: f64,
 }
+
+impl PartialEq for GenericDisplay {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+            && self.name == other.name
+            && self.width == other.width
+            && self.height == other.height
+            && self.scale_factor.to_bits() == other.scale_factor.to_bits()
+    }
+}
+
+impl Eq for GenericDisplay {}
 
 unsafe impl Send for GenericDisplay {}
 

@@ -1,4 +1,6 @@
 [env]
-PKG_CONFIG_PATH = { value = "third_party/ffmpeg/lib/pkgconfig", relative = true, force = true }
 FFMPEG_INCLUDE_DIR = { value = "third_party/ffmpeg/include", relative = true }
 FFMPEG_LIB_DIR = { value = "third_party/ffmpeg/lib", relative = true }
+
+[target.x86_64-pc-windows-msvc.env]
+PKG_CONFIG_PATH = "third_party/ffmpeg/lib/pkgconfig"

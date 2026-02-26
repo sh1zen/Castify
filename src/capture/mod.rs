@@ -17,6 +17,7 @@ pub mod audio;
 pub mod capturer;
 pub mod display;
 mod traits;
+#[cfg(target_os = "windows")]
 mod yuv_convert;
 
 pub struct YUVFrame {
@@ -40,4 +41,5 @@ pub struct NV12FrameRef<'a> {
 
 pub use capturer::{CaptureOpts, CropRect};
 pub use traits::{DisplayInfo, ScreenCapture};
+#[cfg(target_os = "windows")]
 pub use yuv_convert::YuvConverter;

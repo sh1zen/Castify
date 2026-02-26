@@ -4,7 +4,7 @@
 
 ![Castify Logo](./resources/icons/96x96.png)
 
-**A cross-platform screen casting application built in Rust**
+**A cross-platform screencasting application built in Rust**
 
 [![License](https://img.shields.io/badge/license-GPL%20v3.0-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-2024%20edition-orange.svg)](https://www.rust-lang.org/)
@@ -25,11 +25,13 @@ Castify enables real-time screen and audio streaming between devices on your loc
 - **Caster Mode**: Broadcast your screen (with optional audio) to connected receivers
 - **Receiver Mode**: Connect to a caster and view their stream in real-time
 
-The application uses WebRTC for low-latency peer-to-peer communication and hardware-accelerated video encoding when available.
+The application uses WebRTC for low-latency peer-to-peer communication and hardware-accelerated video encoding when
+available.
 
 ## ✨ Features
 
 ### Core Features
+
 - 🖥️ **Screen Capture** - Full screen or cropped region capture
 - 🔊 **Audio Streaming** - Synchronized audio capture and playback (Opus codec)
 - 🌐 **WebRTC Streaming** - Low-latency peer-to-peer communication
@@ -37,16 +39,19 @@ The application uses WebRTC for low-latency peer-to-peer communication and hardw
 - 🔍 **Auto-Discovery** - mDNS-based caster discovery on local networks
 
 ### User Interface
+
 - 🎨 **Modern GUI** - Clean, minimalistic interface built with Iced
 - ⌨️ **Global Hotkeys** - Customizable keyboard shortcuts
 - 📍 **System Tray** - Background operation with tray icon
 - 🎯 **Area Selection** - Visual crop region selection overlay
 
 ### Technical Features
+
 - ⚡ **Hardware Encoding** - NVENC, QSV, AMF support with CPU fallback
 - 🔄 **Adaptive Bitrate** - Adjusts to network conditions
 - 📹 **Stream Recording** - Save incoming streams to MP4/MKV/MOV
 - 🔒 **Single Instance** - Prevents conflicting multiple instances
+- **Codec Stack** - Video: H.264 (`h264_nvenc` -> `h264_qsv` -> `h264_amf` -> `libx264`), Audio: Opus (`libopus`)
 
 ## 📥 Installation
 
@@ -54,11 +59,14 @@ The application uses WebRTC for low-latency peer-to-peer communication and hardw
 
 Download the latest release for your platform from the [Releases](https://github.com/sh1zen/Castify/releases) page:
 
-| Platform | Format |
-|----------|--------|
-| Windows | MSI installer |
-| macOS | DMG image |
-| Linux | DEB / Pacman package |
+| Platform | Format                         |
+|----------|--------------------------------|
+| Windows  | `.zip` archive (`Castify.exe`) |
+| macOS    | `.tar.gz` archive              |
+| Linux    | `.tar.gz` archive              |
+
+Installer targets (`wix`, `deb`, `pacman`, `dmg`) exist in `Cargo.toml` metadata, but the current GitHub release
+workflow publishes archives.
 
 ### From Source
 
@@ -81,17 +89,23 @@ cargo install --git https://github.com/sh1zen/Castify
 ## 📋 Requirements
 
 ### Windows
+
 - Windows 10 version 1903 or later (required for Windows Graphics Capture)
-- FFmpeg libraries (included in releases)
+- FFmpeg shared libraries for local source builds (GitHub Actions downloads them automatically)
 
 ### macOS
+
 - macOS 10.13 or later
+- Source build dependencies: `brew install ffmpeg pkg-config`
 - Grant **Screen Recording** permission: System Preferences → Privacy & Security → Screen Recording
 - Grant **Accessibility** permission for global hotkeys: System Preferences → Privacy & Security → Accessibility
 
 ### Linux
-- GTK3 development libraries: `apt install libgtk-3-dev`
-- xdotool: `apt install xdotool`
+
+- GTK/GLib and pkg-config: `sudo apt install pkg-config libglib2.0-dev libgtk-3-dev`
+- xdotool: `sudo apt install libxdo-dev xdotool`
+- FFmpeg development libraries:
+  `sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev`
 
 ## 🚀 Usage
 
@@ -114,26 +128,26 @@ castify --version
 2. Choose the display to capture (if multiple monitors)
 3. Optionally select a crop region using the area selector
 4. Share your connection details with receivers:
-   - **Auto-discovery**: Receivers on the same network can find you automatically
-   - **Manual connection**: Share the displayed IP address and port
+    - **Auto-discovery**: Receivers on the same network can find you automatically
+    - **Manual connection**: Share the displayed IP address and port
 
 ### Receiver Mode
 
 1. Launch Castify and select **"Connect to Caster"**
 2. Choose connection method:
-   - **Auto-discover**: Automatically finds casters on the network
-   - **Manual**: Enter the caster's IP address
+    - **Auto-discover**: Automatically finds casters on the network
+    - **Manual**: Enter the caster's IP address
 3. View the incoming stream
 4. Optionally record the stream using the save button
 
 ### Keyboard Shortcuts
 
-| Action | Default Shortcut |
-|--------|------------------|
-| Pause/Resume | `Ctrl + F10` |
-| Start/Stop Recording | `Ctrl + F11` |
-| Blank Screen | `Ctrl + F2` |
-| End Session | `Ctrl + W` |
+| Action               | Default Shortcut |
+|----------------------|------------------|
+| Pause/Resume         | `Ctrl + F10`     |
+| Start/Stop Recording | `Ctrl + F11`     |
+| Blank Screen         | `Ctrl + F2`      |
+| End Session          | `Ctrl + W`       |
 
 *Shortcuts can be customized in the settings.*
 
@@ -147,20 +161,27 @@ castify --version
    ```
 
 2. **FFmpeg Development Libraries**
-   
+
    **Windows:**
-   - Download FFmpeg shared libraries
-   - Place in `third_party/ffmpeg/bin/` directory
-   
+    - Download FFmpeg shared libraries
+    - Place the required DLLs in `third_party/ffmpeg/bin/`:
+        - `avcodec-*.dll`
+        - `avformat-*.dll`
+        - `avutil-*.dll`
+        - `swresample-*.dll`
+        - `swscale-*.dll`
+    - GitHub Actions downloads these automatically for Windows CI/release jobs
+
    **macOS:**
    ```bash
-   brew install ffmpeg
+   brew install ffmpeg pkg-config
    ```
-   
+
    **Linux:**
    ```bash
    # Ubuntu/Debian
-   sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev
+   sudo apt install pkg-config libglib2.0-dev libgtk-3-dev libxdo-dev \
+     ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev
    
    # Arch Linux
    sudo pacman -S ffmpeg
@@ -182,8 +203,8 @@ cargo build --release
 
 ### Environment Variables
 
-| Variable | Description |
-|----------|-------------|
+| Variable       | Description                                            |
+|----------------|--------------------------------------------------------|
 | `WGPU_BACKEND` | Force specific GPU backend (`vulkan`, `dx12`, `metal`) |
 
 ## 🏗️ Architecture
@@ -192,14 +213,14 @@ For a detailed technical overview of the codebase, see [ARCHITECTURE.md](./ARCHI
 
 ### Technology Stack
 
-| Component | Technology |
-|-----------|------------|
-| GUI Framework | Iced 0.14 |
-| Async Runtime | Tokio |
-| Video Codec | H.264 (FFmpeg) |
-| Audio Codec | Opus |
-| Networking | WebRTC-rs |
-| Screen Capture | WGC (Windows), ScreenCaptureKit (macOS) |
+| Component      | Technology                                                         |
+|----------------|--------------------------------------------------------------------|
+| GUI Framework  | Iced 0.14                                                          |
+| Async Runtime  | Tokio                                                              |
+| Video Codec    | H.264 (`h264_nvenc` -> `h264_qsv` -> `h264_amf` -> `libx264`)      |
+| Audio Codec    | Opus (`libopus`) for streaming; AAC when muxing MP4/MOV recordings |
+| Networking     | WebRTC-rs                                                          |
+| Screen Capture | WGC (Windows), ScreenCaptureKit (macOS)                            |
 
 ### Data Flow
 
@@ -235,12 +256,11 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 ## 📮 Contact
 
 - **Issues**: [GitHub Issues](https://github.com/sh1zen/Castify/issues)
-- **Repository**: [https://github.com/sh1zen/Castify](https://github.com/sh1zen/Castify)
 
 ---
 
 <div align="center">
 
-Made with ❤️ by [Andrea Frolli](https://github.com/sh1zen), Pietro Bella, and Mario De Paola
+Made by [Andrea Frolli](https://github.com/sh1zen), Pietro Bella, and Mario De Paola
 
 </div>

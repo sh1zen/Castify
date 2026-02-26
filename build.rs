@@ -20,7 +20,7 @@ fn main() {
             for entry in std::fs::read_dir(&ffmpeg_bin).expect("Cannot read ffmpeg bin dir") {
                 let entry = entry.unwrap();
                 let path = entry.path();
-                if path.extension().is_some_and(|ext| ext == "dll") {
+                if is_required_ffmpeg_dll(&path) {
                     let dest = target_dir.join(path.file_name().unwrap());
                     if !dest.exists() || file_modified(&path) > file_modified(&dest) {
                         std::fs::copy(&path, &dest).unwrap_or_else(|e| {
@@ -49,4 +49,22 @@ fn file_modified(path: &PathBuf) -> std::time::SystemTime {
     std::fs::metadata(path)
         .and_then(|m| m.modified())
         .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+}
+
+#[cfg(target_os = "windows")]
+fn is_required_ffmpeg_dll(path: &std::path::Path) -> bool {
+    const REQUIRED_DLL_PREFIXES: &[&str] = &[
+        "avcodec-",
+        "avformat-",
+        "avutil-",
+        "swresample-",
+        "swscale-",
+    ];
+
+    let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+
+    let lower = file_name.to_ascii_lowercase();
+    lower.ends_with(".dll") && REQUIRED_DLL_PREFIXES.iter().any(|prefix| lower.starts_with(prefix))
 }

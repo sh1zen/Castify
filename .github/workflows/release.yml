@@ -1,0 +1,219 @@
+# .github/workflows/release.yml
+
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # This workflow runs when we push a tag like v0.1.1
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body_path: CHANGELOG.md
+          draft: true
+          prerelease: true
+
+  build-and-upload:
+    name: Build and Upload Binaries
+    needs: create-release
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            asset_name_suffix: "windows-x86_64.zip"
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            asset_name_suffix: "linux-x86_64.tar.gz"
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+            asset_name_suffix: "macos-x86_64.tar.gz"
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            asset_name_suffix: "macos-arm64.tar.gz"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Install FFmpeg deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ffmpeg \
+            pkg-config \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libxdo-dev \
+            libavcodec-dev \
+            libavformat-dev \
+            libavutil-dev \
+            libswresample-dev \
+            libswscale-dev \
+            libasound2-dev
+
+          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig" >> $GITHUB_ENV
+          pkg-config --modversion glib-2.0
+
+      - name: Install FFmpeg deps (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install ffmpeg pkg-config
+          FFMPEG_PREFIX="$(brew --prefix ffmpeg)"
+          echo "FFMPEG_INCLUDE_DIR=$FFMPEG_PREFIX/include" >> $GITHUB_ENV
+          echo "FFMPEG_LIB_DIR=$FFMPEG_PREFIX/lib" >> $GITHUB_ENV
+          echo "FFMPEG_INCLUDE_DIR_AARCH64_APPLE_DARWIN=$FFMPEG_PREFIX/include" >> $GITHUB_ENV
+          echo "FFMPEG_LIB_DIR_AARCH64_APPLE_DARWIN=$FFMPEG_PREFIX/lib" >> $GITHUB_ENV
+          echo "FFMPEG_INCLUDE_DIR_X86_64_APPLE_DARWIN=$FFMPEG_PREFIX/include" >> $GITHUB_ENV
+          echo "FFMPEG_LIB_DIR_X86_64_APPLE_DARWIN=$FFMPEG_PREFIX/lib" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$FFMPEG_PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          pkg-config --modversion libavcodec
+
+      - name: Prepare FFmpeg DLLs (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $ffmpegUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z"
+          $archive = "$env:RUNNER_TEMP\ffmpeg-shared.7z"
+          $extractRoot = "$env:RUNNER_TEMP\ffmpeg"
+
+          Invoke-WebRequest -Uri $ffmpegUrl -OutFile $archive
+          7z x $archive "-o$extractRoot" -y | Out-Null
+
+          $ffmpegBin = Get-ChildItem $extractRoot -Recurse -Directory |
+            Where-Object { $_.Name -eq "bin" } |
+            Select-Object -First 1 -ExpandProperty FullName
+          $ffmpegInclude = Get-ChildItem $extractRoot -Recurse -Directory |
+            Where-Object { $_.Name -eq "include" } |
+            Select-Object -First 1 -ExpandProperty FullName
+          $ffmpegLib = Get-ChildItem $extractRoot -Recurse -File -Filter "avcodec.lib" |
+            Select-Object -First 1 -ExpandProperty DirectoryName
+
+          if (-not $ffmpegBin) {
+            throw "Could not find extracted FFmpeg bin directory."
+          }
+          if (-not $ffmpegInclude) {
+            throw "Could not find extracted FFmpeg include directory."
+          }
+          if (-not $ffmpegLib) {
+            throw "Could not find extracted FFmpeg lib directory (avcodec.lib)."
+          }
+
+          New-Item -ItemType Directory -Force -Path "third_party/ffmpeg/bin" | Out-Null
+
+          $required = @(
+            "avcodec-*.dll",
+            "avformat-*.dll",
+            "avutil-*.dll",
+            "swresample-*.dll",
+            "swscale-*.dll"
+          )
+
+          foreach ($pattern in $required) {
+            $matches = Get-ChildItem -Path $ffmpegBin -Filter $pattern
+            if (-not $matches) {
+              throw "Missing required FFmpeg DLL pattern: $pattern"
+            }
+            Copy-Item -Path $matches.FullName -Destination "third_party/ffmpeg/bin" -Force
+          }
+
+          "FFMPEG_INCLUDE_DIR=$ffmpegInclude" >> $env:GITHUB_ENV
+          "FFMPEG_INCLUDE_DIR_X86_64_PC_WINDOWS_MSVC=$ffmpegInclude" >> $env:GITHUB_ENV
+          "FFMPEG_LIB_DIR=$ffmpegLib" >> $env:GITHUB_ENV
+          "FFMPEG_LIB_DIR_X86_64_PC_WINDOWS_MSVC=$ffmpegLib" >> $env:GITHUB_ENV
+
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Prepare package
+        shell: bash
+        run: |
+          # Exit immediately if a command exits with a non-zero status.
+          set -e
+
+          PACKAGE_NAME="Castify-${{ matrix.asset_name_suffix }}"
+          STAGING_DIR="staging"
+          BIN_NAME="castify"
+
+          mkdir "$STAGING_DIR"
+
+          # Determine the binary path and name based on OS
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            SOURCE_BINARY_PATH="target/${{ matrix.target }}/release/${BIN_NAME}.exe"
+            FALLBACK_BINARY_PATH="target/${{ matrix.target }}/release/Castify.exe"
+          else
+            SOURCE_BINARY_PATH="target/${{ matrix.target }}/release/${BIN_NAME}"
+            FALLBACK_BINARY_PATH="target/${{ matrix.target }}/release/Castify"
+          fi
+
+          # --- ADDED VERIFICATION ---
+          echo "Verifying binary exists at: ${SOURCE_BINARY_PATH}"
+          if [ ! -f "$SOURCE_BINARY_PATH" ]; then
+            echo "Primary binary not found, trying fallback: ${FALLBACK_BINARY_PATH}"
+            SOURCE_BINARY_PATH="$FALLBACK_BINARY_PATH"
+          fi
+          if [ ! -f "$SOURCE_BINARY_PATH" ]; then
+            echo "::error::Binary not found in either expected path."
+            exit 1
+          fi
+
+          cp "$SOURCE_BINARY_PATH" "$STAGING_DIR/"
+
+          # We should also add a LICENSE file to the repository root
+          # For now, I'll make this step non-fatal
+          cp README.md "$STAGING_DIR/"
+          cp LICENSE "$STAGING_DIR/" || echo "LICENSE file not found, skipping."
+
+          echo "--- Contents of staging directory ---"
+          ls -R "$STAGING_DIR"
+
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            7z a "$PACKAGE_NAME" "./$STAGING_DIR/*"
+          else
+            tar -czf "$PACKAGE_NAME" -C "$STAGING_DIR" .
+          fi
+
+          echo "ASSET=$PACKAGE_NAME" >> $GITHUB_ENV
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ env.ASSET }}
+          asset_name: ${{ env.ASSET }}
+          asset_content_type: application/octet-stream
