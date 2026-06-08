@@ -123,7 +123,7 @@ impl ScreenCapture for GenericScreenCapture {
 
         let (dw, dh) = self.selected_display.resolution();
         tokio::spawn(async move {
-            let mut opts_rx = opts_rx;
+            let opts_rx = opts_rx;
             let mut current_crop: Option<CropRect> = opts_rx.borrow().crop;
             let mut black_frame = if let Some(c) = current_crop {
                 GenericScreenCapture::black_frame(c.w, c.h)

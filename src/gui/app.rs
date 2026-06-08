@@ -191,14 +191,19 @@ impl App {
                         ..Default::default()
                     });
                     self.windows.insert(id, WindowType::AreaSelector);
-                    if cfg!(target_os = "macos") || cfg!(target_os = "windows") {
-                        let mut task = open_task.discard().chain(window::gain_focus(id));
-                        #[cfg(target_os = "windows")]
-                        {
-                            task = task.chain(Self::apply_transparency(id));
-                        }
-                        task
-                    } else {
+                    #[cfg(target_os = "windows")]
+                    {
+                        open_task
+                            .discard()
+                            .chain(window::gain_focus(id))
+                            .chain(Self::apply_transparency(id))
+                    }
+                    #[cfg(target_os = "macos")]
+                    {
+                        open_task.discard().chain(window::gain_focus(id))
+                    }
+                    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+                    {
                         open_task
                             .discard()
                             .chain(window::gain_focus(id))
@@ -250,14 +255,19 @@ impl App {
                         ..Default::default()
                     });
                     self.windows.insert(id, WindowType::Annotation);
-                    if cfg!(target_os = "macos") || cfg!(target_os = "windows") {
-                        let mut task = open_task.discard().chain(window::gain_focus(id));
-                        #[cfg(target_os = "windows")]
-                        {
-                            task = task.chain(Self::apply_transparency(id));
-                        }
-                        task
-                    } else {
+                    #[cfg(target_os = "windows")]
+                    {
+                        open_task
+                            .discard()
+                            .chain(window::gain_focus(id))
+                            .chain(Self::apply_transparency(id))
+                    }
+                    #[cfg(target_os = "macos")]
+                    {
+                        open_task.discard().chain(window::gain_focus(id))
+                    }
+                    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+                    {
                         open_task
                             .discard()
                             .chain(window::gain_focus(id))

@@ -92,7 +92,7 @@ impl AudioPlayer {
         let buffer_clone = Arc::clone(&sample_buffer);
 
         let stream = device.build_output_stream(
-            &config,
+            config,
             move |output: &mut [f32], _| {
                 if let Ok(mut buf) = buffer_clone.lock() {
                     buf.read(output);

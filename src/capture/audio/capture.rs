@@ -148,25 +148,25 @@ impl AudioCapture {
 
             let stream = match config.sample_format() {
                 SampleFormat::I8 => device.build_input_stream(
-                    &config.into(),
+                    config.clone().into(),
                     move |data, _: &_| capturer.write_input_data::<i8>(data),
                     err_fn,
                     None,
                 )?,
                 SampleFormat::I16 => device.build_input_stream(
-                    &config.into(),
+                    config.clone().into(),
                     move |data, _: &_| capturer.write_input_data::<i16>(data),
                     err_fn,
                     None,
                 )?,
                 SampleFormat::I32 => device.build_input_stream(
-                    &config.into(),
+                    config.clone().into(),
                     move |data, _: &_| capturer.write_input_data::<i32>(data),
                     err_fn,
                     None,
                 )?,
                 SampleFormat::F32 => device.build_input_stream(
-                    &config.into(),
+                    config.clone().into(),
                     move |data, _: &_| capturer.write_input_data::<f32>(data),
                     err_fn,
                     None,

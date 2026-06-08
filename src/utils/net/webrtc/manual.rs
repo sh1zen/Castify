@@ -5,8 +5,7 @@ use base64::engine::general_purpose::PAD;
 use base64::{Engine, alphabet};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use webrtc::ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit};
-use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
+use webrtc::peer_connection::{RTCIceCandidateInit, RTCSessionDescription};
 
 #[async_trait]
 pub trait SDPICEExchangeWRTC: Send + Sync {
@@ -42,12 +41,6 @@ impl SDPICEExchange {
 
     pub fn get_sdp(&self) -> RTCSessionDescription {
         self.sdp.clone()
-    }
-
-    pub fn add_ice_candidate(&mut self, ice_candidate: RTCIceCandidate) {
-        if let Ok(candidate) = ice_candidate.to_json() {
-            self.ice_candidates.push(candidate);
-        }
     }
 
     pub fn get_ice_candidates(&self) -> Vec<RTCIceCandidateInit> {

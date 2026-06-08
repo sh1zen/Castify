@@ -8,12 +8,11 @@ use async_tungstenite::tokio::{ConnectStream, connect_async};
 use async_tungstenite::tungstenite::Error;
 use async_tungstenite::tungstenite::handshake::client::Response;
 use castbox::Arw;
+use rtc::rtp_transceiver::rtp_sender::RtpCodecKind;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use tokio::sync::mpsc::Sender;
-use webrtc::rtp_transceiver::RTCRtpTransceiver;
-use webrtc::rtp_transceiver::rtp_receiver::RTCRtpReceiver;
-use webrtc::track::track_remote::TrackRemote;
+use webrtc::media_stream::track_remote::{TrackRemote, TrackRemoteEvent};
 
 /// Type alias for video RTP packet channel: (payload, marker, sequence_number, timestamp)
 type VideoPacketSender = Sender<(Vec<u8>, bool, u16, u32)>;
@@ -49,101 +48,45 @@ impl WebRTCReceiver {
 
     async fn get_lazy_peer(&self) -> Arc<WRTCPeer> {
         if self.peer.as_ref().is_none() {
-            // Receiver doesn't encode, so force_idr is unused
             let dummy_idr = Arc::new(AtomicBool::new(false));
             let peer = WRTCPeer::new(dummy_idr).await.unwrap();
 
-            // Set up on_track handler BEFORE any connection is made
-            // This ensures we're ready to receive tracks as soon as they're negotiated
             let video_tx = Arw::clone(&self.video_tx);
             let audio_tx = Arw::clone(&self.audio_tx);
             let sos = self.sos.clone();
+            let mut track_rx = peer.subscribe_tracks();
 
-            peer.get_connection().on_track(Box::new(move |track: Arc<TrackRemote>, _receiver: Arc<RTCRtpReceiver>, _transceiver: Arc<RTCRtpTransceiver>| {
-                let sos = sos.clone();
-                let mime_type = track.codec().capability.mime_type.clone();
-                
-                // Check if we have pre-registered channels
-                let video_tx_opt = video_tx.as_ref().clone();
-                let audio_tx_opt = audio_tx.as_ref().clone();
+            self.sos.spawn(async move {
+                while let Ok(track) = track_rx.recv().await {
+                    let video_tx_opt = video_tx.as_ref().clone();
+                    let audio_tx_opt = audio_tx.as_ref().clone();
+                    let sos = sos.clone();
 
-                if mime_type.to_lowercase().contains("audio") {
-                    // Audio track
-                    Box::pin({
-                        async move {
+                    match track.kind().await {
+                        RtpCodecKind::Audio => {
                             if let Some(audio_tx) = audio_tx_opt {
-                                sos.spawn(async move {
-                                    while let Ok((packet, _)) = track.read_rtp().await {
-                                        let payload = packet.payload.to_vec();
-                                        if payload.is_empty() {
-                                            continue;
-                                        }
-                                        let timestamp = packet.header.timestamp;
-                                        // Use try_send to avoid blocking the WebRTC track reader
-                                        if try_send(&audio_tx, (payload, timestamp)).is_closed() {
-                                            log::error!("Audio channel closed");
-                                            break;
-                                        }
-                                    }
-                                });
+                                spawn_audio_track_reader(sos, track, audio_tx);
                             } else {
-                                log::warn!("Audio track received but no audio channel registered");
+                                log::warn!(
+                                    "Audio track received but no audio channel registered"
+                                );
                             }
                         }
-                    })
-                } else {
-                    // Video track
-                    Box::pin({
-                        async move {
+                        RtpCodecKind::Video => {
                             if let Some(video_tx) = video_tx_opt {
-                                sos.spawn(async move {
-                                    log::info!("=== WEBRTC RECEIVER: Video track handler STARTED ===");
-                                    let mut packet_count = 0u64;
-                                    let mut last_log = std::time::Instant::now();
-
-                                    while let Ok((packet, _)) = track.read_rtp().await {
-                                        let payload = packet.payload.to_vec();
-                                        if payload.is_empty() {
-                                            continue;
-                                        }
-
-                                        packet_count += 1;
-                                        if packet_count == 1 {
-                                            log::info!("WEBRTC RECEIVER: First RTP packet received!");
-                                        }
-
-                                        // Log heartbeat
-                                        if last_log.elapsed().as_secs() >= 10 {
-                                            log::info!("WEBRTC RECEIVER: {} RTP packets read from track", packet_count);
-                                            last_log = std::time::Instant::now();
-                                        }
-
-                                        let marker = packet.header.marker;
-                                        let seq_num = packet.header.sequence_number;
-                                        let timestamp = packet.header.timestamp;
-                                        // Use try_send to avoid blocking the WebRTC track reader
-                                        match try_send(&video_tx, (payload, marker, seq_num, timestamp)) {
-                                            SendResult::Sent => {}
-                                            SendResult::Full => {
-                                                // Channel full, drop packet - better than blocking
-                                                log::warn!("WEBRTC RECEIVER: Video channel full, dropping RTP packet");
-                                            }
-                                            SendResult::Closed => {
-                                                log::error!("WEBRTC RECEIVER: Video channel closed");
-                                                break;
-                                            }
-                                        }
-                                    }
-
-                                    log::error!("=== WEBRTC RECEIVER: Video track read loop EXITED after {} packets ===", packet_count);
-                                });
+                                spawn_video_track_reader(sos, track, video_tx);
                             } else {
-                                log::warn!("Video track received but no video channel registered");
+                                log::warn!(
+                                    "Video track received but no video channel registered"
+                                );
                             }
                         }
-                    })
+                        _ => {
+                            log::warn!("Ignoring unsupported remote track kind");
+                        }
+                    }
                 }
-            }));
+            });
 
             self.peer.as_mut().replace(peer);
         }
@@ -179,19 +122,11 @@ impl WebRTCReceiver {
         Ok(())
     }
 
-    /// Register video and audio channels BEFORE connecting.
-    /// This must be called before connect() to ensure the on_track handler
-    /// is set up when the SDP negotiation happens.
     pub async fn receive_video(&self, video_tx: VideoPacketSender, audio_tx: AudioPacketSender) {
-        // Store channels so they're available when on_track fires
         *self.video_tx.as_mut() = Some(video_tx);
         *self.audio_tx.as_mut() = Some(audio_tx);
-
-        // Ensure peer is created with the on_track handler set up
-        // This is crucial - the handler must be registered BEFORE connection
         self.get_lazy_peer().await;
-
-        log::info!("WebRTCReceiver: Video and audio channels registered, on_track handler ready");
+        log::info!("WebRTCReceiver: channel registration complete");
     }
 
     pub async fn is_connected(&self) -> bool {
@@ -225,37 +160,77 @@ impl SDPICEExchangeWRTC for WebRTCReceiver {
         };
 
         let peer = self.get_lazy_peer().await;
-
         self.manual_handler.as_mut().replace(SDPICEExchange::new());
-
-        let exchanger_clone = Arw::clone(&self.manual_handler);
-        peer.get_connection()
-            .on_ice_candidate(Box::new(move |candidate| {
-                let exchanger_clone = Arw::clone(&exchanger_clone);
-                Box::pin(async move {
-                    if let Some(candidate) = candidate {
-                        exchanger_clone
-                            .as_mut()
-                            .as_mut()
-                            .unwrap()
-                            .add_ice_candidate(candidate);
-                    }
-                })
-            }));
 
         let res = peer
             .create_answer(exchanger_offer.get_sdp(), true)
             .await
             .is_ok();
 
-        if res {
+        if res
+            && let Some(local_sdp) = peer.get_connection().local_description().await
+        {
             self.manual_handler
                 .as_mut()
                 .as_mut()
                 .unwrap()
-                .set_sdp(peer.get_connection().local_description().await.unwrap());
+                .set_sdp(local_sdp);
         }
 
         res
     }
+}
+
+fn spawn_audio_track_reader(
+    sos: SignalOfStop,
+    track: Arc<dyn TrackRemote>,
+    audio_tx: AudioPacketSender,
+) {
+    sos.spawn(async move {
+        while let Some(event) = track.poll().await {
+            if let TrackRemoteEvent::OnRtpPacket(packet) = event {
+                let payload = packet.payload.to_vec();
+                if payload.is_empty() {
+                    continue;
+                }
+                let timestamp = packet.header.timestamp;
+                if try_send(&audio_tx, (payload, timestamp)).is_closed() {
+                    log::error!("Audio channel closed");
+                    break;
+                }
+            }
+        }
+    });
+}
+
+fn spawn_video_track_reader(
+    sos: SignalOfStop,
+    track: Arc<dyn TrackRemote>,
+    video_tx: VideoPacketSender,
+) {
+    sos.spawn(async move {
+        while let Some(event) = track.poll().await {
+            if let TrackRemoteEvent::OnRtpPacket(packet) = event {
+                let payload = packet.payload.to_vec();
+                if payload.is_empty() {
+                    continue;
+                }
+
+                let marker = packet.header.marker;
+                let seq_num = packet.header.sequence_number;
+                let timestamp = packet.header.timestamp;
+
+                match try_send(&video_tx, (payload, marker, seq_num, timestamp)) {
+                    SendResult::Sent => {}
+                    SendResult::Full => {
+                        log::warn!("WEBRTC RECEIVER: video channel full, dropping RTP packet");
+                    }
+                    SendResult::Closed => {
+                        log::error!("WEBRTC RECEIVER: video channel closed");
+                        break;
+                    }
+                }
+            }
+        }
+    });
 }

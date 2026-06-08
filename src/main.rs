@@ -1,3 +1,5 @@
+#![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
+
 use crate::config::{app_id, app_name, app_version};
 use crate::utils::flags::Flags;
 use clap::{Arg, Command};

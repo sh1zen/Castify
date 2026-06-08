@@ -85,16 +85,19 @@ pub struct EncodedFrame {
     pub timestamp_ms: u64,
 }
 
+pub type CaptureFpsController = Arc<dyn Fn(u32) + Send + Sync>;
+
 impl Capturer {
-    pub fn new(_fps: u32) -> Self {
+    pub fn new(fps: u32) -> Self {
         let display_capture =
             ScreenCaptureImpl::new_default().expect("Failed to create screen capture");
+        let initial_fps = fps.clamp(15, FRAME_RATE.max(15));
 
         let default_opts = CaptureOpts {
             blank_screen: false,
             crop: None,
             paused: false,
-            max_fps: FRAME_RATE,
+            max_fps: initial_fps,
         };
         let (opts_tx, opts_rx) = watch::channel(default_opts);
 
@@ -325,6 +328,19 @@ impl Capturer {
     pub fn set_crop(&self, rect: Option<CropRect>) {
         self.opts_tx.send_modify(|o| o.crop = rect);
         info!("Crop: {:?}", rect);
+    }
+
+    pub fn set_max_fps(&self, max_fps: u32) {
+        let max_fps = max_fps.clamp(15, FRAME_RATE.max(15));
+        self.opts_tx.send_modify(|o| o.max_fps = max_fps);
+    }
+
+    pub fn fps_controller(&self) -> CaptureFpsController {
+        let opts_tx = self.opts_tx.clone();
+        Arc::new(move |max_fps| {
+            let max_fps = max_fps.clamp(15, FRAME_RATE.max(15));
+            let _ = opts_tx.send_modify(|o| o.max_fps = max_fps);
+        })
     }
 
     // ── Display management ──────────────────────────────────────

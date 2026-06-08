@@ -8,7 +8,9 @@ fn main() {
         res.compile().unwrap_or_default();
 
         // Copia le DLL di FFmpeg nella cartella di output
-        let ffmpeg_bin = PathBuf::from("third_party/ffmpeg/bin");
+        let manifest_dir =
+            PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR missing"));
+        let ffmpeg_bin = manifest_dir.join("third_party/ffmpeg/bin");
         let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
         // OUT_DIR è tipo target/debug/build/<crate>/out, risaliamo a target/debug/
         let target_dir = out_dir
