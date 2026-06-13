@@ -22,6 +22,8 @@ use webrtc::peer_connection::{
 };
 
 static WRTC_PEER_UUID: Lazy<AtomicU32> = Lazy::new(|| AtomicU32::new(0));
+const VIDEO_PAYLOAD_TYPE: u8 = 102;
+const AUDIO_PAYLOAD_TYPE: u8 = 111;
 
 #[derive(Clone)]
 struct WRTCPeerHandler {
@@ -215,7 +217,7 @@ impl WRTCPeer {
         sample: &Sample,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         self.video_track
-            .sample_writer(self.video_ssrc)
+            .sample_writer(self.video_ssrc, VIDEO_PAYLOAD_TYPE)
             .write_sample(sample)
             .await?;
         Ok(())
@@ -226,7 +228,7 @@ impl WRTCPeer {
         sample: &Sample,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         self.audio_track
-            .sample_writer(self.audio_ssrc)
+            .sample_writer(self.audio_ssrc, AUDIO_PAYLOAD_TYPE)
             .write_sample(sample)
             .await?;
         Ok(())

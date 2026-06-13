@@ -83,7 +83,7 @@ impl Config {
             }),
             sos: SignalOfStop::new(),
             multi_instance: flags.multi_instance,
-            fps: 30,
+            fps: 60,
         };
 
         let public_ip = Arw::clone(&conf.public_ip);

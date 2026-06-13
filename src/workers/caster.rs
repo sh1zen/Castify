@@ -100,6 +100,9 @@ impl Caster {
 
         // Link the encoder's force_idr flag to the server so new peers trigger IDR
         self.server.set_force_idr(self.capturer.force_idr());
+        self.server
+            .get_handler()
+            .set_capture_fps_controller(self.capturer.fps_controller());
 
         // Avvia il server WebRTC e inoltra i frame
         Arc::clone(&self.server).run();

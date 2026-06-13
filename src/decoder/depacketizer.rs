@@ -34,6 +34,15 @@ impl H264Depacketizer {
         self.in_fua_fragment = false;
     }
 
+    /// Discard the currently buffered access unit without forgetting decoder sync.
+    ///
+    /// Use this when an RTP sequence gap is detected. The next complete AU may
+    /// still be decodable if it starts cleanly and we already decoded an IDR.
+    pub fn discard_current_au(&mut self) {
+        self.buffer.clear();
+        self.in_fua_fragment = false;
+    }
+
     /// Feed one RTP payload + marker bit.
     /// Returns `Some(access_unit)` when a complete access unit is ready.
     pub fn push(&mut self, payload: &[u8], marker: bool) -> Option<Vec<u8>> {

@@ -1,7 +1,7 @@
 use crate::utils::net::webrtc::manual::{SDPICEExchange, SDPICEExchangeWRTC};
 use crate::utils::net::webrtc::peer::WRTCPeer;
 use crate::utils::sos::SignalOfStop;
-use crate::utils::{SendResult, try_send};
+use crate::utils::try_send;
 use async_trait::async_trait;
 use async_tungstenite::WebSocketStream;
 use async_tungstenite::tokio::{ConnectStream, connect_async};
@@ -220,15 +220,13 @@ fn spawn_video_track_reader(
                 let seq_num = packet.header.sequence_number;
                 let timestamp = packet.header.timestamp;
 
-                match try_send(&video_tx, (payload, marker, seq_num, timestamp)) {
-                    SendResult::Sent => {}
-                    SendResult::Full => {
-                        log::warn!("WEBRTC RECEIVER: video channel full, dropping RTP packet");
-                    }
-                    SendResult::Closed => {
-                        log::error!("WEBRTC RECEIVER: video channel closed");
-                        break;
-                    }
+                if video_tx
+                    .send((payload, marker, seq_num, timestamp))
+                    .await
+                    .is_err()
+                {
+                    log::error!("WEBRTC RECEIVER: video channel closed");
+                    break;
                 }
             }
         }

@@ -19,7 +19,7 @@ use iced::{
     Point, Size, Subscription, Task,
     theme::Style,
     window,
-    window::{Id, Mode, Position, settings::PlatformSpecific},
+    window::{Id, Position, settings::PlatformSpecific},
 };
 use std::process::exit;
 use std::time::Duration;
@@ -207,7 +207,7 @@ impl App {
                         open_task
                             .discard()
                             .chain(window::gain_focus(id))
-                            .chain(window::set_mode(id, Mode::Fullscreen))
+                            .chain(window::set_mode(id, iced::window::Mode::Fullscreen))
                     }
                 } else {
                     Task::none()
@@ -271,7 +271,7 @@ impl App {
                         open_task
                             .discard()
                             .chain(window::gain_focus(id))
-                            .chain(window::set_mode(id, Mode::Fullscreen))
+                            .chain(window::set_mode(id, iced::window::Mode::Fullscreen))
                     }
                 } else {
                     Task::none()

@@ -20,31 +20,31 @@ const ENCODER_CHAIN: &[(&str, &[(&str, &str)])] = &[
     (
         "h264_nvenc",
         &[
-            ("preset", "p2"),       // Faster preset with better quality than p1
-            ("tune", "ll"),         // Low latency tuning (better quality than ull)
-            ("zerolatency", "1"),   // Zero latency operation
-            ("rc", "vbr"),          // Variable bitrate for quality
-            ("b", "3500000"),       // Target bitrate: 3.5 Mbps
-            ("maxrate", "5500000"), // Max bitrate: 5.5 Mbps
-            ("bufsize", "7000000"), // Buffer size: ~2x target
-            ("g", "60"),            // GOP size: 2 seconds at 30fps
-            ("gpu", "0"),           // Use first GPU
-            ("delay", "0"),         // Zero delay
-            ("forced-idr", "1"),    // Allow forced IDR frames
+            ("preset", "p1"),        // Fastest preset for real-time desktop capture
+            ("tune", "ll"),          // Low latency tuning (better quality than ull)
+            ("zerolatency", "1"),    // Zero latency operation
+            ("rc", "vbr"),           // Variable bitrate for quality
+            ("b", "8000000"),        // Target bitrate: 8 Mbps
+            ("maxrate", "14000000"), // Max bitrate: 14 Mbps
+            ("bufsize", "16000000"), // Buffer size: ~2x target
+            ("g", "120"),            // GOP size: ~2 seconds at 60fps
+            ("gpu", "0"),            // Use first GPU
+            ("delay", "0"),          // Zero delay
+            ("forced-idr", "1"),     // Allow forced IDR frames
         ],
     ),
     // Intel Quick Sync Video - Good for Intel iGPUs
     (
         "h264_qsv",
         &[
-            ("preset", "fast"),     // Faster preset with better quality
-            ("g", "60"),            // GOP size
-            ("b", "3000000"),       // Target bitrate
-            ("maxrate", "4500000"), // Max bitrate
-            ("bufsize", "6000000"), // Buffer size
-            ("low_power", "0"),     // Disable low power mode for better quality
-            ("async_depth", "4"),   // Increased async depth for better performance
-            ("look_ahead", "1"),    // Enable look-ahead for better quality
+            ("preset", "fast"),      // Faster preset with better quality
+            ("g", "120"),            // GOP size: ~2 seconds at 60fps
+            ("b", "8000000"),        // Target bitrate
+            ("maxrate", "14000000"), // Max bitrate
+            ("bufsize", "16000000"), // Buffer size
+            ("low_power", "0"),      // Disable low power mode for better quality
+            ("async_depth", "4"),    // Increased async depth for better performance
+            ("look_ahead", "1"),     // Enable look-ahead for better quality
         ],
     ),
     // AMD AMF - For AMD GPUs
@@ -53,11 +53,11 @@ const ENCODER_CHAIN: &[(&str, &[(&str, &str)])] = &[
         &[
             ("usage", "lowlatency"), // Low latency mode (better quality than ultralowlatency)
             ("quality", "balanced"), // Balanced quality and speed
-            ("b", "3000000"),        // Target bitrate
-            ("maxrate", "4500000"),  // Max bitrate
-            ("bufsize", "6000000"),  // Buffer size
+            ("b", "8000000"),        // Target bitrate
+            ("maxrate", "14000000"), // Max bitrate
+            ("bufsize", "16000000"), // Buffer size
             ("rc", "vbr_peak"),      // VBR with peak constraint
-            ("g", "60"),             // GOP size
+            ("g", "120"),            // GOP size: ~2 seconds at 60fps
             ("preanalysis", "1"),    // Enable pre-analysis for better quality
             ("frame_skipping", "0"), // No frame skipping
         ],
@@ -67,13 +67,15 @@ const ENCODER_CHAIN: &[(&str, &[(&str, &str)])] = &[
         "libx264",
         &[
             ("profile", "main"),     // Main profile for better quality
-            ("preset", "fast"),      // Faster preset with better quality than ultrafast
+            ("preset", "veryfast"),  // Keep CPU fallback responsive at 60fps
             ("tune", "zerolatency"), // Zero latency tuning
-            ("crf", "21"),           // Higher quality baseline
-            ("maxrate", "5000000"),  // Max 5 Mbps
-            ("bufsize", "8000000"),  // Buffer size
-            ("keyint", "60"),        // Keyframe every 2 seconds
-            ("min-keyint", "30"),    // Minimum 1 second between keyframes
+            ("crf", "19"),           // Higher quality baseline for desktop text/detail
+            // Do not set VBV maxrate/bufsize with CRF here. The software
+            // fallback is used when hardware encoders are unavailable, and a
+            // fixed VBV cap can trigger repeated "VBV underflow" warnings on
+            // detailed frames or desktop captures.
+            ("keyint", "120"),       // Keyframe every ~2 seconds at 60fps
+            ("min-keyint", "60"),    // Minimum 1 second between keyframes
             ("scenecut", "40"),      // Scene change detection
             ("threads", "0"),        // Auto-detect thread count
             ("sliced-threads", "1"), // Better for low latency

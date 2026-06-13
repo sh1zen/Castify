@@ -38,6 +38,26 @@ fn au_contains_idr_or_sps(au: &[u8]) -> bool {
     false
 }
 
+fn au_contains_idr(au: &[u8]) -> bool {
+    const START_CODE: &[u8] = &[0, 0, 0, 1];
+    let mut i = 0usize;
+    while i + 4 <= au.len() {
+        if &au[i..i + 4] == START_CODE {
+            let nal_start = i + 4;
+            if nal_start >= au.len() {
+                break;
+            }
+            if (au[nal_start] & 0x1F) == 5 {
+                return true;
+            }
+            i = nal_start;
+        } else {
+            i += 1;
+        }
+    }
+    false
+}
+
 pub struct Receiver {
     is_streaming: Arc<AtomicBool>,
     audio_muted: Arc<AtomicBool>,
@@ -125,8 +145,8 @@ impl Receiver {
         tokio::spawn(async move {
             // IMPORTANT: Set up receive channels BEFORE connecting
             // This ensures on_track handler is registered before SDP negotiation
-            // Increased RTP channel to 512 packets to handle network bursts
-            let (raw_tx, mut raw_rx) = mpsc::channel::<(Vec<u8>, bool, u16, u32)>(512);
+            // Keep enough RTP packets buffered for bursty H.264 frames.
+            let (raw_tx, mut raw_rx) = mpsc::channel::<(Vec<u8>, bool, u16, u32)>(4096);
             // Audio channel now includes RTP timestamp for proper timing
             let (audio_tx, mut audio_rx) = mpsc::channel::<(Vec<u8>, u32)>(1024);
 
@@ -182,11 +202,12 @@ impl Receiver {
                 let mut consecutive_failures: u32 = 0;
                 // Start rendering only after we received a keyframe (IDR) or SPS/PPS
                 let mut waiting_for_keyframe = true;
+                let mut stream_damaged = false;
                 // Track first RTP timestamp for proper timestamp normalization
                 let mut first_rtp_timestamp: Option<u32> = None;
 
-                const MAX_REORDERING: u16 = 30; // Maximum expected packet reordering
-                const MAX_BUFFER_SIZE: usize = 60; // Maximum buffered packets before cleanup (reduced from 200)
+                const MAX_REORDERING: u16 = 120; // Maximum expected packet reordering
+                const MAX_BUFFER_SIZE: usize = 512; // Maximum buffered packets before cleanup
                 // Buffer now stores: (payload, marker, rtp_timestamp)
                 let mut frame_buffer =
                     std::collections::HashMap::<u16, (Vec<u8>, bool, u32)>::new();
@@ -276,10 +297,26 @@ impl Receiver {
                         if let Some((data, marker_bit, rtp_ts)) = frame_buffer.remove(&exp) {
                             // Depacketize and reassemble frames
                             if let Some(h264_au) = depacketizer.push(&data, marker_bit) {
+                                let is_sync_au = au_contains_idr_or_sps(&h264_au);
+                                let is_idr_au = au_contains_idr(&h264_au);
+
+                                if stream_damaged {
+                                    if is_idr_au {
+                                        log::info!(
+                                            "Recovered H.264 stream after packet loss on IDR"
+                                        );
+                                        stream_damaged = false;
+                                        waiting_for_keyframe = false;
+                                        consecutive_failures = 0;
+                                    } else {
+                                        expected_seq = Some(exp.wrapping_add(1));
+                                        continue;
+                                    }
+                                }
+
                                 // Use RTP timestamp for proper timing
                                 // Initialize first timestamp on first keyframe
-                                if first_rtp_timestamp.is_none() && au_contains_idr_or_sps(&h264_au)
-                                {
+                                if first_rtp_timestamp.is_none() && is_sync_au {
                                     first_rtp_timestamp = Some(rtp_ts);
                                     // Send first video start instant to audio task for sync.
                                     // Audio and video RTP clocks are independent, so use a shared local origin.
@@ -303,7 +340,7 @@ impl Receiver {
                                 // If we're waiting for a keyframe, skip non-key AUs to avoid
                                 // showing partial/garbled frames at stream start.
                                 if waiting_for_keyframe {
-                                    if au_contains_idr_or_sps(&h264_au) {
+                                    if is_idr_au {
                                         waiting_for_keyframe = false;
                                     } else {
                                         // still waiting, skip decode/display
@@ -326,8 +363,7 @@ impl Receiver {
                                 // Decode H.264 → packed YUV420p (GPU converts to RGB)
                                 if let Some((yuv, w, h)) = decoder.decode(&h264_au) {
                                     consecutive_failures = 0;
-                                    let is_key = au_contains_idr_or_sps(&h264_au);
-                                    health_video.record_frame(yuv.len(), is_key);
+                                    health_video.record_frame(yuv.len(), is_sync_au);
                                     let frame = VideoFrame {
                                         data: yuv,
                                         width: w as u32,
@@ -357,8 +393,16 @@ impl Receiver {
                                             "10 consecutive decode failures, resetting depacketizer (waiting for IDR)"
                                         );
                                         depacketizer.reset();
+                                        decoder = match FfmpegDecoder::new() {
+                                            Ok(d) => d,
+                                            Err(e) => {
+                                                error!("Failed to recreate H.264 decoder: {}", e);
+                                                return;
+                                            }
+                                        };
                                         consecutive_failures = 0;
                                         waiting_for_keyframe = true;
+                                        stream_damaged = false;
                                     }
                                 }
                             }
@@ -380,13 +424,24 @@ impl Receiver {
                             } else if diff > MAX_REORDERING && diff < (u16::MAX - MAX_REORDERING) {
                                 // Packet lost or severely delayed - skip it
                                 log::warn!(
-                                    "Packet lost or delayed: expected {}, got {} (diff={})",
+                                    "Packet lost or delayed: expected {}, got {} (diff={}); dropping damaged H.264 state until next keyframe",
                                     exp,
                                     seq_num,
                                     diff
                                 );
-                                expected_seq = Some(exp.wrapping_add(1));
-                                // Continue to try next sequence number
+                                depacketizer.discard_current_au();
+                                decoder = match FfmpegDecoder::new() {
+                                    Ok(d) => d,
+                                    Err(e) => {
+                                        error!("Failed to recreate H.264 decoder: {}", e);
+                                        return;
+                                    }
+                                };
+                                waiting_for_keyframe = true;
+                                stream_damaged = true;
+                                consecutive_failures = 0;
+                                expected_seq = Some(seq_num);
+                                // Continue from the first packet after the detected gap.
                             } else {
                                 // seq_num is behind expected (wrapped or delayed) - shouldn't happen normally
                                 break;

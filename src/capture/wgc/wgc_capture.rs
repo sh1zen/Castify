@@ -142,8 +142,12 @@ impl ScreenCapture for WGCScreenCapture {
 
             loop {
                 select! {
-                    Some(frame) = receiver.recv() => {
+                    Some(mut frame) = receiver.recv() => {
                         frame_count += 1;
+                        while let Ok(newer_frame) = receiver.try_recv() {
+                            frame = newer_frame;
+                            stats.frames_skipped.fetch_add(1, Ordering::Relaxed);
+                        }
 
                         // Log heartbeat every 5 seconds
                         if last_frame_log.elapsed().as_secs() >= 5 {
